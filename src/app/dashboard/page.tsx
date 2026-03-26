@@ -54,7 +54,7 @@ export default function Dashboard() {
   if (status === "loading" || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-xl text-gray-600">Loading...</div>
+        <div className="text-xl text-gray-600">טוען...</div>
       </div>
     );
   }
@@ -65,14 +65,14 @@ export default function Dashboard() {
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+            <h1 className="text-3xl font-bold text-gray-900">לוח בקרה</h1>
             <div className="flex items-center gap-4">
               <span className="text-gray-700">{session?.user?.name}</span>
               <Link
                 href="/api/auth/signout"
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
               >
-                Sign Out
+                התנתקות
               </Link>
             </div>
           </div>
@@ -84,19 +84,19 @@ export default function Dashboard() {
         {/* Stats Section */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-gray-600 text-sm font-medium">Total Properties</div>
+            <div className="text-gray-600 text-sm font-medium">סה"כ נכסים</div>
             <div className="text-3xl font-bold text-gray-900">{properties.length}</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-gray-600 text-sm font-medium">Active Tenants</div>
+            <div className="text-gray-600 text-sm font-medium">דיירים פעילים</div>
             <div className="text-3xl font-bold text-gray-900">--</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-gray-600 text-sm font-medium">Monthly Revenue</div>
+            <div className="text-gray-600 text-sm font-medium">הכנסה חודשית</div>
             <div className="text-3xl font-bold text-gray-900">--</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-gray-600 text-sm font-medium">Pending Payments</div>
+            <div className="text-gray-600 text-sm font-medium">תשלומים ממתינים</div>
             <div className="text-3xl font-bold text-gray-900">--</div>
           </div>
         </div>
@@ -104,23 +104,23 @@ export default function Dashboard() {
         {/* Properties Section */}
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900">Your Properties</h2>
+            <h2 className="text-xl font-semibold text-gray-900">הנכסים שלך</h2>
             <Link
               href="/dashboard/properties/new"
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
-              + Add Property
+              + הוסף נכס
             </Link>
           </div>
 
           {properties.length === 0 ? (
             <div className="px-6 py-12 text-center">
-              <p className="text-gray-600 mb-4">No properties yet. Create one to get started!</p>
+              <p className="text-gray-600 mb-4">עדיין אין נכסים. צור אחד כדי להתחיל!</p>
               <Link
                 href="/dashboard/properties/new"
                 className="inline-block px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
-                Create Your First Property
+                צור את הנכס הראשון שלך
               </Link>
             </div>
           ) : (
@@ -128,10 +128,10 @@ export default function Dashboard() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-t border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Title</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Address</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">City</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">שם הנכס</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">כתובת</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">עיר</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">פעולות</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -145,7 +145,7 @@ export default function Dashboard() {
                           href={`/dashboard/properties/${property.id}`}
                           className="text-blue-600 hover:text-blue-800 font-semibold"
                         >
-                          View
+                          צפה
                         </Link>
                       </td>
                     </tr>

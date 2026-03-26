@@ -80,7 +80,7 @@ export default function PropertyDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-xl text-gray-600">Loading...</div>
+        <div className="text-xl text-gray-600">טוען...</div>
       </div>
     );
   }
@@ -90,17 +90,17 @@ export default function PropertyDetailPage() {
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white shadow">
           <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-            <h1 className="text-3xl font-bold text-gray-900">Property Details</h1>
+            <h1 className="text-3xl font-bold text-gray-900">פרטי נכס</h1>
           </div>
         </header>
         <main className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
           <div className="bg-white rounded-lg shadow p-8 text-center">
-            <p className="text-red-600 text-lg mb-4">{error || "Property not found"}</p>
+            <p className="text-red-600 text-lg mb-4">{error || "הנכס לא נמצא"}</p>
             <Link
               href="/dashboard"
               className="text-blue-600 hover:text-blue-800 font-semibold"
             >
-              Back to Dashboard
+              חזרה ללוח הבקרה
             </Link>
           </div>
         </main>
@@ -134,19 +134,19 @@ export default function PropertyDetailPage() {
                 href={`/dashboard/properties/${property.id}/edit`}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold"
               >
-                Edit
+                עריכה
               </Link>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-semibold"
               >
-                Delete
+                מחיקה
               </button>
               <Link
                 href="/dashboard"
                 className="px-4 py-2 bg-gray-300 text-gray-900 rounded hover:bg-gray-400 font-semibold"
               >
-                Back
+                חזרה
               </Link>
             </div>
           </div>
@@ -160,23 +160,23 @@ export default function PropertyDetailPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-lg p-8 max-w-md">
               <h3 className="text-xl font-bold text-gray-900 mb-4">
-                Delete Property
+                מחיקת נכס
               </h3>
               <p className="text-gray-600 mb-6">
-                Are you sure you want to delete this property? This action cannot be undone.
+                האם אתה בטוח שברצונך למחוק את הנכס? פעולה זו אינה הפיכה.
               </p>
               <div className="flex gap-4">
                 <button
                   onClick={handleDelete}
                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-semibold"
                 >
-                  Delete
+                  מחק
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
                   className="flex-1 px-4 py-2 bg-gray-300 text-gray-900 rounded hover:bg-gray-400 font-semibold"
                 >
-                  Cancel
+                  ביטול
                 </button>
               </div>
             </div>
@@ -186,23 +186,23 @@ export default function PropertyDetailPage() {
         {/* Property Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-gray-600 text-sm font-medium">Type</div>
+            <div className="text-gray-600 text-sm font-medium">סוג</div>
             <div className="text-2xl font-bold text-gray-900">{property.propertyType}</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-gray-600 text-sm font-medium">Monthly Rent</div>
+            <div className="text-gray-600 text-sm font-medium">שכירות חודשית</div>
             <div className="text-2xl font-bold text-gray-900">
-              ${monthlyRent.toLocaleString()}
+              ₪{monthlyRent.toLocaleString()}
             </div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-gray-600 text-sm font-medium">Total Expenses</div>
+            <div className="text-gray-600 text-sm font-medium">סה"כ הוצאות</div>
             <div className="text-2xl font-bold text-gray-900">
-              ${totalExpenses.toLocaleString()}
+              ₪{totalExpenses.toLocaleString()}
             </div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-gray-600 text-sm font-medium">Active Leases</div>
+            <div className="text-gray-600 text-sm font-medium">חוזים פעילים</div>
             <div className="text-2xl font-bold text-gray-900">
               {property.leases.filter((l: any) => l.status === "active").length}
             </div>
@@ -212,49 +212,49 @@ export default function PropertyDetailPage() {
         {/* Property Details */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="md:col-span-2 bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Details</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">פרטים</h2>
             <dl className="space-y-4">
               <div>
-                <dt className="text-gray-600 font-semibold">Address</dt>
+                <dt className="text-gray-600 font-semibold">כתובת</dt>
                 <dd className="text-gray-900">{property.address}</dd>
               </div>
               <div>
-                <dt className="text-gray-600 font-semibold">City</dt>
+                <dt className="text-gray-600 font-semibold">עיר</dt>
                 <dd className="text-gray-900">{property.city}</dd>
               </div>
               {property.zipCode && (
                 <div>
-                  <dt className="text-gray-600 font-semibold">ZIP Code</dt>
+                  <dt className="text-gray-600 font-semibold">מיקוד</dt>
                   <dd className="text-gray-900">{property.zipCode}</dd>
                 </div>
               )}
               {property.bedrooms && (
                 <div>
-                  <dt className="text-gray-600 font-semibold">Bedrooms</dt>
+                  <dt className="text-gray-600 font-semibold">חדרי שינה</dt>
                   <dd className="text-gray-900">{property.bedrooms}</dd>
                 </div>
               )}
               {property.bathrooms && (
                 <div>
-                  <dt className="text-gray-600 font-semibold">Bathrooms</dt>
+                  <dt className="text-gray-600 font-semibold">חדרי אמבטיה</dt>
                   <dd className="text-gray-900">{property.bathrooms}</dd>
                 </div>
               )}
               {property.squareMeters && (
                 <div>
-                  <dt className="text-gray-600 font-semibold">Square Meters</dt>
+                  <dt className="text-gray-600 font-semibold">מטרים רבועים</dt>
                   <dd className="text-gray-900">{property.squareMeters}</dd>
                 </div>
               )}
               {property.purchasePrice && (
                 <div>
-                  <dt className="text-gray-600 font-semibold">Purchase Price</dt>
-                  <dd className="text-gray-900">${property.purchasePrice.toLocaleString()}</dd>
+                  <dt className="text-gray-600 font-semibold">מחיר רכישה</dt>
+                  <dd className="text-gray-900">₪{property.purchasePrice.toLocaleString()}</dd>
                 </div>
               )}
               {property.description && (
                 <div>
-                  <dt className="text-gray-600 font-semibold">Description</dt>
+                  <dt className="text-gray-600 font-semibold">תיאור</dt>
                   <dd className="text-gray-900">{property.description}</dd>
                 </div>
               )}
@@ -262,37 +262,37 @@ export default function PropertyDetailPage() {
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Links</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">קישורים מהירים</h2>
             <div className="space-y-2">
               <Link
                 href={`/dashboard/properties/${property.id}/leases`}
                 className="block px-4 py-2 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 font-semibold"
               >
-                View Leases
+                צפה בחוזים
               </Link>
               <Link
                 href={`/dashboard/properties/${property.id}/expenses`}
                 className="block px-4 py-2 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 font-semibold"
               >
-                View Expenses
+                צפה בהוצאות
               </Link>
               <Link
                 href={`/dashboard/properties/${property.id}/payments`}
                 className="block px-4 py-2 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 font-semibold"
               >
-                View Payments
+                צפה בתשלומים
               </Link>
               <Link
                 href={`/dashboard/properties/${property.id}/add-lease`}
                 className="block px-4 py-2 bg-green-50 text-green-600 rounded hover:bg-green-100 font-semibold"
               >
-                + Add Lease
+                + הוסף חוזה
               </Link>
               <Link
                 href={`/dashboard/properties/${property.id}/add-expense`}
                 className="block px-4 py-2 bg-green-50 text-green-600 rounded hover:bg-green-100 font-semibold"
               >
-                + Add Expense
+                + הוסף הוצאה
               </Link>
             </div>
           </div>
@@ -301,22 +301,22 @@ export default function PropertyDetailPage() {
         {/* Leases Section */}
         <div className="bg-white rounded-lg shadow overflow-hidden mb-8">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Leases</h2>
+            <h2 className="text-xl font-bold text-gray-900">חוזים</h2>
           </div>
           {property.leases.length === 0 ? (
             <div className="px-6 py-12 text-center text-gray-600">
-              No leases yet. <Link href={`/dashboard/properties/${property.id}/add-lease`} className="text-blue-600 hover:underline">Add one</Link>
+              אין חוזים עדיין. <Link href={`/dashboard/properties/${property.id}/add-lease`} className="text-blue-600 hover:underline">הוסף אחד</Link>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-t border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Tenant</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Start Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">End Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Rent</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">דייר</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">תאריך התחלה</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">תאריך סיום</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">שכירות</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">סטטוס</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -329,7 +329,7 @@ export default function PropertyDetailPage() {
                       <td className="px-6 py-4 text-gray-600">
                         {new Date(lease.endDate).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 text-gray-900">${lease.monthlyRent}</td>
+                      <td className="px-6 py-4 text-gray-900">₪{lease.monthlyRent}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
                           lease.status === "active"

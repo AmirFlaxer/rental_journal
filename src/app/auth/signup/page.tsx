@@ -61,7 +61,7 @@ export default function SignUp() {
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
         <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-          Create Account
+          יצירת חשבון
         </h1>
 
         {error && (
@@ -73,7 +73,7 @@ export default function SignUp() {
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label htmlFor="name" className="block text-gray-700 font-semibold mb-2">
-              Full Name
+              שם מלא
             </label>
             <input
               id="name"
@@ -82,13 +82,13 @@ export default function SignUp() {
               onChange={(e) => setName(e.target.value)}
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="John Doe"
+              placeholder="ישראל ישראלי"
             />
           </div>
 
           <div className="mb-4">
             <label htmlFor="email" className="block text-gray-700 font-semibold mb-2">
-              Email
+              אימייל
             </label>
             <input
               id="email"
@@ -103,7 +103,7 @@ export default function SignUp() {
 
           <div className="mb-4">
             <label htmlFor="password" className="block text-gray-700 font-semibold mb-2">
-              Password
+              סיסמה
             </label>
             <input
               id="password"
@@ -118,7 +118,7 @@ export default function SignUp() {
 
           <div className="mb-6">
             <label htmlFor="confirmPassword" className="block text-gray-700 font-semibold mb-2">
-              Confirm Password
+              אימות סיסמה
             </label>
             <input
               id="confirmPassword"
@@ -136,14 +136,14 @@ export default function SignUp() {
             disabled={isLoading}
             className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition"
           >
-            {isLoading ? "Creating account..." : "Sign Up"}
+            {isLoading ? "יוצר חשבון..." : "הרשמה"}
           </button>
         </form>
 
         <p className="text-center text-gray-600 mt-4">
-          Already have an account?{" "}
+          כבר יש לך חשבון?{" "}
           <Link href="/auth/signin" className="text-blue-600 hover:underline font-semibold">
-            Sign in
+            התחברות
           </Link>
         </p>
       </div>

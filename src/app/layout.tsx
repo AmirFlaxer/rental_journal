@@ -1,21 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Heebo } from "next/font/google";
 import { AuthProvider } from "@/components/auth-provider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const heebo = Heebo({
+  variable: "--font-heebo",
+  subsets: ["hebrew", "latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Property Rental Manager",
-  description: "Manage your rental properties with ease",
+  title: "מנהל נכסים להשכרה",
+  description: "נהל את נכסי ההשכרה שלך בקלות",
 };
 
 export default function RootLayout({
@@ -25,8 +20,10 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      lang="he"
+      dir="rtl"
+      className={`${heebo.variable} h-full antialiased`}
+      style={{ fontFamily: "var(--font-heebo)" }}
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>

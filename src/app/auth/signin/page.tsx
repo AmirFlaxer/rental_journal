@@ -40,7 +40,7 @@ export default function SignIn() {
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
         <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-          Sign In
+          התחברות
         </h1>
 
         {error && (
@@ -52,7 +52,7 @@ export default function SignIn() {
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label htmlFor="email" className="block text-gray-700 font-semibold mb-2">
-              Email
+              אימייל
             </label>
             <input
               id="email"
@@ -67,7 +67,7 @@ export default function SignIn() {
 
           <div className="mb-6">
             <label htmlFor="password" className="block text-gray-700 font-semibold mb-2">
-              Password
+              סיסמה
             </label>
             <input
               id="password"
@@ -85,14 +85,14 @@ export default function SignIn() {
             disabled={isLoading}
             className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition"
           >
-            {isLoading ? "Signing in..." : "Sign In"}
+            {isLoading ? "מתחבר..." : "התחבר"}
           </button>
         </form>
 
         <p className="text-center text-gray-600 mt-4">
-          Don't have an account?{" "}
+          אין לך חשבון?{" "}
           <Link href="/auth/signup" className="text-blue-600 hover:underline font-semibold">
-            Sign up
+            הרשמה
           </Link>
         </p>
       </div>

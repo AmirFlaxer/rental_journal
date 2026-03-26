@@ -27,6 +27,10 @@ export const propertySchema = z.object({
   bedrooms: z.number().int().positive().optional(),
   bathrooms: z.number().int().positive().optional(),
   squareMeters: z.number().positive().optional(),
+  floor: z.number().int().min(0).optional(),
+  apartmentNumber: z.string().optional(),
+  numBalconies: z.number().int().min(0).optional(),
+  balconySqm: z.number().positive().optional(),
   purchasePrice: z.number().positive().optional(),
 });
 
