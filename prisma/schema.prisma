@@ -1,0 +1,209 @@
+// Property Rental Management System - Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Model - Property Owner/Manager
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String
+  image         String?
+  phone         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  properties    Property[]
+  tenants       Tenant[]
+  leases        Lease[]
+  expenses      Expense[]
+  payments      Payment[]
+  tasks         Task[]
+
+  @@map("users")
+}
+
+// Property Model - Rental Property
+model Property {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title         String    // e.g., "דירה בתל אביב, רחוב המלך 10"
+  description   String?
+  address       String
+  city          String
+  zipCode       String?
+  country       String    @default("Israel")
+  
+  propertyType  String    // Apartment, House, Commercial
+  bedrooms      Int?
+  bathrooms     Int?
+  squareMeters  Float?
+  
+  purchasePrice Float?
+  mortgageInfo  String?   // Mortgage details
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  leases        Lease[]
+  expenses      Expense[]
+  payments      Payment[]
+
+  @@unique([userId, id])
+  @@map("properties")
+}
+
+// Tenant Model - People Renting the Property
+model Tenant {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  firstName     String
+  lastName      String
+  email         String?
+  phone         String?
+  idNumber      String?   // Israeli ID
+  nationality   String?
+  
+  address       String?   // Current address
+  employmentInfo String?  // Job details
+  emergencyContact String?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  leases        Lease[]
+
+  @@map("tenants")
+}
+
+// Lease Model - Rental Agreement
+model Lease {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  propertyId    String
+  property      Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  startDate     DateTime
+  endDate       DateTime
+  renewalDate   DateTime? // Next renewal date
+  
+  monthlyRent   Float
+  depositAmount Float?
+  leaseTerm     Int       // In months
+  
+  terms         String?   // Additional terms/conditions
+  status        String    @default("active") // active, ended, paused
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  payments      Payment[]
+
+  @@unique([propertyId, tenantId, startDate])
+  @@map("leases")
+}
+
+// Expense Model - Property Maintenance & Operating Costs
+model Expense {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  propertyId    String
+  property      Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  category      String    // Maintenance, Insurance, Tax, Utilities, Professional Fees, Other
+  description   String
+  amount        Float
+  
+  date          DateTime  @default(now())
+  dueDate       DateTime? // For recurring expenses
+  invoiceNumber String?
+  vendorName    String?
+  
+  recurring     Boolean   @default(false)
+  recurringFreq String?   // monthly, quarterly, yearly
+  
+  notes         String?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("expenses")
+}
+
+// Payment Model - Rent & Other Payments
+model Payment {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  propertyId    String
+  property      Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  leaseId       String?
+  lease         Lease?    @relation(fields: [leaseId], references: [id])
+  
+  paymentType   String    // Rent, Deposit, Return, Other
+  amount        Float
+  
+  dueDate       DateTime
+  paidDate      DateTime?
+  status        String    @default("pending") // pending, paid, overdue, partial
+  
+  method        String?   // Cash, Check, Bank Transfer, Credit Card
+  referenceNum  String?   // Bank transaction or check number
+  
+  notes         String?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("payments")
+}
+
+// Task/Reminder Model - For alerts and reminders
+model Task {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title         String
+  description   String?
+  category      String    // Insurance, Rent Collection, Lease Renewal, Maintenance, Tax, Other
+  
+  dueDate       DateTime
+  completedAt   DateTime?
+  
+  priority      String    @default("normal") // low, normal, high
+  status        String    @default("pending") // pending, in-progress, completed
+  
+  relatedEntityType String? // Property, Lease, Tenant
+  relatedEntityId String?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("tasks")
+}
