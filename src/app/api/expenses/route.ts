@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { propertySchema } from "@/lib/validations";
+import { expenseSchema } from "@/lib/validations";
 import { z } from "zod";
 
 export async function GET(request: NextRequest) {
@@ -15,15 +15,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const properties = await prisma.property.findMany({
+    const expenses = await prisma.expense.findMany({
       where: { userId: session.user.id },
-      orderBy: { createdAt: "desc" },
+      include: {
+        property: true,
+      },
+      orderBy: { date: "desc" },
     });
 
-    return NextResponse.json(properties);
+    return NextResponse.json(expenses);
   } catch (error) {
     return NextResponse.json(
-      { error: "Failed to fetch properties" },
+      { error: "Failed to fetch expenses" },
       { status: 500 }
     );
   }
@@ -41,16 +44,31 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const data = propertySchema.parse(body);
+    const data = expenseSchema.parse(body);
 
-    const property = await prisma.property.create({
+    // Verify property belongs to user
+    const property = await prisma.property.findUnique({
+      where: { id: data.propertyId },
+    });
+
+    if (!property || property.userId !== session.user.id) {
+      return NextResponse.json(
+        { error: "Property not found or unauthorized" },
+        { status: 404 }
+      );
+    }
+
+    const expense = await prisma.expense.create({
       data: {
         ...data,
         userId: session.user.id,
       },
+      include: {
+        property: true,
+      },
     });
 
-    return NextResponse.json(property, { status: 201 });
+    return NextResponse.json(expense, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -60,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: "Failed to create property" },
+      { error: "Failed to create expense" },
       { status: 500 }
     );
   }

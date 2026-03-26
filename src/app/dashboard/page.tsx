@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -10,6 +10,8 @@ interface Property {
   title: string;
   address: string;
   city: string;
+  bedrooms?: number;
+  bathrooms?: number;
 }
 
 export default function Dashboard() {
@@ -17,6 +19,7 @@ export default function Dashboard() {
   const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -27,22 +30,26 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchProperties = async () => {
       try {
+        setIsLoading(true);
         const response = await fetch("/api/properties");
         if (response.ok) {
           const data = await response.json();
           setProperties(data);
+        } else {
+          setError("Failed to load properties");
         }
-      } catch (error) {
-        console.error("Failed to fetch properties:", error);
+      } catch (err) {
+        setError("An error occurred while loading properties");
+        console.error("Failed to fetch properties:", err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (session) {
+    if (session?.user?.id) {
       fetchProperties();
     }
-  }, [session]);
+  }, [session?.user?.id]);
 
   if (status === "loading" || isLoading) {
     return (

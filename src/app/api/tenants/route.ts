@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { propertySchema } from "@/lib/validations";
+import { tenantSchema } from "@/lib/validations";
 import { z } from "zod";
 
 export async function GET(request: NextRequest) {
@@ -15,15 +15,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const properties = await prisma.property.findMany({
+    const tenants = await prisma.tenant.findMany({
       where: { userId: session.user.id },
+      include: {
+        leases: true,
+      },
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(properties);
+    return NextResponse.json(tenants);
   } catch (error) {
     return NextResponse.json(
-      { error: "Failed to fetch properties" },
+      { error: "Failed to fetch tenants" },
       { status: 500 }
     );
   }
@@ -41,16 +44,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const data = propertySchema.parse(body);
+    const data = tenantSchema.parse(body);
 
-    const property = await prisma.property.create({
+    const tenant = await prisma.tenant.create({
       data: {
         ...data,
         userId: session.user.id,
       },
     });
 
-    return NextResponse.json(property, { status: 201 });
+    return NextResponse.json(tenant, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -60,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: "Failed to create property" },
+      { error: "Failed to create tenant" },
       { status: 500 }
     );
   }

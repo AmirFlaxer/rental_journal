@@ -3,10 +3,15 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 export default async function Home() {
-  const session = await auth();
+  try {
+    const session = await auth();
 
-  if (session) {
-    redirect("/dashboard");
+    if (session) {
+      redirect("/dashboard");
+    }
+  } catch (error) {
+    // Auth error during prerendering - continue with public page
+    console.error("Auth error:", error);
   }
 
   return (
