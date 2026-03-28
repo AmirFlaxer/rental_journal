@@ -3,23 +3,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 export default async function Home() {
-  try {
-    // Call auth function with proper error handling
-    const authFunction = getAuth;
-    
-    if (typeof authFunction !== 'function') {
-      console.error('Auth is not a function:', authFunction);
-      // Continue with public page if auth is not available
-    } else {
-      const session = await authFunction();
-
-      if (session) {
-        redirect("/dashboard");
-      }
-    }
-  } catch (error) {
-    // Auth error during prerendering - continue with public page
-    console.error("Auth error:", error);
+  const session = await getAuth();
+  if (session) {
+    redirect("/dashboard");
   }
 
   return (
@@ -29,7 +15,7 @@ export default async function Home() {
           מנהל נכסים להשכרה
         </h1>
         <p className="text-xl text-gray-600 mb-8">
-          נהל את נכסי ההשכרה שלך בקלות. עקוב אחר דיירים, תשלומים, הוצאות ועוד.
+          נהל את נכסי ההשכרה שלך בקלות. עקוב אחר דיירים, תקבולים, הוצאות ועוד.
         </p>
 
         <div className="flex gap-4 justify-center flex-wrap">

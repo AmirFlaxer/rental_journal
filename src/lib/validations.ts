@@ -19,19 +19,20 @@ export const signInSchema = z.object({
 // Property Validations
 export const propertySchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
-  description: z.string().optional(),
-  address: z.string().min(3, "Address is required"),
+  description: z.string().nullish(),
+  address: z.string().min(2, "Address is required"),
+  houseNumber: z.string().nullish(),
   city: z.string().min(2, "City is required"),
-  zipCode: z.string().optional(),
+  zipCode: z.string().nullish(),
   propertyType: z.enum(["Apartment", "House", "Commercial"]),
-  bedrooms: z.number().int().positive().optional(),
-  bathrooms: z.number().int().positive().optional(),
-  squareMeters: z.number().positive().optional(),
-  floor: z.number().int().min(0).optional(),
-  apartmentNumber: z.string().optional(),
-  numBalconies: z.number().int().min(0).optional(),
-  balconySqm: z.number().positive().optional(),
-  purchasePrice: z.number().positive().optional(),
+  bedrooms: z.number().int().min(0).nullish(),
+  bathrooms: z.number().int().min(0).nullish(),
+  squareMeters: z.number().min(0).nullish(),
+  floor: z.number().int().min(0).nullish(),
+  apartmentNumber: z.string().nullish(),
+  numBalconies: z.number().int().min(0).nullish(),
+  numParkingSpots: z.number().int().min(0).nullish(),
+  purchasePrice: z.number().min(0).nullish(),
 });
 
 // Tenant Validations
@@ -50,9 +51,20 @@ export const leaseSchema = z.object({
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   monthlyRent: z.number().positive("Rent must be positive"),
-  depositAmount: z.number().positive().optional(),
+  depositAmount: z.number().min(0).nullish(),
   leaseTerm: z.number().int().positive("Lease term must be positive"),
-  terms: z.string().optional(),
+  terms: z.string().nullish(),
+  status: z.enum(["active", "ended", "paused"]).nullish(),
+  hasOption: z.boolean().nullish(),
+  optionMonths: z.number().int().positive().nullish(),
+  optionRent: z.number().positive().nullish(),
+  optionStart: z.coerce.date().nullish(),
+  optionEnd: z.coerce.date().nullish(),
+  optionTerms: z.string().nullish(),
+  earlyTermProtection: z.boolean().nullish(),
+  tenantNoticeMonths: z.number().int().min(1).nullish(),
+  landlordNoticeMonths: z.number().int().min(1).nullish(),
+  paymentMethod: z.string().nullish(),
 });
 
 // Expense Validations
@@ -62,7 +74,11 @@ export const expenseSchema = z.object({
   description: z.string().min(3, "Description is required"),
   amount: z.number().positive("Amount must be positive"),
   vendorName: z.string().optional(),
+  date: z.coerce.date().optional(),
   recurring: z.boolean().optional(),
+  recurringFreq: z.enum(["monthly", "bi-monthly", "quarterly", "yearly"]).optional(),
+  paidBy: z.enum(["landlord", "tenant"]).optional(),
+  notes: z.string().nullish(),
 });
 
 // Payment Validations
@@ -72,9 +88,11 @@ export const paymentSchema = z.object({
   paymentType: z.enum(["Rent", "Deposit", "Return", "Other"]),
   amount: z.number().positive("Amount must be positive"),
   dueDate: z.coerce.date(),
-  paidDate: z.coerce.date().optional(),
+  paidDate: z.coerce.date().nullish(),
   method: z.string().optional(),
   referenceNum: z.string().optional(),
+  notes: z.string().optional(),
+  status: z.enum(["paid", "pending", "overdue"]).optional(),
 });
 
 // Task Validations

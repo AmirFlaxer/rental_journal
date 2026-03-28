@@ -1,101 +1,65 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
+import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { paymentSchema } from "@/lib/validations";
 import { z } from "zod";
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("payments")
+    .select("*, property:properties(*), lease:leases(*)")
+    .eq("user_id", session.user.id)
+    .order("due_date", { ascending: false });
 
-    const payments = await prisma.payment.findMany({
-      where: { userId: session.user.id },
-      include: {
-        property: true,
-        lease: true,
-      },
-      orderBy: { dueDate: "desc" },
-    });
-
-    return NextResponse.json(payments);
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to fetch payments" },
-      { status: 500 }
-    );
-  }
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(camelKeys(data));
 }
 
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
     const data = paymentSchema.parse(body);
 
-    // Verify property belongs to user
-    const property = await prisma.property.findUnique({
-      where: { id: data.propertyId },
-    });
+    const supabase = await createClient();
 
-    if (!property || property.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Property not found or unauthorized" },
-        { status: 404 }
-      );
-    }
+    const { data: property } = await supabase
+      .from("properties")
+      .select("id")
+      .eq("id", data.propertyId)
+      .eq("user_id", session.user.id)
+      .single();
 
-    // If leaseId is provided, verify it belongs to user
+    if (!property) return NextResponse.json({ error: "Property not found or unauthorized" }, { status: 404 });
+
     if (data.leaseId) {
-      const lease = await prisma.lease.findUnique({
-        where: { id: data.leaseId },
-      });
-
-      if (!lease || lease.userId !== session.user.id) {
-        return NextResponse.json(
-          { error: "Lease not found or unauthorized" },
-          { status: 404 }
-        );
-      }
+      const { data: lease } = await supabase
+        .from("leases")
+        .select("id")
+        .eq("id", data.leaseId)
+        .eq("user_id", session.user.id)
+        .single();
+      if (!lease) return NextResponse.json({ error: "Lease not found or unauthorized" }, { status: 404 });
     }
 
-    const payment = await prisma.payment.create({
-      data: {
-        ...data,
-        userId: session.user.id,
-      },
-      include: {
-        property: true,
-        lease: true,
-      },
-    });
+    const { data: row, error } = await supabase
+      .from("payments")
+      .insert({ ...(snakeKeys(data) as object), user_id: session.user.id })
+      .select("*, property:properties(*), lease:leases(*)")
+      .single();
 
-    return NextResponse.json(payment, { status: 201 });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(camelKeys(row), { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.flatten() },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: "Failed to create payment" },
-      { status: 500 }
-    );
+    if (error instanceof z.ZodError)
+      return NextResponse.json({ error: "Validation failed", details: error.flatten() }, { status: 400 });
+    return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
   }
 }

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 
 export default function SignIn() {
   const router = useRouter();
@@ -17,31 +17,22 @@ export default function SignIn() {
     setIsLoading(true);
     setError("");
 
-    try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-      if (result?.error) {
-        setError("Invalid email or password");
-      } else if (result?.ok) {
-        router.push("/dashboard");
-      }
-    } catch (err) {
-      setError("An error occurred. Please try again.");
-    } finally {
+    if (error) {
+      setError("אימייל או סיסמה שגויים");
       setIsLoading(false);
+    } else {
+      router.push("/dashboard");
+      router.refresh();
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-          התחברות
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">התחברות</h1>
 
         {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">

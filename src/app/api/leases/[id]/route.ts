@@ -1,172 +1,125 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
+import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { leaseSchema } from "@/lib/validations";
 import { z } from "zod";
 
-interface RouteParams {
-  params: Promise<{
-    id: string;
-  }>;
+interface RouteParams { params: Promise<{ id: string }> }
+
+export async function GET(_req: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("leases")
+    .select("*, properties(*), tenant:tenants(*), payments(*), lease_documents(*)")
+    .eq("id", id)
+    .eq("user_id", session.user.id)
+    .single();
+
+  if (error || !data) return NextResponse.json({ error: "Lease not found" }, { status: 404 });
+  return NextResponse.json(camelKeys(data));
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const lease = await prisma.lease.findUnique({
-      where: { id },
-      include: {
-        property: true,
-        tenant: true,
-        payments: true,
-      },
-    });
-
-    if (!lease) {
-      return NextResponse.json(
-        { error: "Lease not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check authorization
-    if (lease.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 }
-      );
-    }
-
-    return NextResponse.json(lease);
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to fetch lease" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(
-  request: NextRequest,
-  { params }: RouteParams
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    // Verify user owns the lease
-    const lease = await prisma.lease.findUnique({
-      where: { id },
-    });
-
-    if (!lease) {
-      return NextResponse.json(
-        { error: "Lease not found" },
-        { status: 404 }
-      );
-    }
-
-    if (lease.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 }
-      );
-    }
-
+    const supabase = await createClient();
     const body = await request.json();
-    const data = leaseSchema.parse(body);
+    const parsed = leaseSchema.parse(body);
+    // propertyId and tenantId are immutable
+    const { propertyId: _p, tenantId: _t, ...data } = parsed;
 
-    const updatedLease = await prisma.lease.update({
-      where: { id },
-      data,
-      include: {
-        property: true,
-        tenant: true,
-        payments: true,
-      },
-    });
+    const { data: row, error } = await supabase
+      .from("leases")
+      .update(snakeKeys(data) as object)
+      .eq("id", id)
+      .eq("user_id", session.user.id)
+      .select("*, properties(*), tenant:tenants(*), payments(*)")
+      .single();
 
-    return NextResponse.json(updatedLease);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.flatten() },
-        { status: 400 }
-      );
+    if (error) {
+      console.error("Update lease error:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(
-      { error: "Failed to update lease" },
-      { status: 500 }
-    );
+    // Manage check deposit reminders
+    // Always delete existing ones first
+    await supabase
+      .from("tasks")
+      .delete()
+      .eq("user_id", session.user.id)
+      .eq("related_entity_type", "lease")
+      .eq("related_entity_id", id)
+      .eq("category", "Rent Collection");
+
+    // Re-create only if payment method is checks
+    if (parsed.paymentMethod === "checks") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const start = new Date(parsed.startDate);
+      const end = new Date(parsed.endDate);
+      const startDay = start.getDate();
+
+      const tasks: object[] = [];
+      const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+
+      while (true) {
+        if (cur > new Date(end.getFullYear(), end.getMonth(), 1)) break;
+        const year = cur.getFullYear();
+        const month = cur.getMonth();
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        const day = Math.min(startDay, lastDay);
+        const paymentDue = new Date(year, month, day);
+
+        if (paymentDue >= today) {
+          const reminderDate = new Date(paymentDue);
+          reminderDate.setDate(reminderDate.getDate() - 1);
+          const monthLabel = paymentDue.toLocaleDateString("he-IL", { month: "long", year: "numeric" });
+          tasks.push({
+            user_id: session.user.id,
+            title: `הפקדת שק שכ"ד — ${monthLabel}`,
+            category: "Rent Collection",
+            due_date: reminderDate.toISOString().split("T")[0],
+            priority: "normal",
+            related_entity_type: "lease",
+            related_entity_id: id,
+          });
+        }
+        cur.setMonth(cur.getMonth() + 1);
+      }
+
+      if (tasks.length > 0) {
+        await supabase.from("tasks").insert(tasks);
+      }
+    }
+
+    return NextResponse.json(camelKeys(row));
+  } catch (error) {
+    if (error instanceof z.ZodError)
+      return NextResponse.json({ error: "Validation failed", details: error.flatten() }, { status: 400 });
+    return NextResponse.json({ error: "Failed to update lease" }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: RouteParams
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
+export async function DELETE(_req: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("leases")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", session.user.id);
 
-    // Verify user owns the lease
-    const lease = await prisma.lease.findUnique({
-      where: { id },
-    });
-
-    if (!lease) {
-      return NextResponse.json(
-        { error: "Lease not found" },
-        { status: 404 }
-      );
-    }
-
-    if (lease.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 }
-      );
-    }
-
-    await prisma.lease.delete({
-      where: { id },
-    });
-
-    return NextResponse.json(
-      { message: "Lease deleted successfully" },
-      { status: 200 }
-    );
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to delete lease" },
-      { status: 500 }
-    );
-  }
+  if (error) return NextResponse.json({ error: "Lease not found" }, { status: 404 });
+  return NextResponse.json({ message: "Lease deleted successfully" });
 }

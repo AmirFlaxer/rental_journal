@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PropertyInput } from "@/lib/validations";
-import { israeliSettlements } from "@/data/israeli-settlements";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
 
 interface PropertyFormProps {
   initialData?: PropertyInput & { id?: string };
@@ -22,6 +22,7 @@ export function PropertyForm({
       title: "",
       description: "",
       address: "",
+      houseNumber: "",
       city: "",
       zipCode: "",
       propertyType: "Apartment",
@@ -31,62 +32,13 @@ export function PropertyForm({
       floor: undefined,
       apartmentNumber: undefined,
       numBalconies: undefined,
-      balconySqm: undefined,
+      numParkingSpots: 0,
       purchasePrice: undefined,
     }
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Autocomplete state
-  const [settlementQuery, setSettlementQuery] = useState(initialData?.city || "");
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const autocompleteRef = useRef<HTMLDivElement>(null);
-
-
-  // Filter settlements as user types
-  useEffect(() => {
-    if (settlementQuery.length >= 1) {
-      const filtered = israeliSettlements.filter((s) =>
-        s.startsWith(settlementQuery)
-      ).slice(0, 10);
-      setSuggestions(filtered);
-      setShowSuggestions(filtered.length > 0);
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, [settlementQuery]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (autocompleteRef.current && !autocompleteRef.current.contains(e.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleSettlementSelect = (settlement: string) => {
-    setSettlementQuery(settlement);
-    setFormData({ ...formData, city: settlement });
-    setShowSuggestions(false);
-  };
-
-  const handleSettlementInput = (value: string) => {
-    setSettlementQuery(value);
-    setFormData({ ...formData, city: value });
-  };
-
-  const openPostalCodeSite = () => {
-    const city = formData.city || "";
-    const street = formData.address || "";
-    const url = `https://www.israelpost.co.il/zipcode.nsf/demozip?openform&city=${encodeURIComponent(city)}&street=${encodeURIComponent(street)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,78 +115,18 @@ export function PropertyForm({
           </select>
         </div>
 
-        {/* כתובת */}
-        <div className="md:col-span-2">
-          <label className="block text-gray-700 font-semibold mb-2">
-            כתובת (רחוב ומספר) *
-          </label>
-          <input
-            type="text"
-            value={formData.address}
-            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="רחוב ומספר"
-          />
-        </div>
-
-        {/* ישוב - autocomplete */}
-        <div ref={autocompleteRef} className="relative">
-          <label className="block text-gray-700 font-semibold mb-2">
-            ישוב *
-          </label>
-          <input
-            type="text"
-            value={settlementQuery}
-            onChange={(e) => handleSettlementInput(e.target.value)}
-            onFocus={() => {
-              if (suggestions.length > 0) setShowSuggestions(true);
-            }}
-            required
-            autoComplete="off"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="הקלד שם ישוב..."
-          />
-          {showSuggestions && (
-            <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto mt-1">
-              {suggestions.map((s) => (
-                <li
-                  key={s}
-                  onMouseDown={() => handleSettlementSelect(s)}
-                  className="px-4 py-2 cursor-pointer hover:bg-blue-50 text-gray-800"
-                >
-                  {s}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* מיקוד */}
-        <div>
-          <label className="block text-gray-700 font-semibold mb-2">
-            מיקוד
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={formData.zipCode || ""}
-              onChange={(e) => setFormData({ ...formData, zipCode: e.target.value || undefined })}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="מיקוד"
-              maxLength={7}
-            />
-            <button
-              type="button"
-              onClick={openPostalCodeSite}
-              className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 text-sm font-semibold whitespace-nowrap"
-              title="פתח אתר דואר ישראל לחיפוש מיקוד"
-            >
-              🔍 חפש
-            </button>
-          </div>
-          <p className="text-xs mt-1 text-gray-500">לחץ חפש לפתיחת אתר דואר ישראל</p>
-        </div>
+        {/* כתובת, עיר, מיקוד */}
+        <AddressAutocomplete
+          address={formData.address}
+          houseNumber={formData.houseNumber || ""}
+          city={formData.city}
+          zipCode={formData.zipCode}
+          onAddressChange={(v) => setFormData({ ...formData, address: v })}
+          onHouseNumberChange={(v) => setFormData({ ...formData, houseNumber: v || undefined })}
+          onCityChange={(v) => setFormData({ ...formData, city: v })}
+          onZipChange={(v) => setFormData({ ...formData, zipCode: v || undefined })}
+          className="md:col-span-2"
+        />
 
         {/* קומה */}
         <div>
@@ -353,24 +245,22 @@ export function PropertyForm({
           />
         </div>
 
-        {/* גודל מרפסת */}
+        {/* מספר חניות */}
         <div>
           <label className="block text-gray-700 font-semibold mb-2">
-            גודל מרפסת (מ"ר לכל מרפסת)
+            מספר חניות
           </label>
           <input
             type="number"
-            value={formData.balconySqm || ""}
+            value={formData.numParkingSpots ?? 0}
             onChange={(e) =>
               setFormData({
                 ...formData,
-                balconySqm: e.target.value ? parseFloat(e.target.value) : undefined,
+                numParkingSpots: e.target.value !== "" ? parseInt(e.target.value) : 0,
               })
             }
             min="0"
-            step="0.5"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder='מ"ר'
           />
         </div>
 

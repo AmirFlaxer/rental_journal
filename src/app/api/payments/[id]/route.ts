@@ -1,170 +1,71 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
+import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { paymentSchema } from "@/lib/validations";
 import { z } from "zod";
 
-interface RouteParams {
-  params: Promise<{
-    id: string;
-  }>;
+interface RouteParams { params: Promise<{ id: string }> }
+
+export async function GET(_req: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("payments")
+    .select("*, property:properties(*), lease:leases(*)")
+    .eq("id", id)
+    .eq("user_id", session.user.id)
+    .single();
+
+  if (error || !data) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+  return NextResponse.json(camelKeys(data));
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const payment = await prisma.payment.findUnique({
-      where: { id },
-      include: {
-        property: true,
-        lease: true,
-      },
-    });
-
-    if (!payment) {
-      return NextResponse.json(
-        { error: "Payment not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check authorization
-    if (payment.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 }
-      );
-    }
-
-    return NextResponse.json(payment);
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to fetch payment" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(
-  request: NextRequest,
-  { params }: RouteParams
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    // Verify user owns the payment
-    const payment = await prisma.payment.findUnique({
-      where: { id },
-    });
-
-    if (!payment) {
-      return NextResponse.json(
-        { error: "Payment not found" },
-        { status: 404 }
-      );
-    }
-
-    if (payment.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 }
-      );
-    }
-
+    const supabase = await createClient();
     const body = await request.json();
-    const data = paymentSchema.parse(body);
 
-    const updatedPayment = await prisma.payment.update({
-      where: { id },
-      data,
-      include: {
-        property: true,
-        lease: true,
-      },
-    });
+    // Allow partial updates
+    const isFullUpdate = ["propertyId", "paymentType", "amount", "dueDate"].some((k) => k in body);
+    const data = isFullUpdate ? paymentSchema.parse(body) : body;
 
-    return NextResponse.json(updatedPayment);
+    const { data: row, error } = await supabase
+      .from("payments")
+      .update(snakeKeys(data) as object)
+      .eq("id", id)
+      .eq("user_id", session.user.id)
+      .select("*, property:properties(*), lease:leases(*)")
+      .single();
+
+    if (error) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+    return NextResponse.json(camelKeys(row));
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.flatten() },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: "Failed to update payment" },
-      { status: 500 }
-    );
+    if (error instanceof z.ZodError)
+      return NextResponse.json({ error: "Validation failed", details: error.flatten() }, { status: 400 });
+    return NextResponse.json({ error: "Failed to update payment" }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: RouteParams
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
+export async function DELETE(_req: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("payments")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", session.user.id);
 
-    // Verify user owns the payment
-    const payment = await prisma.payment.findUnique({
-      where: { id },
-    });
-
-    if (!payment) {
-      return NextResponse.json(
-        { error: "Payment not found" },
-        { status: 404 }
-      );
-    }
-
-    if (payment.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 }
-      );
-    }
-
-    await prisma.payment.delete({
-      where: { id },
-    });
-
-    return NextResponse.json(
-      { message: "Payment deleted successfully" },
-      { status: 200 }
-    );
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to delete payment" },
-      { status: 500 }
-    );
-  }
+  if (error) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+  return NextResponse.json({ message: "Payment deleted successfully" });
 }
