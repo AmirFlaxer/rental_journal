@@ -1,201 +1,199 @@
-# יומן נכסים - מערכת ניהול השכרת נכסים
+# ניהול נכסים — מערכת ניהול השכרת נכסים
 
-אפליקציית SaaS לניהול נכסים להשכרה, דיירים, חוזים, הוצאות ודוחות כספיים.
+אפליקציית SaaS לניהול נכסים להשכרה בעברית מלאה: נכסים, דיירים, חוזים, תקבולים, הוצאות, תזכורות ודוחות.
 
-## סקירה כללית
+---
 
-אפליקציית Next.js לבעלי נכסים ומנהלי נדל"ן לניהול יעיל של נכסים מרובים:
+## תכונות עיקריות
 
-- **ניהול נכסים** - שמירת פרטי הנכסים כולל קומה, מספר דירה, מרפסות ושטח
-- **ניהול דיירים** - מעקב אחר פרטי דיירים, פרטי קשר ותיעוד
-- **ניהול חוזים** - יצירת חוזי שכירות ומעקב חידושים
-- **מעקב תשלומים** - מעקב אחר תשלומי שכר דירה, פיקדונות ועסקאות כספיות
-- **ניהול הוצאות** - מעקב עלויות תחזוקה, ביטוח, מיסים והוצאות נוספות
-- **דוחות כספיים** - דוחות רווח/הפסד ותזרים מזומנים
-- **ניהול משימות** - תזכורות לחידוש חוזים, ביטוח ותחזוקה
-- **תמיכה מרובת משתמשים** - כל משתמש מנהל את נכסיו בסביבה מאובטחת
+| מסך | תיאור |
+|-----|-------|
+| **לוח בקרה** | סיכום כל הנכסים, הכנסה חודשית, תקבולים ממתינים, הוצאות |
+| **נכסים** | ניהול נכסים עם פרטים מלאים (קומה, חניות, מרפסות, מחיר רכישה) |
+| **חוזים** | רשימת חוזים עם סטטוס בתוקף/עתידי/פג. אופציה, הגנת סיום מוקדם, ייבוא מ-PDF |
+| **תקבולים** | מעקב תשלומים לפי לוח החוזה, סימון שולם / שולם חלקי |
+| **הוצאות** | מעקב הוצאות לפי קטגוריה, עריכה ומחיקה |
+| **חובות** | דוח חובות פתוחים — תשלומים שמועדם חלף |
+| **תזכורות** | חלוקה לרלוונטיות (≤30 יום) ועתידיות. תזכורות שק אוטומטיות מחוזים |
+| **דוחות** | דוח רווח/הפסד לפי נכס ותקופה |
+| **הגדרות** | עדכון שם מוצג וסיסמה |
+
+### תכונות בולטות
+- **ייבוא חוזה מ-PDF** — חילוץ נתוני שוכר ותנאי שכירות בעזרת AI (Anthropic Claude)
+- **תזכורות שק אוטומטיות** — חוזה עם תשלום בשקים יוצר תזכורת יום לפני כל מועד פירעון
+- **תשלום חלקי** — רישום סכום חלקי + סיבה, תצוגת יתרת חוב
+- **השלמה אוטומטית לכתובות** — חיפוש עיר ורחוב מנתוני ממשלת ישראל (data.gov.il)
+- **DateInput עברי** — בחירת תאריך יום/חודש/שנה בעברית
+
+---
 
 ## טכנולוגיות
 
-- **Frontend**: Next.js עם React ו-TypeScript
-- **Backend**: Next.js API Routes
-- **מסד נתונים**: SQLite עם Prisma ORM
-- **אימות**: NextAuth.js v4
-- **עיצוב**: Tailwind CSS
-- **ולידציה**: Zod
-- **גופן**: Heebo (עברית + לטינית)
+| שכבה | טכנולוגיה |
+|------|-----------|
+| Frontend | Next.js 16, React, TypeScript |
+| עיצוב | Tailwind CSS, גופן Heebo |
+| Backend | Next.js API Routes |
+| מסד נתונים | Supabase (PostgreSQL) |
+| אימות | Supabase Auth (SSR) |
+| ולידציה | Zod |
+| AI | Anthropic Claude API (חילוץ חוזים) |
+| כתובות | Geoapify API + data.gov.il |
 
-## דרישות מקדימות
-
-- Node.js 18+
-- npm
+---
 
 ## התקנה
 
-1. **כניסה לתיקיית הפרויקט**
-   ```bash
-   cd rental_journal
-   ```
+### דרישות מקדימות
+- Node.js 18+
+- חשבון [Supabase](https://supabase.com) (חינמי)
 
-2. **התקנת תלויות**
-   ```bash
-   npm install
-   ```
+### 1. שכפול והתקנת תלויות
+```bash
+git clone https://github.com/AmirFlaxer/rental_journal.git
+cd rental_journal
+npm install
+```
 
-3. **הגדרת משתני סביבה** - צור קובץ `.env.local` בתיקיית השורש:
-   ```
-   DATABASE_URL="file:./dev.db"
-   NEXTAUTH_URL="http://localhost:3000"
-   NEXTAUTH_SECRET="הכנס-סוד-אקראי-באורך-32-תווים-לפחות"
-   ```
+### 2. הגדרת Supabase
+1. צור פרויקט חדש ב-[supabase.com](https://supabase.com)
+2. פתח **SQL Editor** והרץ את הקובץ `supabase_schema.sql`
+3. עבור ל-**Storage** וצור bucket בשם `lease-documents` (Public: false)
 
-   ליצירת סוד אקראי:
-   ```bash
-   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-   ```
+### 3. משתני סביבה
+צור קובץ `.env.local` בתיקיית הפרויקט:
 
-4. **הרצת מיגרציות מסד נתונים**
-   ```bash
-   npx prisma migrate dev
-   ```
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
-5. **הפעלת שרת הפיתוח**
-   ```bash
-   npm run dev
-   ```
+# Anthropic AI — לחילוץ נתוני חוזה מ-PDF (אופציונלי)
+ANTHROPIC_API_KEY=sk-ant-...
 
-   פתח [http://localhost:3000](http://localhost:3000) בדפדפן.
+# Geoapify — השלמה אוטומטית לכתובות (אופציונלי)
+NEXT_PUBLIC_GEOAPIFY_KEY=...
+```
 
-## התחלה מהירה
+המפתחות נמצאים ב-Supabase Dashboard → Project Settings → API.
 
-1. **דף הבית** - בקר ב-localhost:3000 ובחר הרשמה או כניסה
-2. **יצירת חשבון** - הירשם עם אימייל וסיסמה
-3. **לוח בקרה** - תועבר אוטומטית לדשבורד
-4. **הוספת נכס** - לחץ "נכס חדש" להתחלת ניהול הנכסים שלך
-5. **ניהול** - הוסף דיירים, צור חוזים, עקוב אחר תשלומים והוצאות
+### 4. הפעלה
+```bash
+npm run dev
+```
+פתח [http://localhost:3000](http://localhost:3000) בדפדפן.
+
+---
 
 ## מבנה הפרויקט
 
 ```
 src/
 ├── app/
-│   ├── api/              # API routes
-│   │   ├── auth/         # אימות
-│   │   ├── properties/   # ניהול נכסים
-│   │   └── postal-code/  # חיפוש מיקוד
-│   ├── auth/             # דפי כניסה והרשמה
-│   ├── dashboard/        # דפי לוח הבקרה (מוגנים)
-│   ├── page.tsx          # דף הבית
-│   └── layout.tsx        # Layout עם RTL עברית
-├── components/           # רכיבי React לשימוש חוזר
-│   └── property-form.tsx # טופס נכס עם השלמה אוטומטית לישובים
-├── data/
-│   └── israeli-settlements.ts  # רשימת ישובים בישראל
+│   ├── api/
+│   │   ├── auth/           # signin, signout, signup
+│   │   ├── properties/     # CRUD נכסים
+│   │   ├── leases/         # CRUD חוזים + upload + extract
+│   │   ├── payments/       # CRUD תקבולים
+│   │   ├── expenses/       # CRUD הוצאות
+│   │   ├── tasks/          # CRUD תזכורות
+│   │   ├── documents/      # מסמכי חוזה
+│   │   ├── reports/        # דוחות
+│   │   └── gov/            # proxy ל-data.gov.il (ערים/רחובות)
+│   ├── auth/               # דפי כניסה והרשמה
+│   ├── dashboard/
+│   │   ├── properties/     # רשימה + פרטי נכס
+│   │   ├── leases/         # רשימה + עריכה + ייבוא
+│   │   ├── payments/       # תקבולים
+│   │   ├── expenses/       # הוצאות
+│   │   ├── debts/          # דוח חובות
+│   │   ├── tasks/          # תזכורות
+│   │   ├── reports/        # דוחות
+│   │   └── settings/       # הגדרות חשבון
+│   └── page.tsx            # דף הבית
+├── components/
+│   ├── address-autocomplete.tsx  # חיפוש כתובת עם gov API
+│   ├── date-input.tsx            # DateInput עברי
+│   └── property-form.tsx         # טופס נכס
 ├── lib/
-│   ├── prisma.ts         # Prisma client singleton
-│   └── validations.ts    # Zod schemas
-└── auth.ts               # הגדרות NextAuth.js
-prisma/
-├── schema.prisma         # סכמת מסד הנתונים
-└── migrations/           # מיגרציות
+│   ├── supabase/           # server / client / admin / case helpers
+│   └── validations.ts      # Zod schemas
+├── auth.ts                 # auth() helper
+└── proxy.ts                # הגנת /dashboard (Next.js 16)
 ```
+
+---
 
 ## סכמת מסד הנתונים
 
 | טבלה | תיאור |
 |------|-------|
-| `users` | חשבונות משתמשים ואימות |
-| `properties` | פרטי נכסים להשכרה |
-| `tenants` | פרטי דיירים |
+| `properties` | נכסים להשכרה |
+| `tenants` | דיירים |
 | `leases` | חוזי שכירות |
-| `payments` | תשלומים (שכ"ד, פיקדונות) |
+| `payments` | תקבולים ותשלומים |
 | `expenses` | הוצאות נכס |
 | `tasks` | תזכורות ומשימות |
+| `lease_documents` | מסמכי חוזה (metadata) |
 
-## API Endpoints
+הסכמה המלאה כולל RLS policies נמצאת ב-`supabase_schema.sql`.
 
-### אימות
-- `POST /api/auth/signup` - יצירת חשבון חדש
-- `POST /api/auth/[...nextauth]` - NextAuth endpoints
+---
 
-### נכסים
-- `GET /api/properties` - קבלת כל נכסי המשתמש
-- `POST /api/properties` - יצירת נכס חדש
-- `GET /api/properties/[id]` - קבלת פרטי נכס
-- `PUT /api/properties/[id]` - עדכון נכס
-- `DELETE /api/properties/[id]` - מחיקת נכס
+## API Endpoints עיקריים
 
-### כלים
-- `GET /api/postal-code?city=...&street=...` - חיפוש מיקוד
+```
+POST   /api/auth/signup
+POST   /api/auth/signin
+POST   /api/auth/signout
 
-## פקודות פיתוח
+GET    /api/properties
+POST   /api/properties
+PUT    /api/properties/[id]
+DELETE /api/properties/[id]
 
-```bash
-# הפעלת שרת פיתוח
-npm run dev
+GET    /api/leases
+POST   /api/leases
+PUT    /api/leases/[id]
+POST   /api/leases/[id]/upload
+POST   /api/leases/extract-temp
 
-# בנייה לפרודקשן
-npm run build
+GET    /api/payments
+POST   /api/payments
+PUT    /api/payments/[id]
+DELETE /api/payments/[id]
 
-# הפעלת שרת פרודקשן
-npm start
+GET    /api/expenses
+POST   /api/expenses
+PUT    /api/expenses/[id]
+DELETE /api/expenses/[id]
 
-# Prisma Studio (ממשק גרפי למסד נתונים)
-npx prisma studio
-
-# יצירת Prisma types לאחר שינוי סכמה
-npx prisma generate
-
-# הרצת מיגרציה חדשה
-npx prisma migrate dev --name <שם-המיגרציה>
+GET    /api/tasks
+POST   /api/tasks
+PUT    /api/tasks/[id]
+DELETE /api/tasks/[id]
 ```
 
-## פתרון בעיות
+---
 
-### פורט 3000 תפוס (Windows)
-```powershell
-Get-Process -Id (Get-NetTCPConnection -LocalPort 3000).OwningProcess | Stop-Process -Force
-```
+## פריסה ל-Vercel
 
-### שגיאת חיבור למסד נתונים
-```bash
-npx prisma db push
-npx prisma generate
-```
+1. העלה קוד ל-GitHub
+2. ייבא פרויקט ב-[Vercel](https://vercel.com)
+3. הוסף את משתני הסביבה מ-`.env.local`
+4. לחץ Deploy
 
-### אימות לא עובד
-- נקה עוגיות דפדפן (Ctrl+Shift+Delete)
-- ודא שמשתנה `NEXTAUTH_SECRET` מוגדר (מינימום 32 תווים)
-- ודא שמשתנה `NEXTAUTH_URL` תואם לסביבה
-
-### Prisma DLL נעול (Windows)
-עצור את שרת הפיתוח ואז הרץ:
-```bash
-npx prisma generate
-```
+---
 
 ## אבטחה
 
-- ✅ סיסמאות מוצפנות עם bcrypt
-- ✅ אימות עם NextAuth.js ו-JWT
-- ✅ כל API route מאמת את המשתמש
-- ✅ כל משתמש רואה רק את הנתונים שלו
-- ✅ משתני סביבה לנתונים רגישים
-- ⚠️ פרודקשן: השתמש תמיד ב-HTTPS
-- ⚠️ פרודקשן: הגדר `NEXTAUTH_SECRET` חזק
-- ⚠️ פרודקשן: הגדר `NEXTAUTH_URL` נכון
+- כל API route מאמת את זהות המשתמש דרך Supabase Auth
+- RLS (Row Level Security) — כל משתמש רואה רק את הנתונים שלו
+- `proxy.ts` מגן על כל נתיבי `/dashboard` בצד השרת
+- משתני סביבה לכל מפתח רגיש
 
-## פריסה
-
-### פריסה ל-Vercel (מומלץ)
-
-1. העלה קוד ל-GitHub
-2. ייבא פרויקט ב-Vercel dashboard
-3. הוסף משתני סביבה:
-   - `DATABASE_URL`
-   - `NEXTAUTH_SECRET`
-   - `NEXTAUTH_URL` (ה-URL של האפליקציה הפרוסה)
-4. לחץ Deploy
+---
 
 ## רישיון
 
