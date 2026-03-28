@@ -1,9 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { NumberInput } from "@/components/number-input";
 import { PropertyInput } from "@/lib/validations";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
+
+const FIELD_HE: Record<string, string> = {
+  title: "שם הנכס",
+  address: "רחוב",
+  city: "עיר / ישוב",
+  propertyType: "סוג נכס",
+  zipCode: "מיקוד",
+  houseNumber: "מספר בית",
+  bedrooms: "חדרי שינה",
+  bathrooms: "חדרי אמבטיה",
+  squareMeters: 'שטח (מ"ר)',
+  floor: "קומה",
+  numParkingSpots: "חניות",
+  purchasePrice: "מחיר רכישה",
+};
 
 interface PropertyFormProps {
   initialData?: PropertyInput & { id?: string };
@@ -38,11 +54,28 @@ export function PropertyForm({
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if ((error || Object.keys(fieldErrors).length > 0) && errorRef.current) {
+      errorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [error, fieldErrors]);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    // ולידציה עברית לפני שליחה
+    const errs: Record<string, string[]> = {};
+    if (!formData.title || formData.title.trim().length < 3) errs.title = ["נדרש שם של לפחות 3 תווים"];
+    if (!formData.city || formData.city.trim().length < 2) errs.city = ["נדרש שם ישוב"];
+    if (!formData.address || formData.address.trim().length < 2) errs.address = ["נדרש שם רחוב"];
+    if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
+
+    setFieldErrors({});
     setIsLoading(true);
 
     try {
@@ -62,6 +95,7 @@ export function PropertyForm({
 
         if (!response.ok) {
           const data = await response.json();
+          if (data.details?.fieldErrors) setFieldErrors(data.details.fieldErrors);
           throw new Error(data.error || `Failed to ${isEditing ? "update" : "create"} property`);
         }
 
@@ -76,10 +110,21 @@ export function PropertyForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
+    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      {(error || Object.keys(fieldErrors).length > 0) && (
+        <div ref={errorRef} className="p-4 bg-red-50 border border-red-300 text-red-700 rounded-lg space-y-1">
+          {Object.keys(fieldErrors).length > 0 ? (
+            <>
+              <p className="font-semibold text-sm">נא למלא את השדות הבאים:</p>
+              <ul className="list-disc list-inside text-sm space-y-0.5">
+                {Object.entries(fieldErrors).map(([field, msgs]) => (
+                  <li key={field}>{FIELD_HE[field] ?? field}: {msgs[0]}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="text-sm">{error}</p>
+          )}
         </div>
       )}
 
@@ -269,17 +314,9 @@ export function PropertyForm({
           <label className="block text-gray-700 font-semibold mb-2">
             מחיר רכישה
           </label>
-          <input
-            type="number"
-            value={formData.purchasePrice || ""}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                purchasePrice: e.target.value ? parseFloat(e.target.value) : undefined,
-              })
-            }
-            min="0"
-            step="1000"
+          <NumberInput
+            value={formData.purchasePrice}
+            onChange={(v) => setFormData({ ...formData, purchasePrice: v })}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder='מחיר רכישה בש"ח'
           />

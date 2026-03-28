@@ -13,7 +13,7 @@ async function searchCitiesFromGov(q: string): Promise<string[]> {
   } catch { return []; }
 }
 
-async function searchStreetsFromGov(q: string, city: string): Promise<{ name: string; zip?: string }[]> {
+async function searchStreetsFromGov(q: string, city: string): Promise<{ name: string }[]> {
   try {
     const url = new URL("/api/gov/streets", location.origin);
     url.searchParams.set("q", q);
@@ -40,18 +40,6 @@ async function geoSearch(text: string, type: "city" | "street", cityName?: strin
   return j.features || [];
 }
 
-// ── Zip lookup via internal API (no CORS) ──────────────────────────────────
-async function lookupZip(street: string, city: string): Promise<string | null> {
-  try {
-    const url = new URL("/api/gov/streets", location.origin);
-    url.searchParams.set("q", street);
-    url.searchParams.set("city", city);
-    const streets: { name: string; zip?: string }[] = await (await fetch(url.toString())).json();
-    const exact = streets.find((s) => s.name === street && s.zip);
-    const fallback = streets.find((s) => s.zip);
-    return (exact || fallback)?.zip ?? null;
-  } catch { return null; }
-}
 
 // ── Component ───────────────────────────────────────────────────────────────
 interface Props {
@@ -76,8 +64,9 @@ export function AddressAutocomplete({
   const [showCity, setShowCity] = useState(false);
 
   const [streetQ, setStreetQ]         = useState(address);
-  const [streetList, setStreetList]   = useState<{ name: string; zip?: string }[]>([]);
+  const [streetList, setStreetList]   = useState<{ name: string }[]>([]);
   const [showStreet, setShowStreet]   = useState(false);
+  const [streetLoading, setStreetLoading] = useState(false);
 
   const wrapRef   = useRef<HTMLDivElement>(null);
   const cityTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -117,26 +106,36 @@ export function AddressAutocomplete({
   // ── Street search ────────────────────────────────────────────────────────
   const searchStreets = useCallback((q: string, cityName: string) => {
     clearTimeout(strtTimer.current);
-    if (q.length < 2) { setStreetList([]); return; }
+    if (q.length < 2 && !cityName) { setStreetList([]); setShowStreet(false); return; }
+    // Show loading immediately so user gets feedback
+    setStreetLoading(true);
+    setShowStreet(true);
     strtTimer.current = setTimeout(async () => {
-      if (GEOAPIFY_KEY) {
-        const features = await geoSearch(q, "street", cityName).catch(() => []);
-        const seen = new Set<string>();
-        const res: { name: string; zip?: string }[] = [];
-        for (const f of features) {
-          const n = f.properties.street || f.properties.name;
-          if (n && !seen.has(n)) { seen.add(n); res.push({ name: n, zip: f.properties.postcode }); }
+      try {
+        if (GEOAPIFY_KEY) {
+          const features = await geoSearch(q, "street", cityName).catch(() => []);
+          const seen = new Set<string>();
+          const res: { name: string }[] = [];
+          for (const f of features) {
+            const n = f.properties.street || f.properties.name;
+            if (n && !seen.has(n)) { seen.add(n); res.push({ name: n }); }
+          }
+          if (res.length) { setStreetList(res); setStreetLoading(false); return; }
         }
-        if (res.length) { setStreetList(res); setShowStreet(true); return; }
+        const streets = await searchStreetsFromGov(q, cityName);
+        setStreetList(streets);
+      } finally {
+        setStreetLoading(false);
       }
-      const streets = await searchStreetsFromGov(q, cityName);
-      setStreetList(streets);
-      setShowStreet(true);
     }, 250);
   }, []);
 
   const handleCityInput = (v: string) => { setCityQ(v); onCityChange(v); searchCities(v); };
-  const handleCitySelect = (c: string) => { setCityQ(c); onCityChange(c); setShowCity(false); };
+  const handleCitySelect = (c: string) => {
+    setCityQ(c); onCityChange(c); setShowCity(false);
+    // Pre-load streets for the selected city
+    searchStreets(streetQ, c);
+  };
 
   const handleStreetInput = (v: string) => {
     setStreetQ(v);
@@ -144,15 +143,10 @@ export function AddressAutocomplete({
     searchStreets(v, city);
   };
 
-  const handleStreetSelect = (s: { name: string; zip?: string }) => {
+  const handleStreetSelect = (s: { name: string }) => {
     setStreetQ(s.name);
     onAddressChange(s.name);
     setShowStreet(false);
-    if (s.zip && onZipChange) {
-      onZipChange(s.zip);
-    } else if (onZipChange && city) {
-      lookupZip(s.name, city).then((z) => { if (z && onZipChange) onZipChange(z); });
-    }
   };
 
   const inp  = `w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white`;
@@ -166,7 +160,7 @@ export function AddressAutocomplete({
           עיר / ישוב <span className="text-red-500">*</span>
         </label>
         <input value={cityQ} onChange={(e) => handleCityInput(e.target.value)}
-          onFocus={() => cityQ.length >= 2 && setShowCity(true)}
+          onFocus={() => { setShowStreet(false); if (cityQ.length >= 2) setShowCity(true); }}
           className={inp} placeholder="הקלד שם ישוב..." autoComplete="off" />
         {showCity && cityList.length > 0 && (
           <ul className={drop}>
@@ -184,15 +178,20 @@ export function AddressAutocomplete({
           רחוב <span className="text-red-500">*</span>
         </label>
         <input value={streetQ} onChange={(e) => handleStreetInput(e.target.value)}
-          onFocus={() => streetQ.length >= 2 && setShowStreet(true)}
+          onFocus={() => {
+            setShowCity(false); // סגור dropdown עיר
+            if (streetList.length > 0) { setShowStreet(true); }
+            else { searchStreets(streetQ, city); }
+          }}
           className={inp} placeholder="הקלד שם רחוב..." autoComplete="off" />
-        {showStreet && streetList.length > 0 && (
+        {showStreet && (streetLoading || streetList.length > 0) && (
           <ul className={drop}>
-            {streetList.map((s) => (
+            {streetLoading ? (
+              <li className="px-4 py-3 text-sm text-gray-400 text-center">מחפש רחובות...</li>
+            ) : streetList.map((s) => (
               <li key={s.name} onMouseDown={() => handleStreetSelect(s)}
-                className="px-4 py-2.5 hover:bg-indigo-50 cursor-pointer text-sm text-gray-800 flex justify-between">
-                <span>{s.name}</span>
-                {s.zip && <span className="text-xs text-gray-400">{s.zip}</span>}
+                className="px-4 py-2.5 hover:bg-indigo-50 cursor-pointer text-sm text-gray-800">
+                {s.name}
               </li>
             ))}
           </ul>
@@ -216,7 +215,7 @@ export function AddressAutocomplete({
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1">מיקוד</label>
           <input value={zipCode || ""} onChange={(e) => onZipChange(e.target.value)}
-            className={inp} placeholder="מחושב אוטומטית" />
+            className={inp} placeholder="הזן מיקוד" />
         </div>
       )}
     </div>

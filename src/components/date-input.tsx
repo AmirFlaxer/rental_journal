@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useState, useEffect } from "react";
 
 interface DateInputProps {
   value?: string; // YYYY-MM-DD
@@ -30,22 +30,24 @@ const inp =
 export function DateInput({ value, onChange, required, min, className, id }: DateInputProps) {
   const uid = useId();
   const baseId = id || uid;
-  const { d, m, y } = parseDate(value);
+
+  // Local state so partial input (e.g. day only) isn't reset while typing
+  const [local, setLocal] = useState(() => parseDate(value));
+
+  // Sync external value → local (e.g. when parent resets the field)
+  useEffect(() => {
+    setLocal(parseDate(value));
+  }, [value]);
 
   const handle = (field: "d" | "m" | "y", raw: string) => {
     const val = raw.replace(/\D/g, "");
-    const next = {
-      d: field === "d" ? val : d,
-      m: field === "m" ? val : m,
-      y: field === "y" ? val : y,
-    };
+    const next = { ...local, [field]: val };
+    setLocal(next);
     const iso = toIso(next.d, next.m, next.y);
     if (iso) {
-      // Validate min constraint
       if (min && iso < min) return;
       onChange?.(iso);
-    } else if (!val) {
-      // field cleared — clear whole value
+    } else if (!next.d && !next.m && !next.y) {
       onChange?.("");
     }
   };
@@ -55,7 +57,7 @@ export function DateInput({ value, onChange, required, min, className, id }: Dat
       <div className="flex flex-col items-center">
         <input
           id={`${baseId}-d`}
-          value={d}
+          value={local.d}
           onChange={(e) => handle("d", e.target.value)}
           required={required}
           maxLength={2}
@@ -70,7 +72,7 @@ export function DateInput({ value, onChange, required, min, className, id }: Dat
       <div className="flex flex-col items-center">
         <input
           id={`${baseId}-m`}
-          value={m}
+          value={local.m}
           onChange={(e) => handle("m", e.target.value)}
           required={required}
           maxLength={2}
@@ -85,7 +87,7 @@ export function DateInput({ value, onChange, required, min, className, id }: Dat
       <div className="flex flex-col items-center">
         <input
           id={`${baseId}-y`}
-          value={y}
+          value={local.y}
           onChange={(e) => handle("y", e.target.value)}
           required={required}
           maxLength={4}

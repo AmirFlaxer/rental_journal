@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { formatPhone } from "@/lib/phone";
 
 interface Lease {
   id: string;
@@ -50,6 +52,7 @@ function formatDate(d: string) {
 }
 
 export default function LeasesPage() {
+  const router = useRouter();
   const [leases, setLeases] = useState<Lease[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "future" | "ended">("all");
@@ -132,7 +135,8 @@ export default function LeasesPage() {
           {filtered.map((lease) => {
             const st = lease._status;
             return (
-              <div key={lease.id} className="bg-white rounded-2xl border border-gray-200 px-5 py-4 hover:shadow-sm transition-shadow">
+              <div key={lease.id} onClick={() => router.push(`/dashboard/leases/${lease.id}/edit`)}
+                className="bg-white rounded-2xl border border-gray-200 px-5 py-4 hover:shadow-sm transition-shadow cursor-pointer">
                 <div className="flex items-start gap-4">
                   {/* Status dot */}
                   <div className="mt-1.5 flex-shrink-0">
@@ -152,7 +156,7 @@ export default function LeasesPage() {
                     <p className="text-sm text-gray-500 mt-0.5">
                       {lease.properties?.city && `${lease.properties.city} · `}
                       {lease.tenant ? `${lease.tenant.firstName} ${lease.tenant.lastName}` : "שוכר לא ידוע"}
-                      {lease.tenant?.phone && ` · ${lease.tenant.phone}`}
+                      {lease.tenant?.phone && ` · ${formatPhone(lease.tenant.phone)}`}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
                       {formatDate(lease.startDate)} – {formatDate(lease.endDate)}
@@ -165,16 +169,11 @@ export default function LeasesPage() {
                     </p>
                   </div>
 
-                  {/* Rent + link */}
-                  <div className="text-right flex-shrink-0">
+                  {/* Rent + arrow */}
+                  <div className="text-right flex-shrink-0 flex flex-col items-end justify-center gap-1">
                     <p className="font-bold text-gray-900">₪{lease.monthlyRent.toLocaleString()}</p>
                     <p className="text-xs text-gray-400">לחודש</p>
-                    <Link
-                      href={`/dashboard/leases/${lease.id}/edit`}
-                      className="mt-2 inline-block text-xs text-indigo-600 hover:underline"
-                    >
-                      עריכה ←
-                    </Link>
+                    <span className="text-gray-400 text-lg leading-none">›</span>
                   </div>
                 </div>
               </div>

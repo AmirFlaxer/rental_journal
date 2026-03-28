@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { DateInput } from "@/components/date-input";
+import { NumberInput } from "@/components/number-input";
+import { PhoneInput } from "@/components/phone-input";
+import { formatPhone } from "@/lib/phone";
 
 interface LeaseDocument {
   id: string;
@@ -46,11 +49,29 @@ function calcMonths(start: string, end: string): number {
   return Math.max(remainingDays > 0 ? totalMonths + 1 : totalMonths, 1);
 }
 
+function normalizePaymentMethod(pm: string | null | undefined): string {
+  if (!pm) return "checks";
+  switch (pm.toLowerCase()) {
+    case "check": case "checks": return "checks";
+    case "banktransfer": case "bank_transfer": return "bank_transfer";
+    case "cash": return "cash";
+    case "bit": return "bit";
+    case "paybox": return "paybox";
+    default: return "checks";
+  }
+}
+
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
     <button type="button" onClick={onToggle}
-      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${on ? "bg-blue-600" : "bg-gray-300"}`}>
-      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${on ? "translate-x-6" : "translate-x-1"}`} />
+      className="relative inline-flex h-7 w-12 items-center rounded-full transition-colors flex-shrink-0"
+      style={{ background: on ? "var(--accent)" : "var(--bg-elevated)", border: "1px solid var(--border)" }}>
+      <span className="inline-block h-5 w-5 rounded-full shadow transition-transform"
+        style={{
+          background: on ? "#fff" : "var(--text-3)",
+          transform: on ? "translateX(1.4rem)" : "translateX(0.2rem)",
+          transition: "transform 0.2s",
+        }} />
     </button>
   );
 }
@@ -80,8 +101,8 @@ export default function EditLeasePage() {
   // Lease fields
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [monthlyRent, setMonthlyRent] = useState("");
-  const [depositAmount, setDepositAmount] = useState("");
+  const [monthlyRent, setMonthlyRent] = useState<number | undefined>(undefined);
+  const [depositAmount, setDepositAmount] = useState<number | undefined>(undefined);
   const [leaseTerm, setLeaseTerm] = useState("12");
   const [terms, setTerms] = useState("");
   const [status, setStatus] = useState("active");
@@ -89,10 +110,18 @@ export default function EditLeasePage() {
   // Option fields
   const [hasOption, setHasOption] = useState(false);
   const [optionMonths, setOptionMonths] = useState("");
-  const [optionRent, setOptionRent] = useState("");
+  const [optionRent, setOptionRent] = useState<number | undefined>(undefined);
   const [optionStart, setOptionStart] = useState("");
   const [optionEnd, setOptionEnd] = useState("");
   const [optionTerms, setOptionTerms] = useState("");
+
+  // Second tenant
+  const [hasSecondTenant, setHasSecondTenant] = useState(false);
+  const [secondTenantFirstName, setSecondTenantFirstName] = useState("");
+  const [secondTenantLastName, setSecondTenantLastName] = useState("");
+  const [secondTenantIdNumber, setSecondTenantIdNumber] = useState("");
+  const [secondTenantPhone, setSecondTenantPhone] = useState("");
+  const [secondTenantEmail, setSecondTenantEmail] = useState("");
 
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState("checks");
@@ -110,15 +139,15 @@ export default function EditLeasePage() {
         setTenantId(lease.tenantId);
         setStartDate(toDateInput(lease.startDate));
         setEndDate(toDateInput(lease.endDate));
-        setMonthlyRent(String(lease.monthlyRent));
-        setDepositAmount(lease.depositAmount ? String(lease.depositAmount) : "");
+        setMonthlyRent(lease.monthlyRent);
+        setDepositAmount(lease.depositAmount || undefined);
         setLeaseTerm(String(lease.leaseTerm));
         setTerms(lease.terms || "");
         setStatus(lease.status || "active");
         setHasOption(lease.hasOption || false);
         const months = lease.optionMonths ? String(lease.optionMonths) : "12";
         setOptionMonths(lease.optionMonths ? String(lease.optionMonths) : "");
-        setOptionRent(lease.optionRent ? String(lease.optionRent) : "");
+        setOptionRent(lease.optionRent || undefined);
         setOptionTerms(lease.optionTerms || "");
 
         // חישוב תאריכי אופציה: אם null בDB — חשב מתאריך הסיום
@@ -139,11 +168,19 @@ export default function EditLeasePage() {
         }
         setOptionStart(optStart);
         setOptionEnd(optEnd);
-        setPaymentMethod(lease.paymentMethod || "checks");
+        setPaymentMethod(normalizePaymentMethod(lease.paymentMethod));
         setEarlyTermProtection(lease.earlyTermProtection || false);
         setTenantNoticeMonths(lease.tenantNoticeMonths ? String(lease.tenantNoticeMonths) : "1");
         setLandlordNoticeMonths(lease.landlordNoticeMonths ? String(lease.landlordNoticeMonths) : "1");
         if (lease.tenant) setTenantName(`${lease.tenant.firstName} ${lease.tenant.lastName}`);
+        if (lease.secondTenantFirstName) {
+          setHasSecondTenant(true);
+          setSecondTenantFirstName(lease.secondTenantFirstName || "");
+          setSecondTenantLastName(lease.secondTenantLastName || "");
+          setSecondTenantIdNumber(lease.secondTenantIdNumber || "");
+          setSecondTenantPhone(formatPhone(lease.secondTenantPhone) || "");
+          setSecondTenantEmail(lease.secondTenantEmail || "");
+        }
         if (lease.documents) setDocuments(lease.documents);
       })
       .catch((e) => setError(e.message))
@@ -203,8 +240,8 @@ export default function EditLeasePage() {
     const { tenant, lease } = extractedData;
     if (lease.startDate) setStartDate(lease.startDate);
     if (lease.endDate) setEndDate(lease.endDate);
-    if (lease.monthlyRent) setMonthlyRent(String(lease.monthlyRent));
-    if (lease.depositAmount) setDepositAmount(String(lease.depositAmount));
+    if (lease.monthlyRent) setMonthlyRent(lease.monthlyRent);
+    if (lease.depositAmount) setDepositAmount(lease.depositAmount);
     if (lease.terms) setTerms(lease.terms);
     // Store tenant extracted data for display — cannot change tenantId here
     setExtractedData(null);
@@ -212,7 +249,7 @@ export default function EditLeasePage() {
     // Show extracted tenant info as a note if present
     if (tenant.firstName || tenant.lastName) {
       const name = [tenant.firstName, tenant.lastName].filter(Boolean).join(" ");
-      alert(`נתוני השכירות הוחלו בהצלחה.\n\nשם השוכר בחוזה: ${name}${tenant.idNumber ? `\nת.ז.: ${tenant.idNumber}` : ""}${tenant.phone ? `\nטלפון: ${tenant.phone}` : ""}`);
+      alert(`נתוני השכירות הוחלו בהצלחה.\n\nשם השוכר בחוזה: ${name}${tenant.idNumber ? `\nת.ז.: ${tenant.idNumber}` : ""}${tenant.phone ? `\nטלפון: ${formatPhone(tenant.phone)}` : ""}`);
     }
   };
 
@@ -266,21 +303,26 @@ export default function EditLeasePage() {
           tenantId,
           startDate,
           endDate,
-          monthlyRent: parseFloat(monthlyRent),
-          depositAmount: depositAmount ? parseFloat(depositAmount) : undefined,
+          monthlyRent: monthlyRent ?? 0,
+          depositAmount: depositAmount || undefined,
           leaseTerm: parseInt(leaseTerm),
           terms: terms || undefined,
           status,
           paymentMethod,
           hasOption,
           optionMonths: hasOption && optionMonths ? parseInt(optionMonths) : undefined,
-          optionRent: hasOption && optionRent ? parseFloat(optionRent) : undefined,
+          optionRent: hasOption && optionRent ? optionRent : undefined,
           optionStart: hasOption && optionStart ? optionStart : undefined,
           optionEnd: hasOption && optionEnd ? optionEnd : undefined,
           optionTerms: hasOption && optionTerms ? optionTerms : undefined,
           earlyTermProtection,
           tenantNoticeMonths: !earlyTermProtection && tenantNoticeMonths ? parseInt(tenantNoticeMonths) : undefined,
           landlordNoticeMonths: !earlyTermProtection && landlordNoticeMonths ? parseInt(landlordNoticeMonths) : undefined,
+          secondTenantFirstName: hasSecondTenant && secondTenantFirstName ? secondTenantFirstName : null,
+          secondTenantLastName: hasSecondTenant && secondTenantLastName ? secondTenantLastName : null,
+          secondTenantIdNumber: hasSecondTenant && secondTenantIdNumber ? secondTenantIdNumber : null,
+          secondTenantPhone: hasSecondTenant && secondTenantPhone ? secondTenantPhone : null,
+          secondTenantEmail: hasSecondTenant && secondTenantEmail ? secondTenantEmail : null,
         }),
       });
 
@@ -340,12 +382,12 @@ export default function EditLeasePage() {
               </div>
               <div>
                 <label className="block text-gray-700 font-semibold mb-1">שכירות חודשית (₪) *</label>
-                <input type="number" value={monthlyRent} onChange={(e) => setMonthlyRent(e.target.value)} required min="1" step="1"
+                <NumberInput value={monthlyRent} onChange={setMonthlyRent}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
                 <label className="block text-gray-700 font-semibold mb-1">פיקדון (₪)</label>
-                <input type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} min="0" step="1"
+                <NumberInput value={depositAmount} onChange={setDepositAmount}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
@@ -353,7 +395,7 @@ export default function EditLeasePage() {
                   משך (חודשים) *
                   <span className="text-gray-400 font-normal text-xs mr-1">מחושב אוטומטית</span>
                 </label>
-                <input type="number" value={leaseTerm} onChange={(e) => setLeaseTerm(e.target.value)} required min="1" step="1"
+                <input type="text" inputMode="numeric" value={leaseTerm} onChange={(e) => setLeaseTerm(e.target.value.replace(/\D/g, ""))} required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
@@ -371,6 +413,10 @@ export default function EditLeasePage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="checks">שקים</option>
                   <option value="bank_transfer">העברה בנקאית</option>
+                  <option value="cash">מזומן</option>
+                  <option value="bit">ביט</option>
+                  <option value="paybox">פייבוקס</option>
+                  <option value="other">אחר</option>
                 </select>
                 {paymentMethod === "checks" && (
                   <p className="text-xs text-blue-600 mt-1">
@@ -385,6 +431,66 @@ export default function EditLeasePage() {
                   placeholder="תנאים מיוחדים..." />
               </div>
             </div>
+          </div>
+
+          {/* Tenant info card */}
+          {tenantId && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900">פרטי השוכר הראשי</h2>
+                <a href={`/dashboard/tenants/${tenantId}/edit`}
+                  className="px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors"
+                  style={{ background: "var(--accent-dim)", color: "var(--accent)" }}>
+                  עריכת פרטים ›
+                </a>
+              </div>
+              <p className="text-sm" style={{ color: "var(--text-2)" }}>{tenantName || "—"}</p>
+            </div>
+          )}
+
+          {/* Second tenant */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">שוכר שני</h2>
+                <p className="text-sm text-gray-500">למשל: זוג שמשכיר יחד</p>
+              </div>
+              <Toggle on={hasSecondTenant} onToggle={() => setHasSecondTenant(!hasSecondTenant)} />
+            </div>
+            {hasSecondTenant && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">שם פרטי *</label>
+                  <input value={secondTenantFirstName} onChange={(e) => setSecondTenantFirstName(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="שם פרטי" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">שם משפחה *</label>
+                  <input value={secondTenantLastName} onChange={(e) => setSecondTenantLastName(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="שם משפחה" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">תעודת זהות</label>
+                  <input value={secondTenantIdNumber} onChange={(e) => setSecondTenantIdNumber(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="9 ספרות" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">טלפון</label>
+                  <PhoneInput value={secondTenantPhone} onChange={setSecondTenantPhone}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="052-123 4567" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-gray-700 font-semibold mb-1">אימייל</label>
+                  <input type="email" value={secondTenantEmail} onChange={(e) => setSecondTenantEmail(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="example@email.com" dir="ltr" />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Option */}
@@ -404,7 +510,7 @@ export default function EditLeasePage() {
                 </div>
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">משך האופציה (חודשים)</label>
-                  <input type="number" value={optionMonths} onChange={(e) => setOptionMonths(e.target.value)} min="1" step="1"
+                  <input type="text" inputMode="numeric" value={optionMonths} onChange={(e) => setOptionMonths(e.target.value.replace(/\D/g, ""))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="לדוג' 12" />
                 </div>
                 <div>
@@ -415,7 +521,7 @@ export default function EditLeasePage() {
                 </div>
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">שכירות באופציה (₪)</label>
-                  <input type="number" value={optionRent} onChange={(e) => setOptionRent(e.target.value)} min="1" step="1"
+                  <NumberInput value={optionRent} onChange={setOptionRent}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="אם שונה מהחוזה" />
                 </div>
                 <div className="md:col-span-2">
@@ -445,15 +551,13 @@ export default function EditLeasePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">הודעה מצד השוכר (חודשים)</label>
-                  <input type="number" value={tenantNoticeMonths} onChange={(e) => setTenantNoticeMonths(e.target.value)}
-                    min="1" max="24" step="1"
+                  <input type="text" inputMode="numeric" value={tenantNoticeMonths} onChange={(e) => setTenantNoticeMonths(e.target.value.replace(/\D/g, ""))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   <p className="text-xs text-gray-400 mt-1">כמה חודשים מראש חייב השוכר להודיע</p>
                 </div>
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">הודעה מצד המשכיר (חודשים)</label>
-                  <input type="number" value={landlordNoticeMonths} onChange={(e) => setLandlordNoticeMonths(e.target.value)}
-                    min="1" max="24" step="1"
+                  <input type="text" inputMode="numeric" value={landlordNoticeMonths} onChange={(e) => setLandlordNoticeMonths(e.target.value.replace(/\D/g, ""))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   <p className="text-xs text-gray-400 mt-1">כמה חודשים מראש חייב המשכיר להודיע</p>
                 </div>
@@ -577,7 +681,7 @@ export default function EditLeasePage() {
                     <><dt className="text-gray-500">ת.ז.</dt><dd className="font-medium">{extractedData.tenant.idNumber}</dd></>
                   )}
                   {extractedData.tenant.phone && (
-                    <><dt className="text-gray-500">טלפון</dt><dd className="font-medium">{extractedData.tenant.phone}</dd></>
+                    <><dt className="text-gray-500">טלפון</dt><dd className="font-medium">{formatPhone(extractedData.tenant.phone)}</dd></>
                   )}
                   {extractedData.tenant.email && (
                     <><dt className="text-gray-500">אימייל</dt><dd className="font-medium">{extractedData.tenant.email}</dd></>

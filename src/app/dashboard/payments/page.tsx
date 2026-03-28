@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { NumberInput } from "@/components/number-input";
 
 const TYPE_HE: Record<string, string> = {
   Rent: "שכ״ד",
@@ -126,7 +127,7 @@ export default function PaymentsPage() {
 
   // Partial payment state
   const [partialOpenId, setPartialOpenId] = useState<string | null>(null);
-  const [partialAmount, setPartialAmount] = useState("");
+  const [partialAmount, setPartialAmount] = useState<number | undefined>(undefined);
   const [partialReason, setPartialReason] = useState("");
   const [savingPartial, setSavingPartial] = useState(false);
 
@@ -178,13 +179,13 @@ export default function PaymentsPage() {
 
   const openPartial = (payment: Payment) => {
     const existing = parsePartialPaid(payment.notes);
-    setPartialAmount(existing ? String(existing) : "");
+    setPartialAmount(existing || undefined);
     setPartialReason(parsePartialReason(payment.notes));
     setPartialOpenId(payment.id);
   };
 
   const savePartial = async (payment: Payment, isVirtual: boolean) => {
-    const amt = parseFloat(partialAmount);
+    const amt = partialAmount;
     if (!amt || amt <= 0 || amt >= payment.amount) return;
     setSavingPartial(true);
     try {
@@ -222,7 +223,7 @@ export default function PaymentsPage() {
     } finally {
       setSavingPartial(false);
       setPartialOpenId(null);
-      setPartialAmount("");
+      setPartialAmount(undefined);
       setPartialReason("");
     }
   };
@@ -371,7 +372,7 @@ export default function PaymentsPage() {
                             className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap">
                             {creatingPayment === p.id ? "..." : "שולם"}
                           </button>
-                          <button onClick={() => { setPartialOpenId(isPartialOpen ? null : p.id); setPartialAmount(""); setPartialReason(""); }}
+                          <button onClick={() => { setPartialOpenId(isPartialOpen ? null : p.id); setPartialAmount(undefined); setPartialReason(""); }}
                             className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap border ${
                               isPartialOpen ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-gray-300 text-gray-600 hover:bg-blue-50"
                             }`}>
@@ -412,13 +413,10 @@ export default function PaymentsPage() {
                       <div className="flex gap-2 items-center">
                         <div className="flex items-center gap-1 bg-white border border-blue-200 rounded-lg px-2 py-1.5 text-sm">
                           <span className="text-gray-500 text-xs">₪</span>
-                          <input
-                            type="number"
+                          <NumberInput
                             value={partialAmount}
-                            onChange={(e) => setPartialAmount(e.target.value)}
+                            onChange={setPartialAmount}
                             placeholder={`מתוך ${p.amount.toLocaleString()}`}
-                            min="1"
-                            max={p.amount - 1}
                             className="w-28 outline-none text-gray-900 text-xs"
                           />
                         </div>
@@ -430,7 +428,7 @@ export default function PaymentsPage() {
                           className="flex-1 bg-white border border-blue-200 rounded-lg px-2 py-1.5 text-xs outline-none"
                         />
                       </div>
-                      {partialAmount && parseFloat(partialAmount) > 0 && parseFloat(partialAmount) < p.amount && (
+                      {partialAmount && partialAmount > 0 && partialAmount < p.amount && (
                         <p className="text-xs text-blue-600">
                           יתרת חוב: ₪{(p.amount - parseFloat(partialAmount)).toLocaleString()}
                         </p>

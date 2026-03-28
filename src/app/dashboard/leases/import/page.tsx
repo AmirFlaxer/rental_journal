@@ -3,6 +3,9 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
+import { NumberInput } from "@/components/number-input";
+import { PhoneInput } from "@/components/phone-input";
+import { formatPhone } from "@/lib/phone";
 
 type Step = "upload" | "review" | "complete";
 
@@ -28,8 +31,8 @@ interface ExtractedLease {
   // Lease terms
   startDate: string;
   endDate: string;
-  monthlyRent: number | "";
-  depositAmount: number | "";
+  monthlyRent: number | undefined;
+  depositAmount: number | undefined;
   terms: string;
 
   // Payment method
@@ -44,7 +47,7 @@ const EMPTY: ExtractedLease = {
   propertyAddress: "", propertyCity: "",
   firstName: "", lastName: "", idNumber: "", phone: "", email: "",
   secondTenantFirstName: "", secondTenantLastName: "", secondTenantIdNumber: "", secondTenantPhone: "", secondTenantEmail: "",
-  startDate: "", endDate: "", monthlyRent: "", depositAmount: "", terms: "",
+  startDate: "", endDate: "", monthlyRent: undefined, depositAmount: undefined, terms: "",
   paymentMethod: "", checkBank: "", checkBranch: "", checkAccount: "", checkDepositReminder: false,
 };
 
@@ -63,6 +66,17 @@ function Field({ label, value, onChange, type = "text", required }: {
         required={required}
         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
       />
+    </div>
+  );
+}
+
+function PhoneField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-gray-500 mb-1">{label}</label>
+      <PhoneInput value={value} onChange={onChange}
+        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+        placeholder="052-123 4567" />
     </div>
   );
 }
@@ -131,17 +145,17 @@ export default function ImportLeasePage() {
       firstName: t.firstName || "",
       lastName: t.lastName || "",
       idNumber: t.idNumber || "",
-      phone: t.phone || "",
+      phone: formatPhone(t.phone) || "",
       email: t.email || "",
       secondTenantFirstName: t2.firstName || "",
       secondTenantLastName: t2.lastName || "",
       secondTenantIdNumber: t2.idNumber || "",
-      secondTenantPhone: t2.phone || "",
+      secondTenantPhone: formatPhone(t2.phone) || "",
       secondTenantEmail: t2.email || "",
       startDate: l.startDate || "",
       endDate: l.endDate || "",
-      monthlyRent: l.monthlyRent || "",
-      depositAmount: l.depositAmount || "",
+      monthlyRent: l.monthlyRent || undefined,
+      depositAmount: l.depositAmount || undefined,
       terms: l.terms || "",
       paymentMethod: pay.method || "",
       checkBank: pay.checkBank || "",
@@ -214,8 +228,8 @@ export default function ImportLeasePage() {
           tenantId: tenant.id,
           startDate: data.startDate,
           endDate: data.endDate,
-          monthlyRent: Number(data.monthlyRent),
-          depositAmount: data.depositAmount ? Number(data.depositAmount) : undefined,
+          monthlyRent: data.monthlyRent ?? 0,
+          depositAmount: data.depositAmount || undefined,
           leaseTerm: calcMonths(data.startDate, data.endDate),
           terms: data.terms || undefined,
           secondTenantFirstName: hasSecond && data.secondTenantFirstName ? data.secondTenantFirstName : undefined,
@@ -372,7 +386,7 @@ export default function ImportLeasePage() {
             <Field label="שם פרטי" value={data.firstName} onChange={set("firstName")} required />
             <Field label="שם משפחה" value={data.lastName} onChange={set("lastName")} required />
             <Field label="תעודת זהות" value={data.idNumber} onChange={set("idNumber")} />
-            <Field label="טלפון" value={data.phone} onChange={set("phone")} />
+            <PhoneField label="טלפון" value={data.phone} onChange={set("phone")} />
             <div className="md:col-span-2">
               <Field label="אימייל" value={data.email} onChange={set("email")} type="email" />
             </div>
@@ -386,8 +400,14 @@ export default function ImportLeasePage() {
                 <h3 className="font-bold text-gray-800 text-sm">שוכר/ת נוסף/ת (בן/בת זוג)</h3>
               </div>
               <button type="button" onClick={() => setHasSecond(!hasSecond)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${hasSecond ? "bg-indigo-600" : "bg-gray-300"}`}>
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${hasSecond ? "translate-x-6" : "translate-x-1"}`} />
+                className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0"
+                style={{ background: hasSecond ? "var(--accent)" : "var(--bg-elevated)", border: "1px solid var(--border)" }}>
+                <span className="inline-block h-4 w-4 rounded-full shadow"
+                  style={{
+                    background: hasSecond ? "#fff" : "var(--text-3)",
+                    transform: hasSecond ? "translateX(1.4rem)" : "translateX(0.2rem)",
+                    transition: "transform 0.2s",
+                  }} />
               </button>
             </div>
             {hasSecond && (
@@ -395,7 +415,7 @@ export default function ImportLeasePage() {
                 <Field label="שם פרטי" value={data.secondTenantFirstName} onChange={set("secondTenantFirstName")} />
                 <Field label="שם משפחה" value={data.secondTenantLastName} onChange={set("secondTenantLastName")} />
                 <Field label="תעודת זהות" value={data.secondTenantIdNumber} onChange={set("secondTenantIdNumber")} />
-                <Field label="טלפון" value={data.secondTenantPhone} onChange={set("secondTenantPhone")} />
+                <PhoneField label="טלפון" value={data.secondTenantPhone} onChange={set("secondTenantPhone")} />
               </div>
             )}
           </div>
@@ -403,8 +423,16 @@ export default function ImportLeasePage() {
           <Section title="תנאי השכירות" icon="📋">
             <Field label="תאריך התחלה" value={data.startDate} onChange={set("startDate")} type="date" required />
             <Field label="תאריך סיום" value={data.endDate} onChange={set("endDate")} type="date" required />
-            <Field label="שכ״ד חודשי (₪)" value={data.monthlyRent} onChange={set("monthlyRent")} type="number" required />
-            <Field label="פיקדון (₪)" value={data.depositAmount} onChange={set("depositAmount")} type="number" />
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">שכ״ד חודשי (₪)<span className="text-red-500 mr-1">*</span></label>
+              <NumberInput value={data.monthlyRent} onChange={(v) => setData((prev) => ({ ...prev, monthlyRent: v }))}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">פיקדון (₪)</label>
+              <NumberInput value={data.depositAmount} onChange={(v) => setData((prev) => ({ ...prev, depositAmount: v }))}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white" />
+            </div>
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold text-gray-500 mb-1">תנאים מיוחדים</label>
               <textarea value={data.terms} onChange={(e) => set("terms")(e.target.value)} rows={3}

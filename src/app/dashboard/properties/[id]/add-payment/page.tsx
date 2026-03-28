@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { DateInput } from "@/components/date-input";
+import { NumberInput } from "@/components/number-input";
 
 interface Lease {
   id: string;
@@ -25,7 +26,7 @@ export default function AddPaymentPage() {
 
   const [leaseId, setLeaseId] = useState("");
   const [paymentType, setPaymentType] = useState("Rent");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState<number | undefined>(undefined);
   const [dueDate, setDueDate] = useState(today());
   const [paidDate, setPaidDate] = useState(today());
   const [isPaid, setIsPaid] = useState(false);
@@ -41,7 +42,7 @@ export default function AddPaymentPage() {
         setLeases(active);
         if (active.length === 1) {
           setLeaseId(active[0].id);
-          setAmount(String(active[0].monthlyRent));
+          setAmount(active[0].monthlyRent);
         }
       });
   }, [propertyId]);
@@ -50,7 +51,7 @@ export default function AddPaymentPage() {
   const handleLeaseChange = (id: string) => {
     setLeaseId(id);
     const lease = leases.find((l) => l.id === id);
-    if (lease && paymentType === "Rent") setAmount(String(lease.monthlyRent));
+    if (lease && paymentType === "Rent") setAmount(lease.monthlyRent);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,7 +66,7 @@ export default function AddPaymentPage() {
           propertyId,
           leaseId: leaseId || undefined,
           paymentType,
-          amount: parseFloat(amount),
+          amount: amount ?? 0,
           dueDate,
           paidDate: isPaid ? paidDate : undefined,
           status: isPaid ? "paid" : "pending",
@@ -137,8 +138,8 @@ export default function AddPaymentPage() {
             {/* Amount */}
             <div>
               <label className="block text-gray-700 font-semibold mb-1">סכום (₪) *</label>
-              <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
-                required min="1" step="1" className={inp} placeholder="לדוג' 7500" />
+              <NumberInput value={amount} onChange={setAmount}
+                className={inp} placeholder="לדוג' 7500" />
             </div>
 
             {/* Due date */}

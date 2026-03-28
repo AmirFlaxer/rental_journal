@@ -10,21 +10,89 @@ interface Property {
   city: string;
   propertyType: string;
   leases?: { status: string; monthlyRent: number }[];
-  payments?: { status: string; amount: number }[];
-  expenses?: { amount: number }[];
+}
+
+interface Lease {
+  id: string;
+  startDate: string;
+  endDate: string;
+  monthlyRent: number;
+  status: string;
+}
+
+interface Payment {
+  id: string;
+  status: string;
+  amount: number;
+  dueDate: string;
+  lease?: { id: string };
+  isVirtual?: boolean;
+}
+
+interface Expense {
+  id: string;
+  amount: number;
 }
 
 const TYPE_HE: Record<string, string> = { Apartment: "דירה", House: "בית", Commercial: "מסחרי" };
 
+function countPendingPayments(leases: Lease[], dbPayments: Payment[]): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let count = 0;
+
+  // DB payments that are not paid
+  count += dbPayments.filter((p) => p.status !== "paid").length;
+
+  // Virtual slots (past due, not in DB)
+  for (const lease of leases) {
+    if (lease.status !== "active") continue;
+    const start = new Date(lease.startDate);
+    const end = new Date(lease.endDate);
+    const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+    const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+    const startDay = start.getDate();
+
+    while (cur <= endMonth) {
+      const year = cur.getFullYear();
+      const month = cur.getMonth() + 1;
+      const monthKey = `${year}-${String(month).padStart(2, "0")}`;
+      const lastDay = new Date(year, month, 0).getDate();
+      const day = Math.min(startDay, lastDay);
+      const dueDate = `${monthKey}-${String(day).padStart(2, "0")}`;
+
+      if (new Date(dueDate) <= today) {
+        const exists = dbPayments.some(
+          (p) => p.lease?.id === lease.id && p.dueDate.slice(0, 7) === monthKey
+        );
+        if (!exists) count++;
+      }
+      cur.setMonth(cur.getMonth() + 1);
+    }
+  }
+
+  return count;
+}
+
 export default function Dashboard() {
   const [properties, setProperties] = useState<Property[]>([]);
+  const [leases, setLeases] = useState<Lease[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/properties")
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setProperties(data); })
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch("/api/properties").then((r) => r.json()),
+      fetch("/api/leases").then((r) => r.json()),
+      fetch("/api/payments").then((r) => r.json()),
+      fetch("/api/expenses").then((r) => r.json()),
+    ]).then(([props, leas, pays, exps]) => {
+      if (Array.isArray(props)) setProperties(props);
+      if (Array.isArray(leas)) setLeases(leas);
+      if (Array.isArray(pays)) setPayments(pays);
+      if (Array.isArray(exps)) setExpenses(exps);
+    }).finally(() => setLoading(false));
   }, []);
 
   if (loading) {
@@ -37,15 +105,15 @@ export default function Dashboard() {
 
   const activeLeases = properties.flatMap((p) => p.leases || []).filter((l) => l.status === "active");
   const monthlyIncome = activeLeases.reduce((s, l) => s + l.monthlyRent, 0);
-  const pendingPayments = properties.flatMap((p) => p.payments || []).filter((pay) => pay.status === "pending").length;
-  const totalExpenses = properties.flatMap((p) => p.expenses || []).reduce((s, e) => s + e.amount, 0);
+  const pendingPayments = countPendingPayments(leases, payments);
+  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
 
   const stats = [
     { label: "נכסים", value: properties.length, icon: "🏢", color: "bg-indigo-50 text-indigo-700", border: "border-indigo-200", href: "/dashboard/properties" },
     { label: "חוזים פעילים", value: activeLeases.length, icon: "📋", color: "bg-emerald-50 text-emerald-700", border: "border-emerald-200", href: "/dashboard/leases" },
     { label: "הכנסה חודשית", value: monthlyIncome > 0 ? `₪${monthlyIncome.toLocaleString()}` : "—", icon: "💰", color: "bg-blue-50 text-blue-700", border: "border-blue-200", href: "/dashboard/reports" },
-    { label: "תקבולים ממתינים", value: pendingPayments || "—", icon: "⏳", color: "bg-amber-50 text-amber-700", border: "border-amber-200", href: "/dashboard/payments" },
-    { label: "הוצאות כוללות", value: totalExpenses > 0 ? `₪${totalExpenses.toLocaleString()}` : "—", icon: "💸", color: "bg-rose-50 text-rose-700", border: "border-rose-200", href: "/dashboard/expenses" },
+    { label: "תקבולים ממתינים", value: pendingPayments > 0 ? pendingPayments : "0", icon: "⏳", color: "bg-amber-50 text-amber-700", border: "border-amber-200", href: "/dashboard/payments" },
+    { label: "הוצאות כוללות", value: totalExpenses > 0 ? `₪${totalExpenses.toLocaleString()}` : "₪0", icon: "💸", color: "bg-rose-50 text-rose-700", border: "border-rose-200", href: "/dashboard/expenses" },
   ];
 
   return (

@@ -48,6 +48,11 @@ export const tenantSchema = z.object({
 export const leaseSchema = z.object({
   propertyId: z.string().min(1, "Property is required"),
   tenantId: z.string().min(1, "Tenant is required"),
+  secondTenantFirstName: z.string().nullish(),
+  secondTenantLastName: z.string().nullish(),
+  secondTenantIdNumber: z.string().nullish(),
+  secondTenantPhone: z.string().nullish(),
+  secondTenantEmail: z.string().email().nullish().or(z.literal("")).transform(v => v || null),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   monthlyRent: z.number().positive("Rent must be positive"),
@@ -99,7 +104,7 @@ export const paymentSchema = z.object({
 export const taskSchema = z.object({
   title: z.string().min(3, "Title is required"),
   description: z.string().optional(),
-  category: z.enum(["Insurance", "Rent Collection", "Lease Renewal", "Maintenance", "Tax", "Other"]),
+  category: z.enum(["Insurance", "Rent Collection", "Lease Renewal", "Maintenance", "Tax", "Gas", "Water", "Electricity", "Municipal Tax", "Other"]),
   dueDate: z.coerce.date(),
   priority: z.enum(["low", "normal", "high"]).optional(),
   relatedEntityType: z.string().optional(),

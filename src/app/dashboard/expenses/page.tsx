@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DateInput } from "@/components/date-input";
+import { NumberInput } from "@/components/number-input";
 
 const CAT_HE: Record<string, string> = {
   Maintenance: "תחזוקה",
@@ -272,8 +273,9 @@ export default function ExpensesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">סכום (₪) *</label>
-                  <input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                    required min="0" step="0.01"
+                  <NumberInput
+                    value={form.amount !== "" ? parseFloat(form.amount) : undefined}
+                    onChange={(v) => setForm({ ...form, amount: v !== undefined ? String(v) : "" })}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="0" />
                 </div>
                 <div>

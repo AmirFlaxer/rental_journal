@@ -529,7 +529,9 @@ export default function PropertyDetailPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {property.leases.map((lease: any) => (
-                    <tr key={lease.id} className="hover:bg-gray-50">
+                    <tr key={lease.id}
+                      onClick={() => router.push(`/dashboard/leases/${lease.id}/edit`)}
+                      className="hover:bg-blue-50 cursor-pointer transition-colors">
                       <td className="px-6 py-4 font-medium text-gray-900">
                         {lease.tenant?.firstName} {lease.tenant?.lastName}
                       </td>
@@ -555,23 +557,20 @@ export default function PropertyDetailPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex gap-2 flex-wrap">
-                          <Link href={`/dashboard/leases/${lease.id}/edit`}
-                            className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-semibold hover:bg-gray-200">
-                            ✏️ עריכה
-                          </Link>
+                        <div className="flex gap-2 flex-wrap items-center">
                           {lease.hasOption && !lease.optionActivated && lease.optionEnd && lease.status === "active" && (
-                            <button onClick={() => setActivatingLeaseId(lease.id)}
+                            <button onClick={(e) => { e.stopPropagation(); setActivatingLeaseId(lease.id); }}
                               className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold hover:bg-blue-200">
                               🔄 אופציה
                             </button>
                           )}
                           {!lease.earlyTermProtection && lease.status === "active" && (
-                            <button onClick={() => { setTerminateLease(lease); setTermBy("tenant"); setTermDate(new Date().toISOString().slice(0,10)); setTermReason(""); }}
+                            <button onClick={(e) => { e.stopPropagation(); setTerminateLease(lease); setTermBy("tenant"); setTermDate(new Date().toISOString().slice(0,10)); setTermReason(""); }}
                               className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-semibold hover:bg-red-200">
                               🚪 סיום
                             </button>
                           )}
+                          <span className="text-gray-400 text-lg mr-auto">›</span>
                         </div>
                       </td>
                     </tr>
@@ -584,7 +583,7 @@ export default function PropertyDetailPage() {
 
         {/* Check payment reminders */}
         {(() => {
-          const checkLeases = activeLeases.filter((l) => l.paymentMethod === "Check");
+          const checkLeases = activeLeases.filter((l) => ["checks", "check"].includes((l.paymentMethod ?? "").toLowerCase()));
           if (!checkLeases.length) return null;
 
           const today = new Date();

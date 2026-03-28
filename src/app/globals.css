@@ -1,26 +1,132 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-base:    #0a0a0a;
+  --bg-surface: #111111;
+  --bg-elevated:#1a1a1a;
+  --border:     rgba(255,255,255,0.08);
+  --text-1:     #ffffff;
+  --text-2:     #aaaaaa;
+  --text-3:     #666666;
+  --accent:     #e91e8c;
+  --accent-dim: rgba(233,30,140,0.15);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ── Base ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+html { background: var(--bg-base); }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-1);
+  font-family: var(--font-outfit), var(--font-heebo), sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2 {
+  font-family: var(--font-playfair), var(--font-heebo), serif;
+}
+
+/* ── Tailwind overrides — backgrounds ───────────────── */
+.bg-white          { background-color: var(--bg-surface)  !important; }
+.bg-gray-50,
+.bg-slate-50       { background-color: var(--bg-base)     !important; }
+.bg-gray-100,
+.bg-gray-200       { background-color: var(--bg-elevated) !important; }
+.hover\:bg-gray-50:hover  { background-color: var(--bg-elevated) !important; }
+.hover\:bg-gray-100:hover { background-color: var(--bg-elevated) !important; }
+.hover\:bg-blue-50:hover  { background-color: var(--accent-dim)  !important; }
+.hover\:bg-slate-50:hover { background-color: var(--bg-elevated) !important; }
+
+/* ── Text ───────────────────────────────────────────── */
+.text-gray-900,
+.text-gray-800     { color: var(--text-1) !important; }
+.text-gray-700,
+.text-gray-600     { color: var(--text-2) !important; }
+.text-gray-500,
+.text-gray-400     { color: var(--text-3) !important; }
+
+/* ── Borders ────────────────────────────────────────── */
+.border,
+.border-gray-100,
+.border-gray-200,
+.border-gray-300   { border-color: var(--border) !important; }
+.divide-gray-100 > * + * { border-color: var(--border) !important; }
+
+/* ── Inputs / selects ───────────────────────────────── */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea,
+select {
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-1) !important;
+  border-color: var(--border) !important;
+}
+input::placeholder, textarea::placeholder { color: var(--text-3) !important; }
+select option { background: var(--bg-elevated); color: var(--text-1); }
+
+/* ── Accent: replace indigo with pink ───────────────── */
+.bg-indigo-600             { background-color: var(--accent) !important; }
+.hover\:bg-indigo-700:hover{ background-color: #c4176f     !important; }
+.text-indigo-600,
+.text-indigo-700,
+.text-indigo-400           { color: var(--accent)           !important; }
+.bg-indigo-50,
+.bg-indigo-100             { background-color: var(--accent-dim) !important; }
+.text-indigo-800           { color: var(--accent)           !important; }
+.ring-indigo-400,
+.focus\:ring-indigo-400    { --tw-ring-color: var(--accent)  !important; }
+.border-indigo-400,
+.focus\:border-indigo-400  { border-color: var(--accent)    !important; }
+.shadow-indigo-200         { --tw-shadow-color: transparent  !important; }
+
+/* Blue → accent */
+.bg-blue-600               { background-color: var(--accent) !important; }
+.hover\:bg-blue-700:hover  { background-color: #c4176f     !important; }
+.text-blue-600,
+.text-blue-700             { color: var(--accent)           !important; }
+.bg-blue-50,
+.bg-blue-100               { background-color: var(--accent-dim) !important; }
+.border-blue-200           { border-color: rgba(233,30,140,0.3) !important; }
+
+/* ── Cards / surfaces ───────────────────────────────── */
+.rounded-2xl,
+.rounded-xl,
+.rounded-lg {
+  box-shadow: 0 0 0 1px var(--border) !important;
+}
+.shadow-sm, .shadow-md, .shadow-xl, .shadow-lg {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5) !important;
+}
+
+/* ── Status badges — keep subtle tones on dark ──────── */
+.bg-green-100  { background-color: rgba(16,185,129,0.15) !important; }
+.text-green-700{ color: #34d399 !important; }
+.bg-red-100    { background-color: rgba(239,68,68,0.15)  !important; }
+.text-red-700  { color: #f87171 !important; }
+.bg-amber-100  { background-color: rgba(245,158,11,0.15) !important; }
+.text-amber-700{ color: #fbbf24 !important; }
+.bg-emerald-100{ background-color: rgba(16,185,129,0.15) !important; }
+.text-emerald-700{ color: #34d399 !important; }
+.bg-yellow-100 { background-color: rgba(234,179,8,0.15)  !important; }
+.text-yellow-700{ color: #facc15 !important; }
+
+/* Error boxes */
+.bg-red-50     { background-color: rgba(239,68,68,0.1)   !important; }
+.border-red-300{ border-color:  rgba(239,68,68,0.4)      !important; }
+
+/* ── Tables ─────────────────────────────────────────── */
+thead, .bg-gray-50 thead { background-color: var(--bg-elevated) !important; }
+tbody tr:hover { background-color: var(--bg-elevated) !important; }
+
+/* ── Scrollbar ──────────────────────────────────────── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* ── Numbers — tabular ──────────────────────────────── */
+td, th, .font-semibold, .font-bold {
+  font-variant-numeric: tabular-nums;
 }

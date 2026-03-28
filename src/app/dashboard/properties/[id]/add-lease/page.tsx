@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { DateInput } from "@/components/date-input";
+import { NumberInput } from "@/components/number-input";
+import { PhoneInput } from "@/components/phone-input";
 
 interface Tenant {
   id: string;
@@ -41,13 +43,21 @@ export default function AddLeasePage() {
   const [tenantId, setTenantId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [monthlyRent, setMonthlyRent] = useState("");
-  const [depositAmount, setDepositAmount] = useState("");
+  const [monthlyRent, setMonthlyRent] = useState<number | undefined>(undefined);
+  const [depositAmount, setDepositAmount] = useState<number | undefined>(undefined);
   const [leaseTerm, setLeaseTerm] = useState("12");
   const [terms, setTerms] = useState("");
 
+  // Second tenant
+  const [hasSecondTenant, setHasSecondTenant] = useState(false);
+  const [secondTenantFirstName, setSecondTenantFirstName] = useState("");
+  const [secondTenantLastName, setSecondTenantLastName] = useState("");
+  const [secondTenantIdNumber, setSecondTenantIdNumber] = useState("");
+  const [secondTenantPhone, setSecondTenantPhone] = useState("");
+  const [secondTenantEmail, setSecondTenantEmail] = useState("");
+
   // Payment method
-  const [paymentMethod, setPaymentMethod] = useState("BankTransfer");
+  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
 
   // Deposit payment options
   const [createDepositPayment, setCreateDepositPayment] = useState(false);
@@ -149,11 +159,16 @@ export default function AddLeasePage() {
           tenantId: resolvedTenantId,
           startDate,
           endDate,
-          monthlyRent: parseFloat(monthlyRent),
-          depositAmount: depositAmount ? parseFloat(depositAmount) : undefined,
+          monthlyRent: monthlyRent ?? 0,
+          depositAmount: depositAmount || undefined,
           leaseTerm: parseInt(leaseTerm),
           terms: terms || undefined,
           paymentMethod,
+          secondTenantFirstName: hasSecondTenant && secondTenantFirstName ? secondTenantFirstName : null,
+          secondTenantLastName: hasSecondTenant && secondTenantLastName ? secondTenantLastName : null,
+          secondTenantIdNumber: hasSecondTenant && secondTenantIdNumber ? secondTenantIdNumber : null,
+          secondTenantPhone: hasSecondTenant && secondTenantPhone ? secondTenantPhone : null,
+          secondTenantEmail: hasSecondTenant && secondTenantEmail ? secondTenantEmail : null,
         }),
       });
 
@@ -173,7 +188,7 @@ export default function AddLeasePage() {
             propertyId,
             leaseId: lease.id,
             paymentType: "Deposit",
-            amount: parseFloat(depositAmount),
+            amount: depositAmount,
             dueDate: startDate,
             paidDate: depositStatus === "paid" && depositPaidDate ? depositPaidDate : undefined,
             status: depositStatus,
@@ -290,15 +305,9 @@ export default function AddLeasePage() {
                 </div>
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">טלפון</label>
-                  <input
-                    type="tel"
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
-                    pattern="^0\d{8,9}$"
-                    title="מספר טלפון ישראלי (10 ספרות, מתחיל ב-0)"
+                  <PhoneInput value={newPhone} onChange={setNewPhone}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0501234567"
-                  />
+                    placeholder="052-123 4567" />
                 </div>
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">תעודת זהות</label>
@@ -342,25 +351,18 @@ export default function AddLeasePage() {
               </div>
               <div>
                 <label className="block text-gray-700 font-semibold mb-1">שכירות חודשית (₪) *</label>
-                <input
-                  type="number"
+                <NumberInput
                   value={monthlyRent}
-                  onChange={(e) => setMonthlyRent(e.target.value)}
-                  required
-                  min="1"
-                  step="1"
+                  onChange={setMonthlyRent}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="לדוג' 7500"
                 />
               </div>
               <div>
                 <label className="block text-gray-700 font-semibold mb-1">פיקדון (₪)</label>
-                <input
-                  type="number"
+                <NumberInput
                   value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  min="0"
-                  step="1"
+                  onChange={setDepositAmount}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="לדוג' 15000"
                 />
@@ -373,12 +375,11 @@ export default function AddLeasePage() {
                   )}
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={leaseTerm}
-                  onChange={(e) => setLeaseTerm(e.target.value)}
+                  onChange={(e) => setLeaseTerm(e.target.value.replace(/\D/g, ""))}
                   required
-                  min="1"
-                  step="1"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -389,12 +390,12 @@ export default function AddLeasePage() {
                   onChange={(e) => setPaymentMethod(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="BankTransfer">העברה בנקאית</option>
-                  <option value="Check">שק</option>
-                  <option value="Cash">מזומן</option>
-                  <option value="BIT">ביט</option>
-                  <option value="Paybox">פייבוקס</option>
-                  <option value="Other">אחר</option>
+                  <option value="bank_transfer">העברה בנקאית</option>
+                  <option value="checks">שקים</option>
+                  <option value="cash">מזומן</option>
+                  <option value="bit">ביט</option>
+                  <option value="paybox">פייבוקס</option>
+                  <option value="other">אחר</option>
                 </select>
               </div>
 
@@ -411,8 +412,63 @@ export default function AddLeasePage() {
             </div>
           </div>
 
+          {/* Second tenant */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">שוכר שני</h2>
+                <p className="text-sm text-gray-500">למשל: זוג שמשכיר יחד</p>
+              </div>
+              <button type="button" onClick={() => setHasSecondTenant(!hasSecondTenant)}
+                className="relative inline-flex h-7 w-12 items-center rounded-full transition-colors flex-shrink-0"
+                style={{ background: hasSecondTenant ? "var(--accent)" : "var(--bg-elevated)", border: "1px solid var(--border)" }}>
+                <span className="inline-block h-5 w-5 rounded-full shadow"
+                  style={{
+                    background: hasSecondTenant ? "#fff" : "var(--text-3)",
+                    transform: hasSecondTenant ? "translateX(1.4rem)" : "translateX(0.2rem)",
+                    transition: "transform 0.2s",
+                  }} />
+              </button>
+            </div>
+            {hasSecondTenant && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">שם פרטי *</label>
+                  <input value={secondTenantFirstName} onChange={(e) => setSecondTenantFirstName(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="שם פרטי" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">שם משפחה *</label>
+                  <input value={secondTenantLastName} onChange={(e) => setSecondTenantLastName(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="שם משפחה" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">תעודת זהות</label>
+                  <input value={secondTenantIdNumber} onChange={(e) => setSecondTenantIdNumber(e.target.value.replace(/\D/g, ""))}
+                    inputMode="numeric" maxLength={9}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="9 ספרות" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">טלפון</label>
+                  <PhoneInput value={secondTenantPhone} onChange={setSecondTenantPhone}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="052-123 4567" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-gray-700 font-semibold mb-1">אימייל</label>
+                  <input type="email" value={secondTenantEmail} onChange={(e) => setSecondTenantEmail(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="example@email.com" dir="ltr" />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Deposit payment */}
-          {depositAmount && parseFloat(depositAmount) > 0 && (
+          {depositAmount && depositAmount > 0 && (
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center gap-3 mb-4">
                 <input
@@ -423,7 +479,7 @@ export default function AddLeasePage() {
                   className="w-4 h-4 accent-green-600 cursor-pointer"
                 />
                 <label htmlFor="createDeposit" className="text-gray-900 font-semibold cursor-pointer">
-                  צור רשומת תקבול עבור הפקדון (₪{parseFloat(depositAmount).toLocaleString()})
+                  צור רשומת תקבול עבור הפקדון (₪{depositAmount?.toLocaleString()})
                 </label>
               </div>
 

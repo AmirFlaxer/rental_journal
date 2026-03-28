@@ -8,7 +8,11 @@ const CAT_HE: Record<string, string> = {
   "Rent Collection": "גביית שכ״ד",
   "Lease Renewal": "חידוש חוזה",
   Maintenance: "תחזוקה",
-  Tax: "מס",
+  Tax: "מס הכנסה",
+  Gas: "גז",
+  Water: "מים וביוב",
+  Electricity: "חשמל",
+  "Municipal Tax": "ארנונה",
   Other: "אחר",
 };
 
@@ -18,8 +22,18 @@ const CAT_ICON: Record<string, string> = {
   "Lease Renewal": "📋",
   Maintenance: "🔧",
   Tax: "📊",
+  Gas: "🔥",
+  Water: "💧",
+  Electricity: "⚡",
+  "Municipal Tax": "🏛️",
   Other: "📌",
 };
+
+const CAT_GROUP: { label: string; items: string[] }[] = [
+  { label: "ניהול חוזה", items: ["Rent Collection", "Lease Renewal", "Insurance"] },
+  { label: "חשבונות תקופתיים", items: ["Gas", "Water", "Electricity", "Municipal Tax"] },
+  { label: "כללי", items: ["Maintenance", "Tax", "Other"] },
+];
 
 const PRIORITY_HE: Record<string, string> = { low: "נמוכה", normal: "רגילה", high: "גבוהה" };
 const PRIORITY_COLOR: Record<string, string> = {
@@ -28,7 +42,7 @@ const PRIORITY_COLOR: Record<string, string> = {
   high: "bg-red-100 text-red-700",
 };
 
-const CATEGORIES = ["Insurance", "Rent Collection", "Lease Renewal", "Maintenance", "Tax", "Other"];
+const CATEGORIES = ["Insurance", "Rent Collection", "Lease Renewal", "Maintenance", "Tax", "Gas", "Water", "Electricity", "Municipal Tax", "Other"];
 
 interface Task {
   id: string;
@@ -48,7 +62,7 @@ interface Lease {
   startDate: string;
   endDate: string;
   monthlyRent: number;
-  status: string;
+  status?: string | null;
   paymentMethod?: string;
   properties?: { id: string; title: string };
   tenant?: { firstName: string; lastName: string };
@@ -61,9 +75,11 @@ function generateCheckReminders(leases: Lease[], dbTasks: Task[]): Task[] {
   const virtual: Task[] = [];
 
   for (const lease of leases) {
-    if (lease.status !== "active") continue;
-    // ברירת מחדל: שקים
-    if (lease.paymentMethod && lease.paymentMethod !== "checks") continue;
+    const pm = lease.paymentMethod?.toLowerCase();
+    // סטטוס: רק "ended" / "paused" פוסלים — null/undefined נחשב כפעיל
+    if (lease.status === "ended" || lease.status === "paused") continue;
+    // אמצעי תקבול: שק בלבד (תומך ב-"checks","Check","check" וגם null = ברירת מחדל שק)
+    if (pm && pm !== "check" && pm !== "checks") continue;
 
     const start = new Date(lease.startDate);
     const end = new Date(lease.endDate);
@@ -157,6 +173,13 @@ export default function TasksPage() {
     dueDate: "",
     priority: "normal",
   });
+  // Recurring state
+  const [recurring, setRecurring] = useState(false);
+  const [recurringFreq, setRecurringFreq] = useState(1); // months between occurrences
+  const [linkedLeaseId, setLinkedLeaseId] = useState("");
+  const [continueAfterLease, setContinueAfterLease] = useState(false);
+  const [recurringEndDate, setRecurringEndDate] = useState("");
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -220,21 +243,78 @@ export default function TasksPage() {
   const future = allPending.filter((t) => !isRelevant(t));
   const overdueCount = allPending.filter((t) => new Date(t.dueDate) < today).length;
 
+  const resetForm = () => {
+    setForm({ title: "", description: "", category: "Other", dueDate: "", priority: "normal" });
+    setRecurring(false);
+    setRecurringFreq(1);
+    setLinkedLeaseId("");
+    setContinueAfterLease(false);
+    setRecurringEndDate("");
+  };
+
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     setError("");
     setSaving(true);
+
     try {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "שגיאה");
-      setDbTasks((prev) => [data, ...prev]);
+      if (!recurring) {
+        // Single task
+        const res = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...form }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "שגיאה");
+        setDbTasks((prev) => [data, ...prev]);
+      } else {
+        // Recurring — calculate all dates
+        const occurrences: string[] = [];
+        let cur = new Date(form.dueDate);
+
+        // Determine end boundary
+        let endBoundary: Date | null = null;
+        if (linkedLeaseId && !continueAfterLease) {
+          const lease = leases.find((l) => l.id === linkedLeaseId);
+          if (lease) endBoundary = new Date(lease.endDate);
+        }
+        if (recurringEndDate) {
+          endBoundary = new Date(recurringEndDate);
+        }
+
+        const SAFETY_CAP = 60; // max 5 years
+        while (occurrences.length < SAFETY_CAP) {
+          if (endBoundary && cur > endBoundary) break;
+          occurrences.push(cur.toISOString().slice(0, 10));
+          const next = new Date(cur);
+          next.setMonth(next.getMonth() + recurringFreq);
+          cur = next;
+          // If no boundary at all, cap at 24
+          if (!endBoundary && occurrences.length >= 24) break;
+        }
+
+        const basePayload = {
+          ...form,
+          relatedEntityType: linkedLeaseId ? "lease" : undefined,
+          relatedEntityId: linkedLeaseId || undefined,
+        };
+
+        const results = await Promise.all(
+          occurrences.map((dateStr) =>
+            fetch("/api/tasks", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...basePayload, dueDate: dateStr }),
+            }).then((r) => r.json())
+          )
+        );
+        const created = results.filter((r) => r.id);
+        setDbTasks((prev) => [...created, ...prev]);
+      }
+
       setShowForm(false);
-      setForm({ title: "", description: "", category: "Other", dueDate: "", priority: "normal" });
+      resetForm();
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה");
     } finally {
@@ -308,9 +388,18 @@ export default function TasksPage() {
     );
   }
 
+  // Lease ID → property title lookup
+  const leasePropertyMap = new Map(
+    leases.map((l) => [l.id, l.properties?.title ?? null])
+  );
+
   const TaskRow = ({ t, isDone }: { t: Task; isDone: boolean }) => {
     const isOverdue = !isDone && new Date(t.dueDate) < today;
     const dueLabel = formatDue(t.dueDate, isOverdue);
+    const propertyName =
+      t.relatedEntityType === "lease" && t.relatedEntityId
+        ? leasePropertyMap.get(t.relatedEntityId) ?? null
+        : null;
 
     return (
       <div className={`flex items-center gap-4 px-5 py-4 hover:bg-slate-50 ${isDone ? "opacity-60" : ""}`}>
@@ -330,6 +419,9 @@ export default function TasksPage() {
             {t.description && ` · ${t.description}`}
             {t.isVirtual && <span className="text-indigo-400"> · אוטומטי</span>}
           </p>
+          {propertyName && (
+            <p className="text-xs mt-0.5" style={{ color: "var(--accent)" }}>🏠 {propertyName}</p>
+          )}
         </div>
         <div className="text-right text-xs shrink-0">
           <p className={`font-medium ${isOverdue ? "text-red-600" : isDone ? "text-gray-400" : "text-gray-500"}`}>
@@ -388,7 +480,7 @@ export default function TasksPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">תזכורת חדשה</h2>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button onClick={() => { setShowForm(false); resetForm(); }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
             {error && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>}
             <form onSubmit={handleSubmit} className="space-y-3">
@@ -411,8 +503,12 @@ export default function TasksPage() {
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
                   >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>{CAT_HE[c]}</option>
+                    {CAT_GROUP.map((g) => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.items.map((c) => (
+                          <option key={c} value={c}>{CAT_ICON[c]} {CAT_HE[c]}</option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </div>
@@ -448,15 +544,106 @@ export default function TasksPage() {
                   placeholder="הערות נוספות..."
                 />
               </div>
+
+              {/* Recurring section */}
+              <div className="pt-1 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-xs font-semibold text-gray-600">תזכורת חוזרת</label>
+                  <button type="button" onClick={() => setRecurring(!recurring)}
+                    className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0"
+                    style={{ background: recurring ? "var(--accent)" : "var(--bg-elevated)", border: "1px solid var(--border)" }}>
+                    <span className="inline-block h-4 w-4 rounded-full shadow"
+                      style={{
+                        background: recurring ? "#fff" : "var(--text-3)",
+                        transform: recurring ? "translateX(1.4rem)" : "translateX(0.2rem)",
+                        transition: "transform 0.2s",
+                      }} />
+                  </button>
+                </div>
+
+                {recurring && (
+                  <div className="space-y-3 rounded-xl p-3" style={{ background: "var(--bg-elevated)" }}>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1">תדירות</label>
+                      <select value={recurringFreq} onChange={(e) => setRecurringFreq(parseInt(e.target.value))}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                        <option value={1}>כל חודש</option>
+                        <option value={2}>כל חודשיים</option>
+                        <option value={3}>כל רבעון (3 חודשים)</option>
+                        <option value={6}>כל חצי שנה</option>
+                        <option value={12}>כל שנה</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1">קשור לחוזה (אופציונלי)</label>
+                      <select value={linkedLeaseId} onChange={(e) => { setLinkedLeaseId(e.target.value); setContinueAfterLease(false); }}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                        <option value="">— ללא חוזה ספציפי —</option>
+                        {leases.filter((l) => l.status !== "ended").map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.properties?.title} · {l.tenant?.firstName} {l.tenant?.lastName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {linkedLeaseId && (
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={continueAfterLease}
+                          onChange={(e) => setContinueAfterLease(e.target.checked)}
+                          className="w-4 h-4 accent-pink-600" />
+                        <span className="text-xs text-gray-600">המשך גם לאחר סיום החוזה</span>
+                      </label>
+                    )}
+
+                    {(!linkedLeaseId || continueAfterLease) && (
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">
+                          עד תאריך
+                          {!linkedLeaseId && <span className="text-gray-400 font-normal mr-1">(ללא תאריך = 24 תזכורות)</span>}
+                        </label>
+                        <DateInput value={recurringEndDate} onChange={setRecurringEndDate} className="w-full" />
+                      </div>
+                    )}
+
+                    {form.dueDate && (
+                      <p className="text-xs" style={{ color: "var(--accent)" }}>
+                        תזכורת ראשונה: {new Date(form.dueDate).toLocaleDateString("he-IL")}
+                        {(() => {
+                          let count = 0;
+                          let cur = new Date(form.dueDate);
+                          let end: Date | null = null;
+                          if (linkedLeaseId && !continueAfterLease) {
+                            const l = leases.find((x) => x.id === linkedLeaseId);
+                            if (l) end = new Date(l.endDate);
+                          }
+                          if (recurringEndDate) end = new Date(recurringEndDate);
+                          while (count < 60) {
+                            if (end && cur > end) break;
+                            count++;
+                            const next = new Date(cur);
+                            next.setMonth(next.getMonth() + recurringFreq);
+                            cur = next;
+                            if (!end && count >= 24) break;
+                          }
+                          return ` · סה"כ ${count} תזכורות`;
+                        })()}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-3 pt-1">
                 <button
                   type="submit"
                   disabled={saving}
                   className="flex-1 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {saving ? "שומר..." : "שמור"}
+                  {saving ? "שומר..." : recurring ? "צור תזכורות" : "שמור"}
                 </button>
-                <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-50">
+                <button type="button" onClick={() => { setShowForm(false); resetForm(); }} className="px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-50">
                   ביטול
                 </button>
               </div>

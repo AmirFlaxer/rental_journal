@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 
 const PROPERTY_TYPE_HE: Record<string, string> = {
@@ -20,6 +20,20 @@ const EXPENSE_CAT_HE: Record<string, string> = {
 
 const MONTH_HE = ["ינו'", "פבר'", "מרץ", "אפר'", "מאי", "יוני", "יולי", "אוג'", "ספט'", "אוק'", "נוב'", "דצמ'"];
 
+interface RawPayment { id: string; amount: number; paidDate?: string; paymentType: string; dueDate: string; }
+interface RawExpense { id: string; amount: number; date: string; category: string; }
+
+interface PropertyRaw {
+  id: string;
+  title: string;
+  city: string;
+  propertyType: string;
+  activeLeases: number;
+  monthlyRent: number;
+  payments: RawPayment[];
+  expenses: RawExpense[];
+}
+
 interface PropertyStat {
   id: string;
   title: string;
@@ -29,9 +43,7 @@ interface PropertyStat {
   monthlyRent: number;
   totalExpenses: number;
   totalPaid: number;
-  totalPending: number;
   netIncome: number;
-  expensesByCategory: Record<string, number>;
 }
 
 interface Totals {
@@ -43,12 +55,7 @@ interface Totals {
   netIncome: number;
 }
 
-interface MonthlyEntry {
-  month: string;
-  income: number;
-  expenses: number;
-  net: number;
-}
+interface MonthlyEntry { month: string; income: number; expenses: number; net: number; }
 
 function fmt(n: number) {
   return `₪${Math.round(n).toLocaleString("he-IL")}`;
@@ -63,26 +70,111 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
   );
 }
 
+function deriveYears(properties: PropertyRaw[]): number[] {
+  const years = new Set<number>();
+  for (const p of properties) {
+    for (const pay of p.payments) {
+      if (pay.paidDate) years.add(new Date(pay.paidDate).getFullYear());
+    }
+    for (const exp of p.expenses) {
+      if (exp.date) years.add(new Date(exp.date).getFullYear());
+    }
+  }
+  return Array.from(years).sort((a, b) => b - a);
+}
+
+function computeStats(properties: PropertyRaw[], year: number | null): {
+  propertyStats: PropertyStat[];
+  totals: Totals;
+  monthly: MonthlyEntry[];
+  expensesByCategory: Record<string, number>;
+} {
+  const propertyStats: PropertyStat[] = properties.map((p) => {
+    const payments = year
+      ? p.payments.filter((pay) => pay.paidDate && new Date(pay.paidDate).getFullYear() === year)
+      : p.payments;
+    const expenses = year
+      ? p.expenses.filter((exp) => exp.date && new Date(exp.date).getFullYear() === year)
+      : p.expenses;
+
+    const totalPaid = payments.filter((pay) => pay.paidDate).reduce((s, pay) => s + pay.amount, 0);
+    const totalExpenses = expenses.reduce((s, exp) => s + exp.amount, 0);
+
+    return {
+      id: p.id,
+      title: p.title,
+      city: p.city,
+      propertyType: p.propertyType,
+      activeLeases: p.activeLeases,
+      monthlyRent: p.monthlyRent,
+      totalPaid,
+      totalExpenses,
+      netIncome: totalPaid - totalExpenses,
+    };
+  });
+
+  const totals: Totals = {
+    properties: properties.length,
+    activeLeases: propertyStats.reduce((s, p) => s + p.activeLeases, 0),
+    monthlyRent: propertyStats.reduce((s, p) => s + p.monthlyRent, 0),
+    totalExpenses: propertyStats.reduce((s, p) => s + p.totalExpenses, 0),
+    totalPaid: propertyStats.reduce((s, p) => s + p.totalPaid, 0),
+    netIncome: propertyStats.reduce((s, p) => s + p.netIncome, 0),
+  };
+
+  const allPayments = properties.flatMap((p) =>
+    p.payments.filter((pay) => pay.paidDate && (!year || new Date(pay.paidDate).getFullYear() === year))
+  );
+  const allExpenses = properties.flatMap((p) =>
+    p.expenses.filter((exp) => exp.date && (!year || new Date(exp.date).getFullYear() === year))
+  );
+
+  const monthlyMap: Record<string, { income: number; expenses: number }> = {};
+  for (const pay of allPayments) {
+    const key = new Date(pay.paidDate!).toISOString().slice(0, 7);
+    if (!monthlyMap[key]) monthlyMap[key] = { income: 0, expenses: 0 };
+    monthlyMap[key].income += pay.amount;
+  }
+  for (const exp of allExpenses) {
+    const key = new Date(exp.date).toISOString().slice(0, 7);
+    if (!monthlyMap[key]) monthlyMap[key] = { income: 0, expenses: 0 };
+    monthlyMap[key].expenses += exp.amount;
+  }
+
+  const monthly = Object.entries(monthlyMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, data]) => ({ month, ...data, net: data.income - data.expenses }));
+
+  const expensesByCategory: Record<string, number> = {};
+  for (const exp of allExpenses) {
+    expensesByCategory[exp.category] = (expensesByCategory[exp.category] || 0) + exp.amount;
+  }
+
+  return { propertyStats, totals, monthly, expensesByCategory };
+}
+
 export default function ReportsPage() {
-  const [propertyStats, setPropertyStats] = useState<PropertyStat[]>([]);
-  const [totals, setTotals] = useState<Totals | null>(null);
-  const [monthly, setMonthly] = useState<MonthlyEntry[]>([]);
-  const [expensesByCategory, setExpensesByCategory] = useState<Record<string, number>>({});
+  const [rawProperties, setRawProperties] = useState<PropertyRaw[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedYear, setSelectedYear] = useState<number | null>(null); // null = סה"כ
 
   useEffect(() => {
     fetch("/api/reports")
       .then((r) => r.json())
       .then((d) => {
-        setPropertyStats(d.propertyStats || []);
-        setTotals(d.totals || null);
-        setMonthly(d.monthly || []);
-        setExpensesByCategory(d.expensesByCategory || {});
+        setRawProperties(d.propertyStats || []);
       })
       .catch(() => setError("שגיאה בטעינת הדוחות"))
       .finally(() => setLoading(false));
   }, []);
+
+  const availableYears = useMemo(() => deriveYears(rawProperties), [rawProperties]);
+
+  const { propertyStats, totals, monthly, expensesByCategory } = useMemo(
+    () => computeStats(rawProperties, selectedYear),
+    [rawProperties, selectedYear]
+  );
 
   if (loading) {
     return (
@@ -117,27 +209,57 @@ export default function ReportsPage() {
       <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 space-y-6">
         {error && <div className="p-4 bg-red-100 border border-red-300 text-red-700 rounded-xl">{error}</div>}
 
-        {/* KPIs */}
-        {totals && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: "נכסים", value: String(totals.properties), color: "text-gray-800" },
-              { label: "חוזים פעילים", value: String(totals.activeLeases), color: "text-blue-600" },
-              { label: "הכנסה חודשית", value: fmt(totals.monthlyRent), color: "text-green-600" },
-              { label: "הכנסה נטו (כולל)", value: fmt(totals.netIncome), color: totals.netIncome >= 0 ? "text-green-600" : "text-red-500" },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <div className="text-xs font-semibold text-gray-400 uppercase mb-1">{label}</div>
-                <div className={`text-2xl font-bold ${color}`}>{value}</div>
-              </div>
+        {/* Year filter */}
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-gray-600">תקופה:</span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedYear(null)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+                selectedYear === null
+                  ? "bg-indigo-600 text-white border-indigo-600"
+                  : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+              }`}
+            >
+              סה&quot;כ
+            </button>
+            {availableYears.map((year) => (
+              <button
+                key={year}
+                onClick={() => setSelectedYear(year)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+                  selectedYear === year
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                {year}
+              </button>
             ))}
           </div>
-        )}
+        </div>
+
+        {/* KPIs */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: "נכסים", value: String(totals.properties), color: "text-gray-800" },
+            { label: "חוזים פעילים", value: String(totals.activeLeases), color: "text-blue-600" },
+            { label: selectedYear ? `הכנסה ${selectedYear}` : "הכנסה חודשית", value: selectedYear ? fmt(totals.totalPaid) : fmt(totals.monthlyRent), color: "text-green-600" },
+            { label: selectedYear ? `נטו ${selectedYear}` : "הכנסה נטו (כולל)", value: fmt(totals.netIncome), color: totals.netIncome >= 0 ? "text-green-600" : "text-red-500" },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-xs font-semibold text-gray-400 uppercase mb-1">{label}</div>
+              <div className={`text-2xl font-bold ${color}`}>{value}</div>
+            </div>
+          ))}
+        </div>
 
         {/* Per-property summary table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">סיכום לפי נכס</h2>
+            <h2 className="text-lg font-bold text-gray-900">
+              סיכום לפי נכס{selectedYear ? ` — ${selectedYear}` : ""}
+            </h2>
           </div>
           {propertyStats.length === 0 ? (
             <div className="px-6 py-12 text-center text-gray-400">אין נתונים</div>
@@ -180,18 +302,16 @@ export default function ReportsPage() {
                     </tr>
                   ))}
                 </tbody>
-                {totals && (
-                  <tfoot className="bg-gray-50 border-t-2 border-gray-200">
-                    <tr>
-                      <td colSpan={2} className="px-4 py-3 font-bold text-gray-700">סה"כ</td>
-                      <td className="px-4 py-3 font-bold text-green-600">{fmt(totals.monthlyRent)}</td>
-                      <td className="px-4 py-3 font-bold text-gray-700">{fmt(totals.totalPaid)}</td>
-                      <td className="px-4 py-3 font-bold text-red-500">{fmt(totals.totalExpenses)}</td>
-                      <td className={`px-4 py-3 font-bold ${totals.netIncome >= 0 ? "text-green-600" : "text-red-500"}`}>{fmt(totals.netIncome)}</td>
-                      <td />
-                    </tr>
-                  </tfoot>
-                )}
+                <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                  <tr>
+                    <td colSpan={2} className="px-4 py-3 font-bold text-gray-700">סה"כ</td>
+                    <td className="px-4 py-3 font-bold text-green-600">{fmt(totals.monthlyRent)}</td>
+                    <td className="px-4 py-3 font-bold text-gray-700">{fmt(totals.totalPaid)}</td>
+                    <td className="px-4 py-3 font-bold text-red-500">{fmt(totals.totalExpenses)}</td>
+                    <td className={`px-4 py-3 font-bold ${totals.netIncome >= 0 ? "text-green-600" : "text-red-500"}`}>{fmt(totals.netIncome)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}
@@ -200,7 +320,9 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Monthly breakdown */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">פעילות חודשית</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">
+              פעילות חודשית{selectedYear ? ` — ${selectedYear}` : ""}
+            </h2>
             {monthly.length === 0 ? (
               <p className="text-gray-400 text-sm">אין נתונים</p>
             ) : (
@@ -237,7 +359,9 @@ export default function ReportsPage() {
 
           {/* Expenses by category */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">הוצאות לפי קטגוריה</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">
+              הוצאות לפי קטגוריה{selectedYear ? ` — ${selectedYear}` : ""}
+            </h2>
             {Object.keys(expensesByCategory).length === 0 ? (
               <p className="text-gray-400 text-sm">אין הוצאות</p>
             ) : (

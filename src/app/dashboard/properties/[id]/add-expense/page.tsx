@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { DateInput } from "@/components/date-input";
+import { NumberInput } from "@/components/number-input";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -26,7 +27,7 @@ export default function AddExpensePage() {
 
   const [category, setCategory] = useState("Maintenance");
   const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState<number | undefined>(undefined);
   const [date, setDate] = useState(today());
   const [vendorName, setVendorName] = useState("");
   const [paidBy, setPaidBy] = useState<"landlord" | "tenant">("landlord");
@@ -45,7 +46,7 @@ export default function AddExpensePage() {
           propertyId,
           category,
           description,
-          amount: parseFloat(amount),
+          amount: amount ?? 0,
           date,
           vendorName: vendorName || undefined,
           paidBy,
@@ -107,8 +108,8 @@ export default function AddExpensePage() {
             {/* Amount */}
             <div>
               <label className="block text-gray-700 font-semibold mb-1">סכום (₪) *</label>
-              <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
-                required min="1" step="0.01" className={inp} placeholder="לדוג' 500" />
+              <NumberInput value={amount} onChange={setAmount}
+                className={inp} placeholder="לדוג' 500" />
             </div>
 
             {/* Date */}
