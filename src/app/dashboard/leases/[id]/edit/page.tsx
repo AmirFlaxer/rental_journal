@@ -125,6 +125,9 @@ export default function EditLeasePage() {
 
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState("checks");
+  const [checkBank, setCheckBank] = useState("");
+  const [checkBranch, setCheckBranch] = useState("");
+  const [checkAccount, setCheckAccount] = useState("");
 
   // Termination protection fields
   const [earlyTermProtection, setEarlyTermProtection] = useState(false);
@@ -169,6 +172,9 @@ export default function EditLeasePage() {
         setOptionStart(optStart);
         setOptionEnd(optEnd);
         setPaymentMethod(normalizePaymentMethod(lease.paymentMethod));
+        setCheckBank(lease.checkBank || "");
+        setCheckBranch(lease.checkBranch || "");
+        setCheckAccount(lease.checkAccount || "");
         setEarlyTermProtection(lease.earlyTermProtection || false);
         setTenantNoticeMonths(lease.tenantNoticeMonths ? String(lease.tenantNoticeMonths) : "1");
         setLandlordNoticeMonths(lease.landlordNoticeMonths ? String(lease.landlordNoticeMonths) : "1");
@@ -309,6 +315,9 @@ export default function EditLeasePage() {
           terms: terms || undefined,
           status,
           paymentMethod,
+          checkBank: paymentMethod === "standing_order" ? checkBank || undefined : undefined,
+          checkBranch: paymentMethod === "standing_order" ? checkBranch || undefined : undefined,
+          checkAccount: paymentMethod === "standing_order" ? checkAccount || undefined : undefined,
           hasOption,
           optionMonths: hasOption && optionMonths ? parseInt(optionMonths) : undefined,
           optionRent: hasOption && optionRent ? optionRent : undefined,
@@ -411,17 +420,35 @@ export default function EditLeasePage() {
                 <label className="block text-gray-700 font-semibold mb-1">אמצעי תשלום שכ״ד</label>
                 <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="checks">שקים</option>
+                  <option value="checks">שיקים</option>
                   <option value="bank_transfer">העברה בנקאית</option>
+                  <option value="standing_order">הוראת קבע</option>
                   <option value="cash">מזומן</option>
                   <option value="bit">ביט</option>
                   <option value="paybox">פייבוקס</option>
                   <option value="other">אחר</option>
                 </select>
-                {paymentMethod === "checks" && (
-                  <p className="text-xs text-blue-600 mt-1">
-                    תיווצרנה תזכורות להפקדת שק יום לפני כל מועד תשלום
-                  </p>
+                {paymentMethod === "standing_order" && (
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">שם בנק</label>
+                      <input value={checkBank} onChange={(e) => setCheckBank(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="לאומי / פועלים..." />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">סניף</label>
+                      <input value={checkBranch} onChange={(e) => setCheckBranch(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="מספר סניף" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">מספר חשבון</label>
+                      <input value={checkAccount} onChange={(e) => setCheckAccount(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="מספר חשבון" />
+                    </div>
+                  </div>
                 )}
               </div>
               <div className="md:col-span-2">

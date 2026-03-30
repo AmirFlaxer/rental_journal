@@ -250,7 +250,7 @@ export default function ExpensesPage() {
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">קטגוריה *</label>
                   <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -270,7 +270,7 @@ export default function ExpensesPage() {
                 <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                   required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="תיאור ההוצאה" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">סכום (₪) *</label>
                   <NumberInput
@@ -284,7 +284,7 @@ export default function ExpensesPage() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="שם הספק" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">שולם על ידי</label>
                   <select value={form.paidBy} onChange={(e) => setForm({ ...form, paidBy: e.target.value })}

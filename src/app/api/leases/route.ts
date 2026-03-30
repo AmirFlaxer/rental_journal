@@ -40,6 +40,20 @@ export async function POST(request: NextRequest) {
 
     if (!property) return NextResponse.json({ error: "Property not found or unauthorized" }, { status: 404 });
 
+    // Block overlapping active leases on same property
+    const { data: overlap } = await supabase
+      .from("leases")
+      .select("id")
+      .eq("property_id", data.propertyId)
+      .eq("user_id", session.user.id)
+      .neq("status", "ended")
+      .lte("start_date", data.endDate)
+      .gte("end_date", data.startDate)
+      .limit(1)
+      .maybeSingle();
+
+    if (overlap) return NextResponse.json({ error: "לנכס זה כבר קיים חוזה פעיל בתקופה זו" }, { status: 409 });
+
     // Verify tenant belongs to user
     const { data: tenant } = await supabase
       .from("tenants")

@@ -269,7 +269,7 @@ export default function PaymentsPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
           <p className="text-xs text-emerald-600 font-semibold">שולם</p>
           <p className="text-2xl font-bold text-emerald-700 mt-1">₪{totalPaid.toLocaleString()}</p>
@@ -313,40 +313,50 @@ export default function PaymentsPage() {
       </div>
 
       {/* List */}
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        {filtered.length === 0 ? (
-          <div className="py-16 text-center space-y-2">
-            <div className="text-4xl">💳</div>
-            <p className="text-gray-500 font-medium">אין תקבולים</p>
-            <p className="text-sm text-gray-400">תקבולים נוצרים בעת הוספת חוזה שכירות</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {filtered.map((p) => {
-              const propTitle = p.property?.title ?? p.propertyTitle ?? "";
-              const isVirtual = p.isVirtual === true;
-              const partialPaid = parsePartialPaid(p.notes);
-              const partialReasonText = parsePartialReason(p.notes);
-              const remaining = partialPaid != null ? p.amount - partialPaid : null;
-              const isPartialOpen = partialOpenId === p.id;
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl py-16 text-center space-y-2">
+          <div className="text-4xl">💳</div>
+          <p className="text-gray-500 font-medium">אין תקבולים</p>
+          <p className="text-sm text-gray-400">תקבולים נוצרים בעת הוספת חוזה שכירות</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((p) => {
+            const propTitle = p.property?.title ?? p.propertyTitle ?? "";
+            const isVirtual = p.isVirtual === true;
+            const partialPaid = parsePartialPaid(p.notes);
+            const partialReasonText = parsePartialReason(p.notes);
+            const remaining = partialPaid != null ? p.amount - partialPaid : null;
+            const isPartialOpen = partialOpenId === p.id;
 
-              return (
-                <div key={p.id} className={`px-5 py-4 ${isVirtual ? "bg-gray-50/50" : "hover:bg-slate-50"}`}>
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${
-                      isVirtual ? "bg-gray-100" : "bg-blue-100"
+            return (
+              <div key={p.id} className="bg-white rounded-xl px-4 py-4 shadow-sm">
+                  {/* שורה עליונה: אייקון + טקסט + סכום */}
+                  <div className="flex items-start gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 mt-0.5 ${
+                      isVirtual ? "bg-gray-200" : "bg-blue-100"
                     }`}>
                       {isVirtual ? "🗓️" : "💳"}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`font-semibold ${isVirtual ? "text-gray-500" : "text-gray-900"}`}>
-                        {TYPE_HE[p.paymentType] || p.paymentType}
-                        {isVirtual && <span className="text-xs font-normal text-gray-400 mr-1"> · לפי חוזה</span>}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {propTitle}
-                        {p.paidDate && ` · שולם ${new Date(p.paidDate).toLocaleDateString("he-IL")}`}
-                      </p>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <p className={`font-semibold ${isVirtual ? "text-gray-600" : "text-gray-900"}`}>
+                          {TYPE_HE[p.paymentType] || p.paymentType}
+                          {isVirtual && <span className="text-xs font-normal text-gray-500 mr-1"> · לפי חוזה</span>}
+                        </p>
+                        <p className={`font-bold flex-shrink-0 ${isVirtual ? "text-gray-600" : "text-gray-900"}`}>
+                          ₪{p.amount.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mt-0.5 flex-wrap">
+                        <p className="text-xs text-gray-500 truncate">
+                          {propTitle}
+                          {p.paidDate && ` · שולם ${new Date(p.paidDate).toLocaleDateString("he-IL")}`}
+                        </p>
+                        <p className="text-xs text-gray-400 flex-shrink-0">
+                          {new Date(p.dueDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
+                        </p>
+                      </div>
                       {p.status === "partial" && partialPaid != null && (
                         <p className="text-xs text-blue-600 font-medium mt-0.5">
                           שולם ₪{partialPaid.toLocaleString()} · יתרת חוב: ₪{remaining!.toLocaleString()}
@@ -354,14 +364,9 @@ export default function PaymentsPage() {
                         </p>
                       )}
                     </div>
-                    <div className="text-right">
-                      <p className={`font-bold ${isVirtual ? "text-gray-500" : "text-gray-900"}`}>
-                        ₪{p.amount.toLocaleString()}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {new Date(p.dueDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
-                      </p>
-                    </div>
+                  </div>
+                  {/* שורה תחתונה: סטטוס + כפתורים */}
+                  <div className="flex items-center gap-2 mt-2 mr-12 flex-wrap">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${STATUS_COLOR[p.status] || "bg-gray-100 text-gray-600"}`}>
                       {STATUS_HE[p.status] || p.status}
                     </span>
@@ -408,7 +413,7 @@ export default function PaymentsPage() {
 
                   {/* Partial payment form */}
                   {isPartialOpen && (
-                    <div className="mt-3 mr-14 p-3 bg-blue-50 rounded-xl border border-blue-200 space-y-2">
+                    <div className="mt-3 mr-12 p-3 bg-blue-50 rounded-xl border border-blue-200 space-y-2">
                       <p className="text-xs font-semibold text-blue-700">רישום תשלום חלקי</p>
                       <div className="flex gap-2 items-center">
                         <div className="flex items-center gap-1 bg-white border border-blue-200 rounded-lg px-2 py-1.5 text-sm">
@@ -445,12 +450,11 @@ export default function PaymentsPage() {
                       </div>
                     </div>
                   )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

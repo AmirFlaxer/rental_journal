@@ -58,6 +58,9 @@ export default function AddLeasePage() {
 
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
+  const [checkBank, setCheckBank] = useState("");
+  const [checkBranch, setCheckBranch] = useState("");
+  const [checkAccount, setCheckAccount] = useState("");
 
   // Deposit payment options
   const [createDepositPayment, setCreateDepositPayment] = useState(false);
@@ -164,6 +167,9 @@ export default function AddLeasePage() {
           leaseTerm: parseInt(leaseTerm),
           terms: terms || undefined,
           paymentMethod,
+          checkBank: paymentMethod === "standing_order" ? checkBank || undefined : undefined,
+          checkBranch: paymentMethod === "standing_order" ? checkBranch || undefined : undefined,
+          checkAccount: paymentMethod === "standing_order" ? checkAccount || undefined : undefined,
           secondTenantFirstName: hasSecondTenant && secondTenantFirstName ? secondTenantFirstName : null,
           secondTenantLastName: hasSecondTenant && secondTenantLastName ? secondTenantLastName : null,
           secondTenantIdNumber: hasSecondTenant && secondTenantIdNumber ? secondTenantIdNumber : null,
@@ -391,12 +397,35 @@ export default function AddLeasePage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="bank_transfer">העברה בנקאית</option>
-                  <option value="checks">שקים</option>
+                  <option value="standing_order">הוראת קבע</option>
+                  <option value="checks">שיקים</option>
                   <option value="cash">מזומן</option>
                   <option value="bit">ביט</option>
                   <option value="paybox">פייבוקס</option>
                   <option value="other">אחר</option>
                 </select>
+                {paymentMethod === "standing_order" && (
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">שם בנק</label>
+                      <input value={checkBank} onChange={(e) => setCheckBank(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="לאומי / פועלים..." />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">סניף</label>
+                      <input value={checkBranch} onChange={(e) => setCheckBranch(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="מספר סניף" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">מספר חשבון</label>
+                      <input value={checkAccount} onChange={(e) => setCheckAccount(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="מספר חשבון" />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="md:col-span-2">

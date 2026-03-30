@@ -402,7 +402,7 @@ export default function TasksPage() {
         : null;
 
     return (
-      <div className={`flex items-center gap-4 px-5 py-4 hover:bg-slate-50 ${isDone ? "opacity-60" : ""}`}>
+      <div className={`bg-white rounded-xl flex items-center gap-3 px-4 py-3 shadow-sm ${isDone ? "opacity-50" : ""}`}>
         <button
           onClick={() => isDone ? reopen(t.id) : complete(t)}
           className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
@@ -653,59 +653,61 @@ export default function TasksPage() {
       )}
 
       {/* Relevant tasks */}
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        <SectionHeader
-          title="רלוונטיות"
-          count={relevant.length}
-          badge={overdueCount > 0 ? `${overdueCount} פג מועד` : undefined}
-        />
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 px-1">
+          <h2 className="font-semibold text-gray-600 text-sm">רלוונטיות</h2>
+          {overdueCount > 0 && (
+            <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">{overdueCount} פג מועד</span>
+          )}
+          <span className="text-xs text-gray-400">({relevant.length})</span>
+        </div>
         {relevant.length === 0 ? (
-          <div className="py-12 text-center space-y-2">
-            <div className="text-4xl">✅</div>
-            <p className="text-gray-500 font-medium">אין תזכורות רלוונטיות להיום</p>
+          <div className="bg-white rounded-xl py-10 text-center space-y-2 shadow-sm">
+            <div className="text-3xl">✅</div>
+            <p className="text-gray-500 font-medium text-sm">אין תזכורות רלוונטיות להיום</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
-            {relevant.map((t) => <TaskRow key={t.id} t={t} isDone={false} />)}
-          </div>
+          relevant.map((t) => <TaskRow key={t.id} t={t} isDone={false} />)
         )}
       </div>
 
       {/* Future tasks */}
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        <SectionHeader
-          title="עתידיות"
-          count={future.length}
-          open={showFuture}
-          onToggle={() => setShowFuture((v) => !v)}
-        />
+      <div className="space-y-2">
+        <button
+          onClick={() => setShowFuture((v) => !v)}
+          className="w-full flex items-center justify-between px-1 py-0.5"
+        >
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-gray-600 text-sm">עתידיות</h2>
+            <span className="text-xs text-gray-400">({future.length})</span>
+          </div>
+          <span className="text-gray-400 text-xs">{showFuture ? "▲" : "▼"}</span>
+        </button>
         {showFuture && (
           future.length === 0 ? (
-            <div className="py-10 text-center">
+            <div className="py-4 text-center">
               <p className="text-gray-400 text-sm">אין תזכורות עתידיות</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
-              {future.map((t) => <TaskRow key={t.id} t={t} isDone={false} />)}
-            </div>
+            future.map((t) => <TaskRow key={t.id} t={t} isDone={false} />)
           )
         )}
       </div>
 
       {/* Done tasks */}
       {done.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <SectionHeader
-            title="הושלמו"
-            count={done.length}
-            open={showDone}
-            onToggle={() => setShowDone((v) => !v)}
-          />
-          {showDone && (
-            <div className="divide-y divide-gray-100 border-t border-gray-100">
-              {done.map((t) => <TaskRow key={t.id} t={t} isDone={true} />)}
+        <div className="space-y-2">
+          <button
+            onClick={() => setShowDone((v) => !v)}
+            className="w-full flex items-center justify-between px-1 py-0.5"
+          >
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-gray-600 text-sm">הושלמו</h2>
+              <span className="text-xs text-gray-400">({done.length})</span>
             </div>
-          )}
+            <span className="text-gray-400 text-xs">{showDone ? "▲" : "▼"}</span>
+          </button>
+          {showDone && done.map((t) => <TaskRow key={t.id} t={t} isDone={true} />)}
         </div>
       )}
     </div>

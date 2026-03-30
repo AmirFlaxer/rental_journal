@@ -143,7 +143,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
         {stats.map((s) => (
           <Link key={s.label} href={s.href} className={`bg-white rounded-2xl border ${s.border} p-4 flex flex-col gap-2 hover:shadow-md transition-shadow`}>
             <span className="text-2xl">{s.icon}</span>
@@ -154,8 +154,8 @@ export default function Dashboard() {
       </div>
 
       {/* Properties */}
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-gray-900">הנכסים שלי</h2>
           <Link href="/dashboard/properties/new"
             className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700">
@@ -164,7 +164,7 @@ export default function Dashboard() {
         </div>
 
         {properties.length === 0 ? (
-          <div className="px-6 py-16 text-center space-y-4">
+          <div className="bg-white rounded-2xl px-6 py-14 text-center space-y-4">
             <div className="text-5xl">🏠</div>
             <p className="text-gray-500 font-medium">עדיין אין נכסים</p>
             <p className="text-gray-400 text-sm">התחל בהוספת נכס או בייבוא חוזה</p>
@@ -180,14 +180,14 @@ export default function Dashboard() {
             </div>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="space-y-2">
             {properties.map((p) => {
               const active = (p.leases || []).filter((l) => l.status === "active");
               const rent = active.reduce((s, l) => s + l.monthlyRent, 0);
               return (
                 <Link key={p.id} href={`/dashboard/properties/${p.id}`}
-                  className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-4">
+                  className="bg-white rounded-xl flex items-center justify-between px-4 py-4 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-xl flex items-center justify-center text-lg font-bold flex-shrink-0">
                       {TYPE_HE[p.propertyType]?.charAt(0) || "נ"}
                     </div>
@@ -196,9 +196,9 @@ export default function Dashboard() {
                       <p className="text-sm text-gray-400">{p.address}, {p.city}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6 text-sm">
+                  <div className="flex items-center gap-4 text-sm">
                     {rent > 0 && (
-                      <div className="text-right hidden sm:block">
+                      <div className="text-right">
                         <p className="font-semibold text-emerald-700">₪{rent.toLocaleString()}</p>
                         <p className="text-gray-400 text-xs">לחודש</p>
                       </div>
@@ -208,7 +208,7 @@ export default function Dashboard() {
                     }`}>
                       {active.length > 0 ? `${active.length} חוזה פעיל` : "פנוי"}
                     </span>
-                    <span className="text-gray-300">←</span>
+                    <span className="text-gray-400">←</span>
                   </div>
                 </Link>
               );

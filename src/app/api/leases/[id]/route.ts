@@ -36,6 +36,33 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // propertyId and tenantId are immutable
     const { propertyId: _p, tenantId: _t, ...data } = parsed;
 
+    // Fetch current lease to get property_id
+    const { data: current } = await supabase
+      .from("leases")
+      .select("property_id")
+      .eq("id", id)
+      .eq("user_id", session.user.id)
+      .single();
+
+    if (!current) return NextResponse.json({ error: "Lease not found" }, { status: 404 });
+
+    // Block overlapping active leases on same property (excluding self)
+    if (data.status !== "ended") {
+      const { data: overlap } = await supabase
+        .from("leases")
+        .select("id")
+        .eq("property_id", current.property_id)
+        .eq("user_id", session.user.id)
+        .neq("status", "ended")
+        .neq("id", id)
+        .lte("start_date", data.endDate)
+        .gte("end_date", data.startDate)
+        .limit(1)
+        .maybeSingle();
+
+      if (overlap) return NextResponse.json({ error: "לנכס זה כבר קיים חוזה פעיל בתקופה זו" }, { status: 409 });
+    }
+
     const { data: row, error } = await supabase
       .from("leases")
       .update(snakeKeys(data) as object)

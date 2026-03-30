@@ -1,15 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --bg-base:    #0a0a0a;
-  --bg-surface: #111111;
-  --bg-elevated:#1a1a1a;
-  --border:     rgba(255,255,255,0.08);
-  --text-1:     #ffffff;
-  --text-2:     #aaaaaa;
-  --text-3:     #666666;
+  --bg-base:    #0d0d0d;
+  --bg-surface: #1a1a1e;
+  --bg-elevated:#252529;
+  --border:     rgba(255,255,255,0.18);
+  --divider:    rgba(255,255,255,0.12);
+  --text-1:     #f0f0f0;
+  --text-2:     #c0c0c0;
+  --text-3:     #888888;
   --accent:     #e91e8c;
-  --accent-dim: rgba(233,30,140,0.15);
+  --accent-dim: rgba(233,30,140,0.18);
 }
 
 /* ── Base ───────────────────────────────────────────── */
@@ -42,18 +43,18 @@ h1, h2 {
 
 /* ── Text ───────────────────────────────────────────── */
 .text-gray-900,
-.text-gray-800     { color: var(--text-1) !important; }
-.text-gray-700,
-.text-gray-600     { color: var(--text-2) !important; }
-.text-gray-500,
-.text-gray-400     { color: var(--text-3) !important; }
+.text-gray-800     { color: #f0f0f0     !important; }
+.text-gray-700     { color: #d0d0d0     !important; }
+.text-gray-600     { color: #b8b8b8     !important; }
+.text-gray-500     { color: #999999     !important; }
+.text-gray-400     { color: #777777     !important; }
 
-/* ── Borders ────────────────────────────────────────── */
+/* ── Card borders — visible but subtle ──────────────── */
 .border,
 .border-gray-100,
 .border-gray-200,
 .border-gray-300   { border-color: var(--border) !important; }
-.divide-gray-100 > * + * { border-color: var(--border) !important; }
+.overflow-hidden   { border-color: transparent !important; }
 
 /* ── Inputs / selects ───────────────────────────────── */
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
@@ -94,10 +95,10 @@ select option { background: var(--bg-elevated); color: var(--text-1); }
 .rounded-2xl,
 .rounded-xl,
 .rounded-lg {
-  box-shadow: 0 0 0 1px var(--border) !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.5) !important;
 }
 .shadow-sm, .shadow-md, .shadow-xl, .shadow-lg {
-  box-shadow: 0 4px 24px rgba(0,0,0,0.5) !important;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.65) !important;
 }
 
 /* ── Status badges — keep subtle tones on dark ──────── */
@@ -119,6 +120,15 @@ select option { background: var(--bg-elevated); color: var(--text-1); }
 /* ── Tables ─────────────────────────────────────────── */
 thead, .bg-gray-50 thead { background-color: var(--bg-elevated) !important; }
 tbody tr:hover { background-color: var(--bg-elevated) !important; }
+
+tbody tr + tr td,
+tbody tr + tr th {
+  border-top: 1px solid var(--border) !important;
+}
+tfoot tr td,
+tfoot tr th {
+  border-top: 1px solid var(--border) !important;
+}
 
 /* ── Scrollbar ──────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }

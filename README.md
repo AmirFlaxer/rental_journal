@@ -19,11 +19,14 @@
 | **הגדרות** | עדכון שם מוצג וסיסמה |
 
 ### תכונות בולטות
-- **ייבוא חוזה מ-PDF** — חילוץ נתוני שוכר ותנאי שכירות בעזרת AI (Anthropic Claude)
+- **ייבוא חוזה מ-PDF/DOCX** — חילוץ נתוני שוכר ותנאי שכירות בעזרת AI (Gemini / Anthropic / Ollama)
+- **מניעת כפילות חוזים** — לא ניתן לפתוח שני חוזים פעילים לאותו נכס באותה תקופה
 - **תזכורות שק אוטומטיות** — חוזה עם תשלום בשקים יוצר תזכורת יום לפני כל מועד פירעון
+- **תזכורות חוזרות** — יצירת סדרת תזכורות חודשיות/רבעוניות/שנתיות בפעולה אחת
 - **תשלום חלקי** — רישום סכום חלקי + סיבה, תצוגת יתרת חוב
 - **השלמה אוטומטית לכתובות** — חיפוש עיר ורחוב מנתוני ממשלת ישראל (data.gov.il)
 - **DateInput עברי** — בחירת תאריך יום/חודש/שנה בעברית
+- **עיצוב כהה מלא** — ממשק משתמש כהה מותאם לקריאות גבוהה
 
 ---
 
@@ -32,12 +35,12 @@
 | שכבה | טכנולוגיה |
 |------|-----------|
 | Frontend | Next.js 16, React, TypeScript |
-| עיצוב | Tailwind CSS, גופן Heebo |
+| עיצוב | Tailwind CSS, גופנים Heebo / Outfit / Playfair |
 | Backend | Next.js API Routes |
 | מסד נתונים | Supabase (PostgreSQL) |
-| אימות | Supabase Auth (SSR) |
+| אימות | NextAuth.js + Supabase |
 | ולידציה | Zod |
-| AI | Anthropic Claude API (חילוץ חוזים) |
+| AI — ייבוא חוזים | Google Gemini Flash (ברירת מחדל, חינמי) / Anthropic Claude / Ollama |
 | כתובות | Geoapify API + data.gov.il |
 
 ---
@@ -69,10 +72,22 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
-# Anthropic AI — לחילוץ נתוני חוזה מ-PDF (אופציונלי)
+# LLM Provider: "gemini" (ברירת מחדל, חינמי) | "anthropic" | "ollama"
+LLM_PROVIDER=gemini
+
+# Google Gemini Flash — חינם: 1,500 בקשות/יום
+# קבל מפתח: https://aistudio.google.com/app/apikey
+GEMINI_API_KEY=AIza...
+GEMINI_MODEL=gemini-2.5-flash
+
+# Anthropic Claude — אופציונלי (עלות לפי שימוש)
 ANTHROPIC_API_KEY=sk-ant-...
 
-# Geoapify — השלמה אוטומטית לכתובות (אופציונלי)
+# Ollama — אופציונלי, מקומי ללא עלות (https://ollama.com)
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2
+
+# Geoapify — השלמה אוטומטית לכתובות (אופציונלי, 3,000 בקשות/יום בחינם)
 NEXT_PUBLIC_GEOAPIFY_KEY=...
 ```
 
@@ -86,6 +101,48 @@ npm run dev
 
 ---
 
+## ספקי AI לייבוא חוזים
+
+המערכת תומכת בשלושה ספקים — ניתן לעבור ביניהם דרך `LLM_PROVIDER` ב-`.env.local`:
+
+| ספק | עלות | פרטיות | מהירות | הערות |
+|-----|------|---------|--------|-------|
+| **Gemini Flash** | חינם (1,500/יום) | Google מעבדת | מהיר | ברירת מחדל מומלצת |
+| **Anthropic Claude** | בתשלום | Anthropic מעבדת | מהיר | איכות גבוהה |
+| **Ollama** | חינם לנצח | מקומי לחלוטין | תלוי חומרה | הכי פרטי |
+
+---
+
+## אבטחת מידע ופרטיות
+
+### הגנות מובנות
+- כל API route מאמת את זהות המשתמש דרך NextAuth
+- **RLS (Row Level Security)** — כל משתמש רואה רק את הנתונים שלו ב-Supabase
+- `middleware.ts` מגן על כל נתיבי `/dashboard` בצד השרת
+- **מניעת כפילות חוזים** — validation בצד השרת מונע חוזים חופפים לאותו נכס
+- כל משתני הסביבה (מפתחות API) נשמרים ב-`.env.local` — מוגן מ-git
+
+### נתונים שנשלחים ל-AI
+בעת ייבוא חוזה, טקסט החוזה נשלח לספק ה-AI שנבחר. החוזה עשוי להכיל:
+- שמות דיירים, מספרי ת.ז., טלפונים
+- כתובת הנכס
+- פרטי בנק (מספרי חשבון לשיקים)
+
+**המלצות לפי רמת פרטיות:**
+
+| רמה | המלצה |
+|-----|--------|
+| 🔴 מקסימלית | השתמש ב-**Ollama** — הנתונים לא עוזבים את המחשב |
+| 🟡 גבוהה | השתמש ב-**Gemini** עם [כיבוי שמירת פעילות](https://myactivity.google.com/product/gemini) |
+| 🟢 סטנדרטית | ברירת מחדל (Gemini) — Google API לא משתמש בנתונים לאימון לפי תנאי השירות |
+
+### הגדרת פרטיות מומלצת עבור Gemini
+1. כנס ל-[myactivity.google.com/product/gemini](https://myactivity.google.com/product/gemini)
+2. תחת **"שמירת הפעילות"** — לחץ **"השבתה"**
+3. זה מבטיח שהשיחות לא נשמרות ולא משמשות לאימון מודלים
+
+---
+
 ## מבנה הפרויקט
 
 ```
@@ -94,7 +151,7 @@ src/
 │   ├── api/
 │   │   ├── auth/           # signin, signout, signup
 │   │   ├── properties/     # CRUD נכסים
-│   │   ├── leases/         # CRUD חוזים + upload + extract
+│   │   ├── leases/         # CRUD חוזים + upload + extract (AI)
 │   │   ├── payments/       # CRUD תקבולים
 │   │   ├── expenses/       # CRUD הוצאות
 │   │   ├── tasks/          # CRUD תזכורות
@@ -120,7 +177,7 @@ src/
 │   ├── supabase/           # server / client / admin / case helpers
 │   └── validations.ts      # Zod schemas
 ├── auth.ts                 # auth() helper
-└── proxy.ts                # הגנת /dashboard (Next.js 16)
+└── middleware.ts           # הגנת /dashboard (Next.js 16)
 ```
 
 ---
@@ -157,7 +214,7 @@ GET    /api/leases
 POST   /api/leases
 PUT    /api/leases/[id]
 POST   /api/leases/[id]/upload
-POST   /api/leases/extract-temp
+POST   /api/leases/extract-temp     # ייבוא חוזה עם AI (SSE streaming)
 
 GET    /api/payments
 POST   /api/payments
@@ -184,14 +241,7 @@ DELETE /api/tasks/[id]
 3. הוסף את משתני הסביבה מ-`.env.local`
 4. לחץ Deploy
 
----
-
-## אבטחה
-
-- כל API route מאמת את זהות המשתמש דרך Supabase Auth
-- RLS (Row Level Security) — כל משתמש רואה רק את הנתונים שלו
-- `proxy.ts` מגן על כל נתיבי `/dashboard` בצד השרת
-- משתני סביבה לכל מפתח רגיש
+> **שים לב:** Ollama אינו זמין בפריסת Vercel (דורש מחשב מקומי). השתמש ב-Gemini או Anthropic בפרודקשן.
 
 ---
 

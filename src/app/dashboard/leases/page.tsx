@@ -83,7 +83,7 @@ export default function LeasesPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">חוזים</h1>
@@ -100,7 +100,7 @@ export default function LeasesPage() {
       {/* Filter tabs */}
       <div className="flex gap-2 flex-wrap">
         {(["all", "active", "future", "ended"] as const).map((f) => {
-          const labels = { all: "הכל", active: "בתוקף", future: "עתידיים", ended: "לא בתוקף" };
+          const labels = { all: "הכל", active: "בתוקף", future: "עתידיים", ended: "🗂 ארכיון" };
           const count = f === "all" ? leases.length : counts[f];
           return (
             <button
@@ -136,8 +136,8 @@ export default function LeasesPage() {
             const st = lease._status;
             return (
               <div key={lease.id} onClick={() => router.push(`/dashboard/leases/${lease.id}/edit`)}
-                className="bg-white rounded-2xl border border-gray-200 px-5 py-4 hover:shadow-sm transition-shadow cursor-pointer">
-                <div className="flex items-start gap-4">
+                className="bg-white rounded-2xl border border-gray-300 px-4 py-4 shadow-md hover:shadow-lg transition-shadow cursor-pointer">
+                <div className="flex items-start gap-3">
                   {/* Status dot */}
                   <div className="mt-1.5 flex-shrink-0">
                     <div className={`w-2.5 h-2.5 rounded-full ${STATUS_DOT[st]}`} />
