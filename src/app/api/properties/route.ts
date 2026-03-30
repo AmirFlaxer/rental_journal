@@ -10,6 +10,14 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = await createClient();
+  // Auto-expire leases whose end date has passed
+  await supabase
+    .from("leases")
+    .update({ status: "ended" })
+    .eq("user_id", session.user.id)
+    .in("status", ["active", "paused"])
+    .lt("end_date", new Date().toISOString().slice(0, 10));
+
   const { data, error } = await supabase
     .from("properties")
     .select("*, leases(id, status, monthly_rent)")

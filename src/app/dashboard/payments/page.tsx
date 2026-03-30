@@ -435,11 +435,11 @@ export default function PaymentsPage() {
                       </div>
                       {partialAmount && partialAmount > 0 && partialAmount < p.amount && (
                         <p className="text-xs text-blue-600">
-                          יתרת חוב: ₪{(p.amount - parseFloat(partialAmount)).toLocaleString()}
+                          יתרת חוב: ₪{(p.amount - partialAmount).toLocaleString()}
                         </p>
                       )}
                       <div className="flex gap-2">
-                        <button onClick={() => savePartial(p, isVirtual)} disabled={savingPartial || !partialAmount || parseFloat(partialAmount) <= 0 || parseFloat(partialAmount) >= p.amount}
+                        <button onClick={() => savePartial(p, isVirtual)} disabled={savingPartial || !partialAmount || partialAmount <= 0 || partialAmount >= p.amount}
                           className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 disabled:opacity-40">
                           {savingPartial ? "שומר..." : "אישור"}
                         </button>

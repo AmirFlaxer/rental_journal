@@ -3,12 +3,25 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+type LLMProvider = "gemini" | "anthropic" | "ollama";
+
+const PROVIDERS: { value: LLMProvider; label: string; desc: string }[] = [
+  { value: "gemini", label: "Google Gemini", desc: "חינמי · 1,500 בקשות/יום · מומלץ" },
+  { value: "anthropic", label: "Anthropic Claude", desc: "בתשלום · דורש ANTHROPIC_API_KEY" },
+  { value: "ollama", label: "Ollama (מקומי)", desc: "ללא עלות · רץ על המחשב שלך בלבד" },
+];
+
 export default function SettingsPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [nameSaving, setNameSaving] = useState(false);
   const [nameSuccess, setNameSuccess] = useState("");
   const [nameError, setNameError] = useState("");
+
+  const [llmProvider, setLlmProvider] = useState<LLMProvider>("gemini");
+  const [llmSaving, setLlmSaving] = useState(false);
+  const [llmSuccess, setLlmSuccess] = useState("");
+  const [llmError, setLlmError] = useState("");
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -25,6 +38,9 @@ export default function SettingsPage() {
         setName((data.user.user_metadata?.name as string) ?? "");
       }
     });
+    fetch("/api/settings/llm-provider")
+      .then((r) => r.json())
+      .then((d) => { if (d.provider) setLlmProvider(d.provider as LLMProvider); });
   }, []);
 
   const handleSaveName = async (e: React.FormEvent) => {
@@ -45,6 +61,26 @@ export default function SettingsPage() {
       setNameError(err instanceof Error ? err.message : "שגיאה בעדכון השם");
     } finally {
       setNameSaving(false);
+    }
+  };
+
+  const handleSaveLLM = async (provider: LLMProvider) => {
+    setLlmError("");
+    setLlmSuccess("");
+    setLlmSaving(true);
+    try {
+      const res = await fetch("/api/settings/llm-provider", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      if (!res.ok) throw new Error("שגיאה בשמירה");
+      setLlmProvider(provider);
+      setLlmSuccess("הספק עודכן בהצלחה");
+    } catch {
+      setLlmError("שגיאה בשמירת הספק");
+    } finally {
+      setLlmSaving(false);
     }
   };
 
@@ -118,6 +154,39 @@ export default function SettingsPage() {
             {nameSaving ? "שומר..." : "עדכן שם"}
           </button>
         </form>
+      </div>
+
+      {/* AI Provider */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-bold text-gray-800">ספק AI לחילוץ חוזים</h2>
+          <p className="text-xs text-gray-500 mt-0.5">בחר את מנוע ה-AI לשימוש בעת חילוץ נתונים מקובץ חוזה</p>
+        </div>
+        <div className="space-y-2">
+          {PROVIDERS.map((p) => (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => handleSaveLLM(p.value)}
+              disabled={llmSaving}
+              className={`w-full flex items-start gap-3 px-4 py-3 rounded-xl border text-right transition-colors ${
+                llmProvider === p.value
+                  ? "border-indigo-500 bg-indigo-50"
+                  : "border-gray-200 hover:border-indigo-300 hover:bg-gray-50"
+              }`}
+            >
+              <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                llmProvider === p.value ? "border-indigo-600 bg-indigo-600" : "border-gray-300"
+              }`} />
+              <div>
+                <p className={`text-sm font-semibold ${llmProvider === p.value ? "text-indigo-700" : "text-gray-800"}`}>{p.label}</p>
+                <p className="text-xs text-gray-500">{p.desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+        {llmError && <p className="text-sm text-red-600">{llmError}</p>}
+        {llmSuccess && <p className="text-sm text-green-600">{llmSuccess}</p>}
       </div>
 
       {/* Password */}

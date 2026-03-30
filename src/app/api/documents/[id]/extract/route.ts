@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { PDFParse } = require("pdf-parse");
+const pdfParseLib = require("pdf-parse");
 async function pdfParse(buf: Buffer): Promise<{ text: string }> {
-  const parser = new PDFParse({ data: buf });
-  const result = await parser.getText();
-  await parser.destroy();
+  const result = await pdfParseLib(buf);
   return { text: result.text };
 }
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -105,7 +104,8 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const provider = process.env.LLM_PROVIDER || "anthropic";
+    const cookieStore = await cookies();
+    const provider = cookieStore.get("llm_provider")?.value || process.env.LLM_PROVIDER || "gemini";
     if (provider === "anthropic" && !process.env.ANTHROPIC_API_KEY)
       return NextResponse.json({ error: "מפתח API של Anthropic לא מוגדר. הוסף ANTHROPIC_API_KEY ל-.env" }, { status: 503 });
 

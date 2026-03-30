@@ -187,7 +187,7 @@ export default function EditLeasePage() {
           setSecondTenantPhone(formatPhone(lease.secondTenantPhone) || "");
           setSecondTenantEmail(lease.secondTenantEmail || "");
         }
-        if (lease.documents) setDocuments(lease.documents);
+        if (lease.leaseDocuments) setDocuments(lease.leaseDocuments);
       })
       .catch((e) => setError(e.message))
       .finally(() => setIsFetching(false));

@@ -122,10 +122,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span className="font-bold" style={{ color: "var(--text-1)" }}>ניהול נכסים</span>
         </header>
 
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto pb-16 lg:pb-0">
           {children}
         </main>
+
+        {/* Mobile bottom nav */}
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 flex items-center justify-around px-1 py-1"
+          style={{ background: "var(--bg-surface)", borderTop: "1px solid var(--border)" }}>
+          {[
+            { href: "/dashboard", label: "בקרה", icon: "🏠", exact: true },
+            { href: "/dashboard/properties", label: "נכסים", icon: "🏢" },
+            { href: "/dashboard/leases", label: "חוזים", icon: "📄", exact: true },
+            { href: "/dashboard/payments", label: "תקבולים", icon: "💳" },
+            { href: "/dashboard/expenses", label: "הוצאות", icon: "💸" },
+            { href: "/dashboard/debts", label: "חובות", icon: "🔴" },
+            { href: "/dashboard/tasks", label: "תזכורות", icon: "🔔" },
+            { href: "/dashboard/reports", label: "דוחות", icon: "📊" },
+            { href: "/dashboard/leases/import", label: "ייבוא", icon: "📥" },
+          ].map((item) => (
+            <MobileNavItem key={item.href} {...item} />
+          ))}
+        </nav>
       </div>
     </div>
+  );
+}
+
+function MobileNavItem({ href, label, icon, exact }: { href: string; label: string; icon: string; exact?: boolean }) {
+  const pathname = usePathname();
+  const isActive = exact ? pathname === href : pathname.startsWith(href);
+  return (
+    <Link href={href} className="flex flex-col items-center gap-0.5 px-1 py-1 rounded-lg min-w-0 flex-1"
+      style={{ color: isActive ? "var(--accent)" : "var(--text-3)" }}>
+      <span className="text-lg leading-none">{icon}</span>
+      <span className="text-[9px] font-medium truncate w-full text-center">{label}</span>
+    </Link>
   );
 }

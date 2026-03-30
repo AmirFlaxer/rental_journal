@@ -114,12 +114,34 @@ export default function ImportLeasePage() {
   const [data, setData] = useState<ExtractedLease>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [isExtensionAnnex, setIsExtensionAnnex] = useState(false);
   const [hasSecond, setHasSecond] = useState(false);
 
   // Property resolution
   const [allProperties, setAllProperties] = useState<any[]>([]);
   const [matchedProperty, setMatchedProperty] = useState<any | null>(null);
   const [propertyAction, setPropertyAction] = useState<"use-existing" | "create-new">("create-new");
+
+  const [fileFormatError, setFileFormatError] = useState("");
+
+  const validateFileFormat = async (f: File): Promise<string> => {
+    const buf = await f.slice(0, 8).arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    const isPK = bytes[0] === 0x50 && bytes[1] === 0x4B;
+    const isOLE = bytes[0] === 0xD0 && bytes[1] === 0xCF;
+    const isPDF = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46; // %PDF
+
+    const ext = f.name.split(".").pop()?.toLowerCase();
+    if (ext === "docx" && !isPK)
+      return "הקובץ נשמר בפורמט Word ישן (.doc) אך שונה שמו ל-.docx — פתח ב-Word ושמור מחדש כ-\"Word Document (*.docx)\"";
+    if (ext === "doc" && !isOLE && !isPK)
+      return "קובץ DOC לא תקין — נסה לשמור מחדש מ-Word";
+    if (ext === "pdf" && !isPDF)
+      return "הקובץ אינו PDF תקני — נסה לייצא מחדש";
+    if (ext === "doc")
+      return "קובץ DOC ישן אינו נתמך — שמור ב-Word כ-\"Word Document (*.docx)\"";
+    return "";
+  };
 
   // SSE progress state
   const [progressStep, setProgressStep] = useState(0);
@@ -211,6 +233,7 @@ export default function ImportLeasePage() {
       }
 
       if (!extracted) throw new Error("לא התקבלו נתונים מהשרת");
+      setIsExtensionAnnex(extracted.documentType === "extension_annex");
       setData({ ...EMPTY, ...flattenExtracted(extracted) });
       if (extracted.secondTenant?.firstName) setHasSecond(true);
       setStep("review");
@@ -228,12 +251,21 @@ export default function ImportLeasePage() {
     const pay = raw.payment || {};
     const prop = raw.property || {};
     const opt = raw.option || {};
+    const ext = raw.extension || {};
+    const isExtension = raw.documentType === "extension_annex";
 
     // Prefer explicit houseNumber from LLM; fallback: split trailing number from address
     const fullAddr: string = prop.address || "";
     const houseMatch = fullAddr.match(/^(.*?)\s+(\d+[א-ת]?)$/);
     const streetName = prop.houseNumber ? fullAddr : (houseMatch ? houseMatch[1].trim() : fullAddr);
     const houseNum = prop.houseNumber || (houseMatch ? houseMatch[2] : "");
+
+    // For extension annex: use extension dates as the option period
+    const hasOption = isExtension ? !!(ext.extensionStartDate || ext.extensionEndDate) : (opt.hasOption || false);
+    const optionStartDate = isExtension ? (ext.extensionStartDate || "") : (opt.optionStartDate || "");
+    const optionEndDate = isExtension ? (ext.extensionEndDate || "") : (opt.optionEndDate || "");
+    const optionRent = isExtension ? (ext.extensionRent || undefined) : (opt.optionRent || undefined);
+    const optionTerms = isExtension ? (ext.extensionTerms || "") : (opt.optionTerms || "");
 
     return {
       propertyAddress: streetName,
@@ -259,12 +291,12 @@ export default function ImportLeasePage() {
       checkBranch: pay.checkBranch || "",
       checkAccount: pay.checkAccount || "",
       checkDepositReminder: pay.method === "checks",
-      hasOption: opt.hasOption || false,
+      hasOption,
       optionMonths: opt.optionMonths ? String(opt.optionMonths) : "",
-      optionRent: opt.optionRent || undefined,
-      optionStartDate: opt.optionStartDate || "",
-      optionEndDate: opt.optionEndDate || "",
-      optionTerms: opt.optionTerms || "",
+      optionRent,
+      optionStartDate,
+      optionEndDate,
+      optionTerms,
     };
   }
 
@@ -307,9 +339,10 @@ export default function ImportLeasePage() {
         propertyId = prop.id;
       }
 
-      // 1b. Archive any active lease on this property
-      const existingLeases = (allProperties.find((p: any) => p.id === propertyId)?.leases || []) as any[];
-      const activeLeases = existingLeases.filter((l: any) => l.status === "active");
+      // 1b. Archive any active lease on this property (fresh fetch — not cached data)
+      const freshProp = await fetch(`/api/properties/${propertyId}`).then((r) => r.ok ? r.json() : null);
+      const existingLeases = (freshProp?.leases || []) as any[];
+      const activeLeases = existingLeases.filter((l: any) => l.status !== "ended");
       await Promise.all(activeLeases.map((l: any) =>
         fetch(`/api/leases/${l.id}`, {
           method: "PUT",
@@ -380,6 +413,17 @@ export default function ImportLeasePage() {
         const d = await leaseRes.json();
         throw new Error(d.error || "שגיאה ביצירת חוזה");
       }
+      const lease = await leaseRes.json();
+
+      // 4. Attach the uploaded file as a lease document
+      if (file && lease?.id) {
+        const uploadForm = new FormData();
+        uploadForm.append("file", file);
+        await fetch(`/api/leases/${lease.id}/upload`, {
+          method: "POST",
+          body: uploadForm,
+        });
+      }
 
       setStep("complete");
       setTimeout(() => router.push(`/dashboard/properties/${propertyId}`), 2000);
@@ -439,12 +483,30 @@ export default function ImportLeasePage() {
             <p className="text-gray-400 text-sm mt-1">PDF או DOCX, עד 10MB</p>
           </div>
 
+          <div className="text-right rounded-xl p-4 text-sm space-y-1.5 max-w-md mx-auto" dir="rtl"
+            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>
+            <p className="font-semibold" style={{ color: "var(--accent)" }}>📋 הנחיות לקובץ</p>
+            <ul className="space-y-1 text-xs" style={{ color: "var(--text-2)" }}>
+              <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>PDF:</span> נתמך. אם הקובץ סרוק (תמונה), יחולץ אוטומטית באמצעות Gemini</li>
+              <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>DOCX:</span> נתמך — <span className="font-semibold" style={{ color: "var(--text-1)" }}>חובה שהקובץ יהיה בפורמט Word החדש (.docx)</span>. אם יש לך קובץ DOC ישן, פתח אותו ב-Word ← שמור בשם ← בחר &quot;Word Document (*.docx)&quot;</li>
+              <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>DOC:</span> לא נתמך — יש להמיר ל-DOCX או PDF</li>
+            </ul>
+          </div>
+
           <input
             ref={fileRef}
             type="file"
             accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             className="hidden"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            onChange={async (e) => {
+              const f = e.target.files?.[0] || null;
+              setFile(f);
+              setFileFormatError("");
+              if (f) {
+                const err = await validateFileFormat(f);
+                if (err) { setFileFormatError(err); setFile(null); }
+              }
+            }}
           />
 
           {file ? (
@@ -458,6 +520,12 @@ export default function ImportLeasePage() {
               className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700">
               בחר קובץ
             </button>
+          )}
+
+          {fileFormatError && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm text-right" dir="rtl">
+              ⚠️ {fileFormatError}
+            </div>
           )}
 
           {extractError && (
@@ -563,6 +631,13 @@ export default function ImportLeasePage() {
       {/* Step 2: Review */}
       {step === "review" && (
         <form onSubmit={handleSave} className="space-y-5">
+          {isExtensionAnnex && (
+            <div className="p-4 rounded-xl text-sm" style={{ background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--text-1)" }}>
+              <div className="font-bold mb-1" style={{ color: "var(--accent)" }}>📋 זוהה נספח הארכת שכירות</div>
+              <p>המסמך זוהה כנספח הארכה. תאריכי ההארכה מולאו אוטומטית בסעיף <strong>אופציה / הארכה</strong> — אנא בדוק ואשר את הנתונים.</p>
+              <p className="mt-1" style={{ color: "var(--text-2)" }}>תאריכי "תחילה" ו"סיום" למטה הם תאריכי החוזה המקורי — עדכן אותם אם הם לא מולאו נכון.</p>
+            </div>
+          )}
           {saveError && (
             <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{saveError}</div>
           )}

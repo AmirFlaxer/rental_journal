@@ -263,7 +263,11 @@ export default function TasksPage() {
         const res = await fetch("/api/tasks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...form }),
+          body: JSON.stringify({
+            ...form,
+            relatedEntityType: linkedLeaseId ? "lease" : undefined,
+            relatedEntityId: linkedLeaseId || undefined,
+          }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "שגיאה");
@@ -533,6 +537,18 @@ export default function TasksPage() {
                   required
                   className="w-full"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">קשור לנכס / חוזה (אופציונלי)</label>
+                <select value={linkedLeaseId} onChange={(e) => { setLinkedLeaseId(e.target.value); setContinueAfterLease(false); }}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                  <option value="">— ללא שיוך —</option>
+                  {leases.filter((l) => l.status !== "ended").map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.properties?.title} · {l.tenant?.firstName} {l.tenant?.lastName}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">הערות</label>

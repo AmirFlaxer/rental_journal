@@ -13,6 +13,15 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = await createClient();
+  // Auto-expire if end date has passed
+  await supabase
+    .from("leases")
+    .update({ status: "ended" })
+    .eq("id", id)
+    .eq("user_id", session.user.id)
+    .in("status", ["active", "paused"])
+    .lt("end_date", new Date().toISOString().slice(0, 10));
+
   const { data, error } = await supabase
     .from("leases")
     .select("*, properties(*), tenant:tenants(*), payments(*), lease_documents(*)")

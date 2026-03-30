@@ -165,7 +165,7 @@ export function PropertyForm({
           address={formData.address}
           houseNumber={formData.houseNumber || ""}
           city={formData.city}
-          zipCode={formData.zipCode}
+          zipCode={formData.zipCode ?? undefined}
           onAddressChange={(v) => setFormData({ ...formData, address: v })}
           onHouseNumberChange={(v) => setFormData({ ...formData, houseNumber: v || undefined })}
           onCityChange={(v) => setFormData({ ...formData, city: v })}

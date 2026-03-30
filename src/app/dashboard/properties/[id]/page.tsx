@@ -524,6 +524,7 @@ export default function PropertyDetailPage() {
                     <th className="px-6 py-3 text-right font-semibold text-gray-600">סיום</th>
                     <th className="px-6 py-3 text-right font-semibold text-gray-600">שכ"ד</th>
                     <th className="px-6 py-3 text-right font-semibold text-gray-600">סטטוס</th>
+                    <th className="px-6 py-3 text-right font-semibold text-gray-600">מסמכים</th>
                     <th className="px-6 py-3 text-right font-semibold text-gray-600">פעולות</th>
                   </tr>
                 </thead>
@@ -555,6 +556,25 @@ export default function PropertyDetailPage() {
                           {LEASE_STATUS_HE[lease.status] ?? lease.status}
                           {lease.hasOption && " | אופציה"}
                         </span>
+                      </td>
+                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                        {lease.leaseDocuments?.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            {lease.leaseDocuments.map((doc: any) => (
+                              <a
+                                key={doc.id}
+                                href={`/api/documents/${doc.id}`}
+                                className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-medium"
+                                title={doc.fileName}
+                              >
+                                <span>📎</span>
+                                <span className="truncate max-w-[120px]">{doc.fileName}</span>
+                              </a>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-300 text-xs">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2 flex-wrap items-center">

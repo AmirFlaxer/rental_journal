@@ -1,14 +1,13 @@
 import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 
 // Allow up to 5 minutes for large model cold-starts
 export const maxDuration = 300;
 import { auth } from "@/auth";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { PDFParse } = require("pdf-parse");
+const pdfParseLib = require("pdf-parse");
 async function pdfParse(buf: Buffer): Promise<{ text: string }> {
-  const parser = new PDFParse({ data: buf });
-  const result = await parser.getText();
-  await parser.destroy();
+  const result = await pdfParseLib(buf);
   return { text: result.text };
 }
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -25,13 +24,15 @@ async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
   throw new Error("סוג קובץ לא נתמך");
 }
 
-const SYSTEM = `אתה מנתח חוזי שכירות בישראל.
-חלץ את כל הנתונים הבאים מהחוזה והחזר JSON בלבד ללא שום טקסט נוסף, ללא markdown, ללא הסברים.
-אם שדה לא קיים — הכנס null.`;
+const SYSTEM = `אתה מנתח חוזי שכירות ונספחי הארכה בישראל.
+חלץ את כל הנתונים הבאים מהמסמך והחזר JSON בלבד ללא שום טקסט נוסף, ללא markdown, ללא הסברים.
+אם שדה לא קיים — הכנס null.
+שים לב: המסמך יכול להיות חוזה שכירות מקורי (new_lease) או נספח הארכת שכירות/אופציה (extension_annex).`;
 
-const buildPrompt = (text: string) => `חלץ מחוזה השכירות הבא את הנתונים הבאים בדיוק בפורמט JSON זה:
+const buildPrompt = (text: string) => `חלץ מהמסמך הבא את הנתונים בדיוק בפורמט JSON זה:
 
 {
+  "documentType": "new_lease או extension_annex — אם המסמך הוא נספח הארכה/אופציה הכנס extension_annex",
   "property": {
     "address": "שם הרחוב בלבד (ללא מספר)",
     "houseNumber": "מספר הבית בלבד",
@@ -52,8 +53,8 @@ const buildPrompt = (text: string) => `חלץ מחוזה השכירות הבא �
     "email": "מייל שוכר שני"
   },
   "lease": {
-    "startDate": "תאריך תחילת השכירות בפורמט YYYY-MM-DD",
-    "endDate": "תאריך סיום השכירות בפורמט YYYY-MM-DD",
+    "startDate": "תאריך תחילת השכירות המקורית בפורמט YYYY-MM-DD (אם נספח — תאריך תחילת החוזה המקורי)",
+    "endDate": "תאריך סיום השכירות המקורית בפורמט YYYY-MM-DD (אם נספח — תאריך סיום החוזה המקורי לפני ההארכה)",
     "monthlyRent": 0,
     "depositAmount": 0,
     "terms": "תנאים מיוחדים חשובים עד 500 תווים"
@@ -72,6 +73,12 @@ const buildPrompt = (text: string) => `חלץ מחוזה השכירות הבא �
     "optionEndDate": null,
     "optionTerms": null
   },
+  "extension": {
+    "extensionStartDate": "אם נספח הארכה — תאריך תחילת תקופת ההארכה בפורמט YYYY-MM-DD, אחרת null",
+    "extensionEndDate": "אם נספח הארכה — תאריך סיום תקופת ההארכה בפורמט YYYY-MM-DD, אחרת null",
+    "extensionRent": null,
+    "extensionTerms": null
+  },
   "earlyTermination": {
     "hasEarlyTermProtection": false,
     "tenantNoticeDays": null,
@@ -80,7 +87,7 @@ const buildPrompt = (text: string) => `חלץ מחוזה השכירות הבא �
   }
 }
 
-טקסט החוזה:
+טקסט המסמך:
 ${text.slice(0, 20000)}`;
 
 export async function POST(request: NextRequest) {
@@ -112,7 +119,8 @@ export async function POST(request: NextRequest) {
         return;
       }
 
-      const provider = process.env.LLM_PROVIDER || "anthropic";
+      const cookieStore = await cookies();
+      const provider = cookieStore.get("llm_provider")?.value || process.env.LLM_PROVIDER || "gemini";
       if (provider === "anthropic" && !process.env.ANTHROPIC_API_KEY) {
         await send({ type: "error", text: "מפתח ANTHROPIC_API_KEY חסר ב-.env" });
         return;
@@ -139,9 +147,27 @@ export async function POST(request: NextRequest) {
       // Step 2 — extract text
       await send({ type: "status", step: 2, text: `מחלץ טקסט מ-${mimeType === MIME_PDF ? "PDF" : "DOCX"}...` });
       const buffer = Buffer.from(await file.arrayBuffer());
-      const text = await extractText(buffer, mimeType);
-      if (!text.trim()) { await send({ type: "error", text: "לא ניתן לחלץ טקסט מהקובץ" }); return; }
-      await send({ type: "status", step: 2, text: `חולץ טקסט (${text.length.toLocaleString()} תווים)` });
+      const text = await extractText(buffer, mimeType).catch(() => "");
+
+      const isDoc = mimeType === MIME_DOC;
+      const isScanned = !text.trim() && mimeType === MIME_PDF;
+      const needsGeminiVision = isScanned && !text.trim();
+
+      if (isDoc && !text.trim()) {
+        await send({ type: "error", text: "קובץ DOC ישן אינו נתמך — פתח ב-Word ושמור כ-DOCX או PDF ונסה שוב" }); return;
+      }
+      if (!text.trim() && !needsGeminiVision) {
+        await send({ type: "error", text: "לא ניתן לחלץ טקסט מהקובץ" }); return;
+      }
+      if (needsGeminiVision && provider !== "gemini") {
+        await send({ type: "error", text: "PDF סרוק מזוהה — יש לבחור Gemini בהגדרות" }); return;
+      }
+
+      if (needsGeminiVision) {
+        await send({ type: "status", step: 2, text: "PDF סרוק — שולח ישירות ל-Gemini לזיהוי תמונה..." });
+      } else {
+        await send({ type: "status", step: 2, text: `חולץ טקסט (${text.length.toLocaleString()} תווים)` });
+      }
 
       // Step 3 — LLM
       const modelLabel = provider === "ollama"
@@ -211,39 +237,29 @@ export async function POST(request: NextRequest) {
           }
         }
       } else if (provider === "gemini") {
-        const https = await import("https");
         const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
         const apiKey = process.env.GEMINI_API_KEY!;
 
-        const body = JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: `${SYSTEM}\n\n${prompt}` }] }],
-          generationConfig: { temperature: 0 },
-        });
+        const parts = needsGeminiVision
+          ? [
+              { inline_data: { mime_type: "application/pdf", data: buffer.toString("base64") } },
+              { text: `${SYSTEM}\n\n${buildPrompt("[ראה את הקובץ המצורף — קרא את הטקסט ממנו ישירות]")}` },
+            ]
+          : [{ text: `${SYSTEM}\n\n${prompt}` }];
 
-        await new Promise<void>((resolve, reject) => {
-          const req = https.request({
-            hostname: "generativelanguage.googleapis.com",
-            path: `/v1/models/${modelName}:generateContent?key=${apiKey}`,
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+          {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) },
-          }, (res) => {
-            let data = "";
-            res.on("data", (chunk) => { data += chunk; });
-            res.on("end", async () => {
-              try {
-                const json = JSON.parse(data);
-                if (json.error) { reject(new Error(`Gemini: ${json.error.message}`)); return; }
-                const token = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-                rawResponse = token;
-                await send({ type: "token", text: token });
-                resolve();
-              } catch (e) { reject(e); }
-            });
-          });
-          req.on("error", reject);
-          req.write(body);
-          req.end();
-        });
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { temperature: 0 } }),
+          }
+        );
+        const geminiJson = await geminiRes.json();
+        if (geminiJson.error) throw new Error(`Gemini: ${geminiJson.error.message}`);
+        const token = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        rawResponse = token;
+        await send({ type: "token", text: token });
       } else {
         // Anthropic streaming
         const Anthropic = (await import("@anthropic-ai/sdk")).default;

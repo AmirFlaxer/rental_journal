@@ -34,10 +34,14 @@ export function DateInput({ value, onChange, required, min, className, id }: Dat
   // Local state so partial input (e.g. day only) isn't reset while typing
   const [local, setLocal] = useState(() => parseDate(value));
 
-  // Sync external value → local (e.g. when parent resets the field)
+  // Sync external value → local only when the parent genuinely changes the value
+  // (not when it's just a padded reflection of what the user typed)
   useEffect(() => {
-    setLocal(parseDate(value));
-  }, [value]);
+    const iso = toIso(local.d, local.m, local.y);
+    if (iso !== (value || "")) {
+      setLocal(parseDate(value));
+    }
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handle = (field: "d" | "m" | "y", raw: string) => {
     const val = raw.replace(/\D/g, "");
