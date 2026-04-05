@@ -45,3 +45,8 @@ next-env.d.ts
 # Prisma SQLite database
 prisma/*.db
 prisma/*.db-journal
+
+.vercel
+
+# Claude Code
+.claude/
