@@ -247,17 +247,77 @@ export async function POST(request: NextRequest) {
             ]
           : [{ text: `${SYSTEM}\n\n${prompt}` }];
 
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { temperature: 0 } }),
+        const body = JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { temperature: 0 } });
+
+        // Models to try in order — if the primary model is overloaded, fall back
+        const modelChain = [modelName];
+        if (modelName === "gemini-2.5-flash") modelChain.push("gemini-2.5-pro", "gemini-1.5-flash");
+        else if (!modelChain.includes("gemini-1.5-flash")) modelChain.push("gemini-1.5-flash");
+
+        const MAX_ATTEMPTS_PER_MODEL = 3;
+        type GeminiResp = { error?: { message: string; code?: number; status?: string }; candidates?: { content?: { parts?: { text?: string }[] } }[] };
+        let geminiJson: GeminiResp | null = null;
+        let lastErr: unknown = null;
+        let lastApiError: string | null = null;
+
+        outerModels: for (const activeModel of modelChain) {
+          for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_MODEL; attempt++) {
+            const ctl = new AbortController();
+            const timeout = setTimeout(() => ctl.abort(), 120_000);
+            try {
+              if (attempt > 1 || activeModel !== modelName) {
+                await send({ type: "status", step: 3, text: `ניסיון ${attempt}/${MAX_ATTEMPTS_PER_MODEL} מול ${activeModel}...` });
+              }
+              const geminiRes = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey}`,
+                { method: "POST", headers: { "Content-Type": "application/json" }, body, signal: ctl.signal }
+              );
+              clearTimeout(timeout);
+              const json = (await geminiRes.json()) as GeminiResp;
+
+              // API-level error (503 overloaded, 429 rate limit, etc.)
+              if (json.error) {
+                lastApiError = json.error.message;
+                const status = json.error.status || "";
+                const code = json.error.code || 0;
+                const retryable = status === "UNAVAILABLE" || status === "RESOURCE_EXHAUSTED" || code === 503 || code === 429 || /overload|high demand|unavailable|rate/i.test(json.error.message);
+                if (retryable) {
+                  if (attempt < MAX_ATTEMPTS_PER_MODEL) {
+                    await new Promise((r) => setTimeout(r, 2000 * attempt));
+                    continue;
+                  }
+                  // Exhausted attempts for this model — try next model in chain
+                  continue outerModels;
+                }
+                // Non-retryable API error — bail out immediately
+                throw new Error(`Gemini: ${json.error.message}`);
+              }
+
+              geminiJson = json;
+              lastErr = null;
+              break outerModels;
+            } catch (e) {
+              clearTimeout(timeout);
+              // If it's the non-retryable API error we just threw, propagate
+              if (e instanceof Error && e.message.startsWith("Gemini: ")) throw e;
+              lastErr = e;
+              if (attempt < MAX_ATTEMPTS_PER_MODEL) {
+                await new Promise((r) => setTimeout(r, 1500 * attempt));
+              }
+            }
           }
-        );
-        const geminiJson = await geminiRes.json();
-        if (geminiJson.error) throw new Error(`Gemini: ${geminiJson.error.message}`);
+        }
+
+        if (!geminiJson) {
+          if (lastApiError) {
+            throw new Error(`Gemini עמוס כרגע בכל המודלים שנבדקו (${modelChain.join(", ")}). הודעה אחרונה: ${lastApiError}. נסה שוב בעוד כמה דקות, או החלף ספק ב-Ollama/Anthropic בהגדרות.`);
+          }
+          const e = lastErr as (Error & { cause?: { code?: string; message?: string } }) | null;
+          const detail = e?.cause?.code || e?.cause?.message || e?.message || "unknown";
+          throw new Error(`כשל בחיבור ל-Gemini: ${detail}. בדוק חיבור לאינטרנט / חומת אש / פרוקסי.`);
+        }
         const token = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        if (!token) throw new Error("Gemini החזיר תגובה ריקה — ייתכן שהמסמך נחסם ע״י מסנני התוכן");
         rawResponse = token;
         await send({ type: "token", text: token });
       } else {
