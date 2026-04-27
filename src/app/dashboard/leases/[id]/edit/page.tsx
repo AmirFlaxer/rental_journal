@@ -7,6 +7,7 @@ import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
 import { PhoneInput } from "@/components/phone-input";
 import { formatPhone } from "@/lib/phone";
+import { calcEffectiveRent, type IndexRate, type LinkageFrequency } from "@/lib/linkage";
 
 interface LeaseDocument {
   id: string;
@@ -135,10 +136,21 @@ export default function EditLeasePage() {
   const [baseAmount, setBaseAmount] = useState<number | undefined>(undefined);
   const [baseDate, setBaseDate] = useState<string | undefined>(undefined);
 
+  // Comparison panel
+  const [compRates, setCompRates] = useState<IndexRate[]>([]);
+  const [compFrequency, setCompFrequency] = useState<LinkageFrequency>("monthly");
+
   // Termination protection fields
   const [earlyTermProtection, setEarlyTermProtection] = useState(false);
   const [tenantNoticeMonths, setTenantNoticeMonths] = useState("1");
   const [landlordNoticeMonths, setLandlordNoticeMonths] = useState("1");
+
+  useEffect(() => {
+    fetch("/api/index-rates")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => { if (Array.isArray(data)) setCompRates(data); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch(`/api/leases/${id}`)
@@ -508,6 +520,85 @@ export default function EditLeasePage() {
               </div>
             )}
           </div>
+
+          {/* Linkage comparison panel */}
+          {monthlyRent && startDate && (
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl border border-indigo-100 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-base font-bold text-indigo-900">השוואת מסלולי הצמדה — תיאורטי</h2>
+                  <p className="text-xs text-indigo-500 mt-0.5">
+                    מה היה שכ&quot;ד היום לו החוזה היה צמוד מתחילתו ({new Date(startDate).toLocaleDateString("he-IL")})
+                  </p>
+                </div>
+                <div className="flex gap-1 text-xs">
+                  {(["monthly", "quarterly", "semiannual"] as const).map((f) => (
+                    <button key={f} type="button" onClick={() => setCompFrequency(f)}
+                      className={`px-2.5 py-1 rounded-lg border transition-colors font-medium ${
+                        compFrequency === f
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-white text-indigo-600 border-indigo-300 hover:bg-indigo-50"
+                      }`}>
+                      {f === "monthly" ? "חודשי" : f === "quarterly" ? "רבעוני" : "חצי-שנתי"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {compRates.length === 0 ? (
+                <p className="text-xs text-indigo-400 italic">
+                  אין נתוני שערים בDB — הרץ את ה-cron או קרא ל-/api/index-rates/refresh כדי לטעון נתונים
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {(["none", "usd", "cpi"] as const).map((type) => {
+                    const simLease = {
+                      linkageType: type,
+                      linkageFrequency: compFrequency,
+                      baseAmount: monthlyRent,
+                      baseDate: startDate,
+                      monthlyRent,
+                    };
+                    const effective = calcEffectiveRent(simLease, compRates);
+                    const diff = effective - monthlyRent;
+                    const pct = monthlyRent > 0 ? ((diff / monthlyRent) * 100).toFixed(1) : "0.0";
+                    const isActive = linkageType === type && linkageFrequency === compFrequency;
+
+                    return (
+                      <div key={type} className={`flex items-center justify-between px-4 py-3 rounded-lg border ${
+                        isActive
+                          ? "bg-indigo-100 border-indigo-300"
+                          : "bg-white border-indigo-100"
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          {isActive && <span className="text-xs bg-indigo-600 text-white px-2 py-0.5 rounded-full">נוכחי</span>}
+                          <span className="text-sm font-semibold text-gray-800">
+                            {type === "none" ? "ללא הצמדה" : type === "usd" ? 'דולר ארה"ב' : "מדד כללי (CPI)"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className="font-bold text-gray-900">
+                            ₪{effective.toLocaleString("he-IL")}
+                          </span>
+                          {type !== "none" && (
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              diff > 0 ? "bg-green-100 text-green-700" :
+                              diff < 0 ? "bg-red-100 text-red-700" :
+                              "bg-gray-100 text-gray-500"
+                            }`}>
+                              {diff >= 0 ? "+" : ""}{diff > 0 ? `₪${diff.toLocaleString("he-IL")}` : diff < 0 ? `-₪${Math.abs(diff).toLocaleString("he-IL")}` : "ללא שינוי"}
+                              {" "}({diff >= 0 ? "+" : ""}{pct}%)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="text-[11px] text-indigo-400 mt-3">* חישוב תיאורטי בלבד — לידיעה, ללא שינוי בחוזה</p>
+            </div>
+          )}
 
           {/* Tenant info card */}
           {tenantId && (
