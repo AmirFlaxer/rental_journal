@@ -16,7 +16,11 @@
 /* ── Base ───────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
-html { background: var(--bg-base); }
+html {
+  background: var(--bg-base);
+  /* מונע pull-to-refresh ו-bounce scroll ב-standalone PWA */
+  overscroll-behavior: none;
+}
 
 body {
   background: var(--bg-base);
@@ -24,6 +28,12 @@ body {
   font-family: var(--font-outfit), var(--font-heebo), sans-serif;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* מונע עיכוב double-tap zoom על כפתורים וקישורים */
+button, a, [role="button"] {
+  touch-action: manipulation;
 }
 
 h1, h2 {

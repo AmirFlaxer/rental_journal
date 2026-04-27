@@ -276,7 +276,7 @@ export default function ReportsPage() {
                   <tr>
                     <th className="px-4 py-3 text-right font-semibold text-gray-600">נכס</th>
                     <th className="px-4 py-3 text-right font-semibold text-gray-600">סוג</th>
-                    <th className="px-4 py-3 text-right font-semibold text-gray-600">שכ"ד / חודש</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-600">{'שכ"ד'} / חודש</th>
                     <th className="px-4 py-3 text-right font-semibold text-gray-600">הכנסה כוללת</th>
                     <th className="px-4 py-3 text-right font-semibold text-gray-600">הוצאות</th>
                     <th className="px-4 py-3 text-right font-semibold text-gray-600">נטו</th>
@@ -310,7 +310,7 @@ export default function ReportsPage() {
                 </tbody>
                 <tfoot className="bg-gray-50 border-t-2 border-gray-200">
                   <tr>
-                    <td colSpan={2} className="px-4 py-3 font-bold text-gray-700">סה"כ</td>
+                    <td colSpan={2} className="px-4 py-3 font-bold text-gray-700">{'סה"כ'}</td>
                     <td className="px-4 py-3 font-bold text-green-600">{fmt(totals.monthlyRent)}</td>
                     <td className="px-4 py-3 font-bold text-gray-700">{fmt(totals.totalPaid)}</td>
                     <td className="px-4 py-3 font-bold text-red-500">{fmt(totals.totalExpenses)}</td>

@@ -6,6 +6,7 @@ import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { NumberInput } from "@/components/number-input";
 import { PhoneInput } from "@/components/phone-input";
 import { formatPhone } from "@/lib/phone";
+import type { Property, Lease } from "@/types/database";
 
 type Step = "upload" | "review" | "complete";
 
@@ -118,8 +119,8 @@ export default function ImportLeasePage() {
   const [hasSecond, setHasSecond] = useState(false);
 
   // Property resolution
-  const [allProperties, setAllProperties] = useState<any[]>([]);
-  const [matchedProperty, setMatchedProperty] = useState<any | null>(null);
+  const [allProperties, setAllProperties] = useState<Property[]>([]);
+  const [matchedProperty, setMatchedProperty] = useState<(Property & { leases?: Lease[] }) | null>(null);
   const [propertyAction, setPropertyAction] = useState<"use-existing" | "create-new">("create-new");
 
   const [fileFormatError, setFileFormatError] = useState("");
@@ -166,7 +167,7 @@ export default function ImportLeasePage() {
     if (step !== "review") return;
     fetch("/api/properties")
       .then((r) => r.json())
-      .then((props: any[]) => {
+      .then((props: Property[]) => {
         if (!Array.isArray(props)) return;
         setAllProperties(props);
         const addr = data.propertyAddress.trim().toLowerCase();
@@ -201,7 +202,7 @@ export default function ImportLeasePage() {
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let buf = "";
-      let extracted: any = null;
+      let extracted: Record<string, unknown> | null = null;
 
       outer: while (true) {
         const { done, value } = await reader.read();
@@ -213,8 +214,8 @@ export default function ImportLeasePage() {
           const trimmed = line.trim();
           if (!trimmed.startsWith("data:")) continue;
           const jsonStr = trimmed.slice(5).trim();
-          let evt: any;
-          try { evt = JSON.parse(jsonStr); } catch { continue; }
+          let evt: Record<string, unknown>;
+          try { evt = JSON.parse(jsonStr) as Record<string, unknown>; } catch { continue; }
 
           if (evt.type === "status") {
             setProgressStep(evt.step ?? 0);
@@ -235,7 +236,8 @@ export default function ImportLeasePage() {
       if (!extracted) throw new Error("לא התקבלו נתונים מהשרת");
       setIsExtensionAnnex(extracted.documentType === "extension_annex");
       setData({ ...EMPTY, ...flattenExtracted(extracted) });
-      if (extracted.secondTenant?.firstName) setHasSecond(true);
+      const st = extracted.secondTenant as Record<string, unknown> | undefined;
+      if (st?.firstName) setHasSecond(true);
       setStep("review");
     } catch (err) {
       setExtractError(err instanceof Error ? err.message : "שגיאה בחילוץ");
@@ -244,52 +246,57 @@ export default function ImportLeasePage() {
     }
   };
 
-  function flattenExtracted(raw: any): Partial<ExtractedLease> {
-    const t = raw.tenant || {};
-    const t2 = raw.secondTenant || {};
-    const l = raw.lease || {};
-    const pay = raw.payment || {};
-    const prop = raw.property || {};
-    const opt = raw.option || {};
-    const ext = raw.extension || {};
+  function flattenExtracted(raw: Record<string, unknown>): Partial<ExtractedLease> {
+    const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object" ? v as Record<string, unknown> : {});
+    const str = (v: unknown): string => (typeof v === "string" ? v : "");
+    const num = (v: unknown): number | undefined => (typeof v === "number" ? v : undefined);
+    const bool = (v: unknown): boolean => v === true;
+
+    const t = obj(raw.tenant);
+    const t2 = obj(raw.secondTenant);
+    const l = obj(raw.lease);
+    const pay = obj(raw.payment);
+    const prop = obj(raw.property);
+    const opt = obj(raw.option);
+    const ext = obj(raw.extension);
     const isExtension = raw.documentType === "extension_annex";
 
     // Prefer explicit houseNumber from LLM; fallback: split trailing number from address
-    const fullAddr: string = prop.address || "";
+    const fullAddr = str(prop.address);
     const houseMatch = fullAddr.match(/^(.*?)\s+(\d+[א-ת]?)$/);
     const streetName = prop.houseNumber ? fullAddr : (houseMatch ? houseMatch[1].trim() : fullAddr);
-    const houseNum = prop.houseNumber || (houseMatch ? houseMatch[2] : "");
+    const houseNum = str(prop.houseNumber) || (houseMatch ? houseMatch[2] : "");
 
     // For extension annex: use extension dates as the option period
-    const hasOption = isExtension ? !!(ext.extensionStartDate || ext.extensionEndDate) : (opt.hasOption || false);
-    const optionStartDate = isExtension ? (ext.extensionStartDate || "") : (opt.optionStartDate || "");
-    const optionEndDate = isExtension ? (ext.extensionEndDate || "") : (opt.optionEndDate || "");
-    const optionRent = isExtension ? (ext.extensionRent || undefined) : (opt.optionRent || undefined);
-    const optionTerms = isExtension ? (ext.extensionTerms || "") : (opt.optionTerms || "");
+    const hasOption = isExtension ? !!(ext.extensionStartDate || ext.extensionEndDate) : bool(opt.hasOption);
+    const optionStartDate = isExtension ? str(ext.extensionStartDate) : str(opt.optionStartDate);
+    const optionEndDate = isExtension ? str(ext.extensionEndDate) : str(opt.optionEndDate);
+    const optionRent = isExtension ? num(ext.extensionRent) : num(opt.optionRent);
+    const optionTerms = isExtension ? str(ext.extensionTerms) : str(opt.optionTerms);
 
     return {
       propertyAddress: streetName,
       propertyHouseNumber: houseNum,
-      propertyCity: prop.city || "",
-      firstName: t.firstName || "",
-      lastName: t.lastName || "",
-      idNumber: t.idNumber || "",
-      phone: formatPhone(t.phone) || "",
-      email: t.email || "",
-      secondTenantFirstName: t2.firstName || "",
-      secondTenantLastName: t2.lastName || "",
-      secondTenantIdNumber: t2.idNumber || "",
-      secondTenantPhone: formatPhone(t2.phone) || "",
-      secondTenantEmail: t2.email || "",
-      startDate: l.startDate || "",
-      endDate: l.endDate || "",
-      monthlyRent: l.monthlyRent || undefined,
-      depositAmount: l.depositAmount || undefined,
-      terms: l.terms || "",
-      paymentMethod: pay.method || "",
-      checkBank: pay.checkBank || "",
-      checkBranch: pay.checkBranch || "",
-      checkAccount: pay.checkAccount || "",
+      propertyCity: str(prop.city),
+      firstName: str(t.firstName),
+      lastName: str(t.lastName),
+      idNumber: str(t.idNumber),
+      phone: formatPhone(str(t.phone)) || "",
+      email: str(t.email),
+      secondTenantFirstName: str(t2.firstName),
+      secondTenantLastName: str(t2.lastName),
+      secondTenantIdNumber: str(t2.idNumber),
+      secondTenantPhone: formatPhone(str(t2.phone)) || "",
+      secondTenantEmail: str(t2.email),
+      startDate: str(l.startDate),
+      endDate: str(l.endDate),
+      monthlyRent: num(l.monthlyRent),
+      depositAmount: num(l.depositAmount),
+      terms: str(l.terms),
+      paymentMethod: str(pay.method),
+      checkBank: str(pay.checkBank),
+      checkBranch: str(pay.checkBranch),
+      checkAccount: str(pay.checkAccount),
       checkDepositReminder: pay.method === "checks",
       hasOption,
       optionMonths: opt.optionMonths ? String(opt.optionMonths) : "",
@@ -341,9 +348,9 @@ export default function ImportLeasePage() {
 
       // 1b. Archive any active lease on this property (fresh fetch — not cached data)
       const freshProp = await fetch(`/api/properties/${propertyId}`).then((r) => r.ok ? r.json() : null);
-      const existingLeases = (freshProp?.leases || []) as any[];
-      const activeLeases = existingLeases.filter((l: any) => l.status !== "ended");
-      await Promise.all(activeLeases.map((l: any) =>
+      const existingLeases = (freshProp?.leases || []) as Lease[];
+      const activeLeases = existingLeases.filter((l) => l.status !== "ended");
+      await Promise.all(activeLeases.map((l) =>
         fetch(`/api/leases/${l.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -683,7 +690,7 @@ export default function ImportLeasePage() {
                       צור נכס חדש
                     </button>
                   </div>
-                  {propertyAction === "use-existing" && (matchedProperty.leases || []).some((l: any) => l.status === "active") && (
+                  {propertyAction === "use-existing" && (matchedProperty.leases || []).some((l) => l.status === "active") && (
                     <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
                       ⚠️ לנכס זה יש חוזה פעיל — הוא יועבר לארכיון ולא יימחק
                     </p>
@@ -711,7 +718,7 @@ export default function ImportLeasePage() {
                     }}
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white">
                     <option value="">-- צור נכס חדש --</option>
-                    {allProperties.map((p: any) => (
+                    {allProperties.map((p) => (
                       <option key={p.id} value={p.id}>{p.title} — {p.city}</option>
                     ))}
                   </select>

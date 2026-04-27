@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
 
       // Step 3 — LLM
       const modelLabel = provider === "ollama"
-        ? `Ollama / ${process.env.OLLAMA_MODEL || "qwen3.5:9b"}`
+        ? `Ollama / ${process.env.OLLAMA_MODEL || "qwen2.5:7b"}`
         : provider === "gemini"
         ? `Gemini / ${process.env.GEMINI_MODEL || "gemini-2.5-flash"}`
         : "Claude";
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
 
       if (provider === "ollama") {
         const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
-        const model = process.env.OLLAMA_MODEL || "qwen3.5:9b";
+        const model = process.env.OLLAMA_MODEL || "qwen2.5:7b";
 
         // Use Ollama native /api/chat — supports think:false directly
         const res = await fetch(`${baseUrl}/api/chat`, {

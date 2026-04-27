@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 
 function parsePartialPaid(notes?: string): number | null {
   if (!notes) return null;
@@ -76,7 +77,7 @@ function buildDebtList(payments: Payment[], leases: Lease[]): DebtItem[] {
 
   // Virtual overdue slots (past due, no payment record)
   for (const lease of leases) {
-    if (lease.status !== "active") continue;
+    if (!isLeaseCurrentlyActive(lease)) continue;
     const start = new Date(lease.startDate);
     const end = new Date(lease.endDate);
     const cur = new Date(start.getFullYear(), start.getMonth(), 1);

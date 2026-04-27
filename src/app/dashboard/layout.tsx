@@ -114,21 +114,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar (mobile) */}
-        <header className="h-16 flex items-center px-4 gap-3 lg:hidden"
-          style={{ background: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
+        {/* Top bar (mobile) — גובה + safe-area-top ל-standalone */}
+        <header className="flex items-center px-4 gap-3 lg:hidden"
+          style={{
+            background: "var(--bg-surface)",
+            borderBottom: "1px solid var(--border)",
+            paddingTop: "max(1rem, env(safe-area-inset-top))",
+            paddingBottom: "0.75rem",
+          }}>
           <button onClick={() => setMobileOpen(!mobileOpen)}
             className="p-2 rounded-lg text-sm" style={{ color: "var(--text-2)" }}>☰</button>
           <span className="font-bold" style={{ color: "var(--text-1)" }}>ניהול נכסים</span>
         </header>
 
-        <main className="flex-1 overflow-auto pb-16 lg:pb-0">
+        {/* pb מפצה על bottom nav + safe-area-bottom (home indicator ב-iPhone) */}
+        <main className="flex-1 overflow-auto" style={{ paddingBottom: "calc(4rem + env(safe-area-inset-bottom))" }}>
           {children}
         </main>
 
         {/* Mobile bottom nav */}
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 flex items-center justify-around px-1 py-1"
-          style={{ background: "var(--bg-surface)", borderTop: "1px solid var(--border)" }}>
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 flex items-center justify-around px-1"
+          style={{
+            background: "var(--bg-surface)",
+            borderTop: "1px solid var(--border)",
+            paddingTop: "0.25rem",
+            paddingBottom: "max(0.25rem, env(safe-area-inset-bottom))",
+          }}>
           {[
             { href: "/dashboard", label: "בקרה", icon: "🏠", exact: true },
             { href: "/dashboard/properties", label: "נכסים", icon: "🏢" },

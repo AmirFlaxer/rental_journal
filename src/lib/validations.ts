@@ -70,6 +70,11 @@ export const leaseSchema = z.object({
   tenantNoticeMonths: z.number().int().min(1).nullish(),
   landlordNoticeMonths: z.number().int().min(1).nullish(),
   paymentMethod: z.string().nullish(),
+  // Index linkage
+  linkageType: z.enum(["none", "usd", "cpi"]).default("none"),
+  linkageFrequency: z.enum(["monthly", "quarterly", "semiannual"]).default("monthly"),
+  baseAmount: z.number().positive().nullish(),
+  baseDate: z.coerce.date().nullish(),
 });
 
 // Expense Validations

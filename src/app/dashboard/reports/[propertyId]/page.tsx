@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import type { Lease, Expense, Payment } from "@/types/database";
 
 const EXPENSE_CAT_HE: Record<string, string> = {
   Maintenance: "תחזוקה",
@@ -37,9 +38,9 @@ interface ReportData {
   totalPending: number;
   netIncome: number;
   expensesByCategory: Record<string, number>;
-  leases: any[];
-  expenses: any[];
-  payments: any[];
+  leases: (Lease & { tenant?: { firstName: string; lastName: string } })[];
+  expenses: Expense[];
+  payments: Payment[];
 }
 
 function fmt(n: number) {
@@ -180,7 +181,7 @@ export default function PropertyReportPage() {
               <p className="text-gray-400 text-sm">אין חוזים</p>
             ) : (
               <div className="space-y-3">
-                {(report.leases || []).map((lease: any) => (
+                {(report.leases || []).map((lease) => (
                   <div key={lease.id} className="border border-gray-100 rounded-lg p-3">
                     <div className="flex justify-between items-start mb-1">
                       <span className="font-semibold text-gray-800">
@@ -206,7 +207,7 @@ export default function PropertyReportPage() {
         </div>
 
         {/* Monthly rent schedule per lease */}
-        {(report.leases || []).map((lease: any) => {
+        {(report.leases || []).map((lease) => {
           const start = new Date(lease.startDate);
           const end = new Date(lease.endDate);
           const today = new Date();
@@ -225,8 +226,8 @@ export default function PropertyReportPage() {
           }
 
           // Match payments to months
-          const rentPayments: any[] = (report.payments || []).filter(
-            (p: any) => p.leaseId === lease.id && p.paymentType === "Rent"
+          const rentPayments = (report.payments || []).filter(
+            (p) => p.leaseId === lease.id && p.paymentType === "Rent"
           );
 
           return (
@@ -251,7 +252,7 @@ export default function PropertyReportPage() {
               </div>
               <div className="p-4 flex flex-wrap gap-2">
                 {months.map(({ key, label, due }) => {
-                  const match = rentPayments.find((p: any) => (p.dueDate || "").slice(0, 7) === key);
+                  const match = rentPayments.find((p) => (p.dueDate || "").slice(0, 7) === key);
                   const isPaid = match?.status === "paid" || !!match?.paidDate;
                   const isFuture = due > today;
                   const isOverdue = !isPaid && !isFuture;
@@ -308,8 +309,8 @@ export default function PropertyReportPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {[...(report.payments || [])]
-                    .sort((a: any, b: any) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())
-                    .map((pay: any) => (
+                    .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())
+                    .map((pay) => (
                       <tr key={pay.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-gray-700">{PAYMENT_TYPE_HE[pay.paymentType] ?? pay.paymentType}</td>
                         <td className="px-4 py-3 text-gray-600">{new Date(pay.dueDate).toLocaleDateString("he-IL")}</td>
@@ -354,8 +355,8 @@ export default function PropertyReportPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {[...(report.expenses || [])]
-                    .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .map((exp: any) => (
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .map((exp) => (
                       <tr key={exp.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-gray-900">{exp.description}</td>
                         <td className="px-4 py-3 text-gray-600">{EXPENSE_CAT_HE[exp.category] ?? exp.category}</td>

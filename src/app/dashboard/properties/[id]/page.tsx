@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import type { Lease, Expense, Payment, LeaseDocument } from "@/types/database";
 
 interface Property {
   id: string;
@@ -21,9 +22,9 @@ interface Property {
   numParkingSpots?: number;
   purchasePrice?: number;
   createdAt: string;
-  leases: any[];
-  expenses: any[];
-  payments: any[];
+  leases: (Lease & { tenant?: { firstName: string; lastName: string }; leaseDocuments?: LeaseDocument[] })[];
+  expenses: Expense[];
+  payments: Payment[];
 }
 
 const PROPERTY_TYPE_HE: Record<string, string> = {
@@ -57,7 +58,7 @@ export default function PropertyDetailPage() {
   const [activateLoading, setActivateLoading] = useState(false);
 
   // Early termination modal
-  const [terminateLease, setTerminateLease] = useState<any | null>(null);
+  const [terminateLease, setTerminateLease] = useState<(Lease & { tenant?: { firstName: string; lastName: string } }) | null>(null);
   const [termBy, setTermBy] = useState<"tenant" | "landlord">("tenant");
   const [termDate, setTermDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [termReason, setTermReason] = useState("");
@@ -529,7 +530,7 @@ export default function PropertyDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {property.leases.map((lease: any) => (
+                  {property.leases.map((lease) => (
                     <tr key={lease.id}
                       onClick={() => router.push(`/dashboard/leases/${lease.id}/edit`)}
                       className="hover:bg-blue-50 cursor-pointer transition-colors">
@@ -560,7 +561,7 @@ export default function PropertyDetailPage() {
                       <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                         {lease.leaseDocuments?.length > 0 ? (
                           <div className="flex flex-col gap-1">
-                            {lease.leaseDocuments.map((doc: any) => (
+                            {lease.leaseDocuments.map((doc) => (
                               <a
                                 key={doc.id}
                                 href={`/api/documents/${doc.id}`}
@@ -609,7 +610,7 @@ export default function PropertyDetailPage() {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
 
-          const reminders: { lease: any; month: string; dueDate: Date; paid: boolean }[] = [];
+          const reminders: { lease: typeof checkLeases[0]; month: string; dueDate: Date; paid: boolean }[] = [];
           checkLeases.forEach((lease) => {
             const startDay = new Date(lease.startDate).getDate();
             // Generate current month + next 2 months
@@ -619,7 +620,7 @@ export default function PropertyDetailPage() {
               if (due < new Date(lease.startDate) || due > new Date(lease.endDate)) continue;
               const monthLabel = due.toLocaleDateString("he-IL", { month: "long", year: "numeric" });
               const dueDateStr = due.toISOString().slice(0, 7); // YYYY-MM for matching
-              const paid = property.payments.some((p: any) =>
+              const paid = property.payments.some((p) =>
                 p.leaseId === lease.id &&
                 p.paymentType === "Rent" &&
                 p.status === "paid" &&
@@ -684,7 +685,7 @@ export default function PropertyDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {property.expenses.map((expense: any) => (
+                  {property.expenses.map((expense) => (
                     <tr key={expense.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium">{expense.category}</td>
                       <td className="px-4 py-3 text-gray-600">{expense.description}</td>
@@ -722,7 +723,7 @@ export default function PropertyDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {property.payments.map((payment: any) => (
+                  {property.payments.map((payment) => (
                     <tr key={payment.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium">{payment.paymentType}</td>
                       <td className="px-4 py-3 font-semibold text-green-700">₪{payment.amount.toLocaleString()}</td>

@@ -56,6 +56,10 @@ export default function AddLeasePage() {
   const [secondTenantPhone, setSecondTenantPhone] = useState("");
   const [secondTenantEmail, setSecondTenantEmail] = useState("");
 
+  // Index linkage
+  const [linkageType, setLinkageType] = useState<"none" | "usd" | "cpi">("none");
+  const [linkageFrequency, setLinkageFrequency] = useState<"monthly" | "quarterly" | "semiannual">("monthly");
+
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [checkBank, setCheckBank] = useState("");
@@ -175,6 +179,8 @@ export default function AddLeasePage() {
           secondTenantIdNumber: hasSecondTenant && secondTenantIdNumber ? secondTenantIdNumber : null,
           secondTenantPhone: hasSecondTenant && secondTenantPhone ? secondTenantPhone : null,
           secondTenantEmail: hasSecondTenant && secondTenantEmail ? secondTenantEmail : null,
+          linkageType,
+          linkageFrequency,
         }),
       });
 
@@ -424,6 +430,51 @@ export default function AddLeasePage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="מספר חשבון" />
                     </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Linkage */}
+              <div className="md:col-span-2">
+                <label className="block text-gray-700 font-semibold mb-2">הצמדת שכר דירה</label>
+                <div className="flex flex-wrap gap-3 mb-3">
+                  {(["none", "usd", "cpi"] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setLinkageType(type)}
+                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                        linkageType === type
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      {type === "none" ? "ללא הצמדה" : type === "usd" ? 'דולר ארה"ב' : "מדד כללי (CPI)"}
+                    </button>
+                  ))}
+                </div>
+                {linkageType !== "none" && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-2">תדירות עדכון</label>
+                    <div className="flex gap-3">
+                      {(["monthly", "quarterly", "semiannual"] as const).map((freq) => (
+                        <button
+                          key={freq}
+                          type="button"
+                          onClick={() => setLinkageFrequency(freq)}
+                          className={`px-3 py-1.5 rounded border text-sm transition-colors ${
+                            linkageFrequency === freq
+                              ? "bg-blue-100 text-blue-700 border-blue-400"
+                              : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          {freq === "monthly" ? "חודשי" : freq === "quarterly" ? "רבעוני" : "חצי-שנתי"}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      הסכום הבסיסי וותאריך הבסיס יוגדרו אוטומטית לפי שכ&quot;ד ותאריך תחילת החוזה
+                    </p>
                   </div>
                 )}
               </div>

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatPhone } from "@/lib/phone";
+import { calcEffectiveRent, LINKAGE_TYPE_LABELS } from "@/lib/linkage";
+import type { IndexRate, LinkageType, LinkageFrequency } from "@/lib/linkage";
 
 interface Lease {
   id: string;
@@ -15,6 +17,10 @@ interface Lease {
   hasOption?: boolean;
   optionMonths?: number;
   paymentMethod?: string;
+  linkageType?: LinkageType;
+  linkageFrequency?: LinkageFrequency;
+  baseAmount?: number;
+  baseDate?: string;
   properties?: { id: string; title: string; city: string; address: string };
   tenant?: { firstName: string; lastName: string; phone?: string };
 }
@@ -54,14 +60,18 @@ function formatDate(d: string) {
 export default function LeasesPage() {
   const router = useRouter();
   const [leases, setLeases] = useState<Lease[]>([]);
+  const [indexRates, setIndexRates] = useState<IndexRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "future" | "ended">("all");
 
   useEffect(() => {
-    fetch("/api/leases")
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setLeases(data); })
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch("/api/leases").then((r) => r.json()),
+      fetch("/api/index-rates").then((r) => r.json()),
+    ]).then(([leasesData, ratesData]) => {
+      if (Array.isArray(leasesData)) setLeases(leasesData);
+      if (Array.isArray(ratesData)) setIndexRates(ratesData);
+    }).finally(() => setLoading(false));
   }, []);
 
   const withStatus = leases.map((l) => ({ ...l, _status: leaseStatus(l) }));
@@ -171,7 +181,22 @@ export default function LeasesPage() {
 
                   {/* Rent + arrow */}
                   <div className="text-right flex-shrink-0 flex flex-col items-end justify-center gap-1">
-                    <p className="font-bold text-gray-900">₪{lease.monthlyRent.toLocaleString()}</p>
+                    {lease.linkageType && lease.linkageType !== "none" ? (() => {
+                      const effective = calcEffectiveRent(
+                        { ...lease, linkageType: lease.linkageType!, linkageFrequency: lease.linkageFrequency ?? "monthly", baseAmount: lease.baseAmount ?? null, baseDate: lease.baseDate ?? null },
+                        indexRates
+                      );
+                      const changed = effective !== lease.monthlyRent;
+                      return (
+                        <>
+                          <p className="font-bold text-gray-900">₪{effective.toLocaleString()}</p>
+                          {changed && <p className="text-xs text-gray-400 line-through">₪{lease.monthlyRent.toLocaleString()}</p>}
+                          <p className="text-xs text-indigo-500">{LINKAGE_TYPE_LABELS[lease.linkageType!]}</p>
+                        </>
+                      );
+                    })() : (
+                      <p className="font-bold text-gray-900">₪{lease.monthlyRent.toLocaleString()}</p>
+                    )}
                     <p className="text-xs text-gray-400">לחודש</p>
                     <span className="text-gray-400 text-lg leading-none">›</span>
                   </div>

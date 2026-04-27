@@ -72,6 +72,12 @@ export async function POST(request: NextRequest) {
 
     if (!tenant) return NextResponse.json({ error: "Tenant not found or unauthorized" }, { status: 404 });
 
+    // כאשר יש הצמדה ולא סופקו ערכי בסיס, נגדיר ברירות מחדל
+    if (data.linkageType !== "none") {
+      if (!data.baseAmount) data.baseAmount = data.monthlyRent;
+      if (!data.baseDate) data.baseDate = data.startDate;
+    }
+
     const { data: row, error } = await supabase
       .from("leases")
       .insert({ ...(snakeKeys(data) as object), user_id: session.user.id })

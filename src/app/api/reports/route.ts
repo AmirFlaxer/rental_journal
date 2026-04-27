@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { camelKeys } from "@/lib/supabase/case";
+import { isLeaseCurrentlyActive } from "@/lib/lease-status";
+import type { PropertyRow, LeaseRow, ExpenseRow, PaymentRow } from "@/types/database";
 
 export async function GET() {
   try {
@@ -17,39 +19,27 @@ export async function GET() {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    const today = new Date();
-    const todayMs = today.getTime();
-    const propertyStats = (properties ?? []).map((p: any) => {
-      // A lease counts toward "current monthly rent" only if:
-      //   (1) its status is "active", AND
-      //   (2) today falls within [start_date, end_date].
-      // This protects against stale data where an old lease was never marked ended.
-      const currentLeases = p.leases.filter((l: any) => {
-        if (l.status !== "active") return false;
-        const start = l.start_date ? new Date(l.start_date).getTime() : -Infinity;
-        const end = l.end_date ? new Date(l.end_date).getTime() : Infinity;
-        return start <= todayMs && todayMs <= end;
-      });
-      // Still expose the full list of active leases for counts/labels elsewhere.
-      const activeLeases = p.leases.filter((l: any) => l.status === "active");
-      const monthlyRent = currentLeases.reduce((s: number, l: any) => s + l.monthly_rent, 0);
-      const totalExpenses = p.expenses.reduce((s: number, e: any) => s + e.amount, 0);
-      const totalPaid = p.payments.filter((pay: any) => pay.paid_date).reduce((s: number, pay: any) => s + pay.amount, 0);
-      const totalPending = p.payments.filter((pay: any) => !pay.paid_date && pay.payment_type === "Rent").reduce((s: number, pay: any) => s + pay.amount, 0);
+    const propertyStats = (properties as PropertyRow[] ?? []).map((p) => {
+      // מסנן לפי תאריכים ולא רק status — חוזים ישנים שנשארו "active" לא נספרים
+      const currentLeases = (p.leases ?? []).filter((l: LeaseRow) => isLeaseCurrentlyActive(l));
+      const monthlyRent = currentLeases.reduce((s, l) => s + l.monthly_rent, 0);
+      const totalExpenses = (p.expenses ?? []).reduce((s, e) => s + e.amount, 0);
+      const totalPaid = (p.payments ?? []).filter((pay) => pay.paid_date).reduce((s, pay) => s + pay.amount, 0);
+      const totalPending = (p.payments ?? []).filter((pay) => !pay.paid_date && pay.payment_type === "Rent").reduce((s, pay) => s + pay.amount, 0);
 
       const expensesByCategory: Record<string, number> = {};
-      for (const e of p.expenses) {
+      for (const e of (p.expenses ?? [])) {
         expensesByCategory[e.category] = (expensesByCategory[e.category] || 0) + e.amount;
       }
 
       return {
         id: p.id, title: p.title, city: p.city, propertyType: p.property_type,
-        activeLeases: activeLeases.length, totalLeases: p.leases.length,
+        activeLeases: currentLeases.length, totalLeases: (p.leases ?? []).length,
         monthlyRent, totalExpenses, totalPaid, totalPending,
         netIncome: totalPaid - totalExpenses, expensesByCategory,
-        leases: camelKeys(p.leases) as any[],
-        expenses: camelKeys(p.expenses) as any[],
-        payments: camelKeys(p.payments) as any[],
+        leases: camelKeys(p.leases) as unknown[],
+        expenses: camelKeys(p.expenses) as unknown[],
+        payments: camelKeys(p.payments) as unknown[],
       };
     });
 
@@ -62,11 +52,11 @@ export async function GET() {
       netIncome: propertyStats.reduce((s, p) => s + p.netIncome, 0),
     };
 
-    const allPayments = (properties ?? []).flatMap((p: any) =>
-      p.payments.filter((pay: any) => pay.paid_date).map((pay: any) => ({ ...pay, propertyTitle: p.title }))
+    const allPayments = (properties as PropertyRow[] ?? []).flatMap((p) =>
+      (p.payments ?? []).filter((pay: PaymentRow) => pay.paid_date).map((pay) => ({ ...pay, propertyTitle: p.title }))
     );
-    const allExpenses = (properties ?? []).flatMap((p: any) =>
-      p.expenses.map((e: any) => ({ ...e, propertyTitle: p.title }))
+    const allExpenses = (properties as PropertyRow[] ?? []).flatMap((p) =>
+      (p.expenses ?? []).map((e: ExpenseRow) => ({ ...e, propertyTitle: p.title }))
     );
 
     const monthlyMap: Record<string, { income: number; expenses: number }> = {};

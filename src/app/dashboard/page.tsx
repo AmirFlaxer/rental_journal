@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 
 interface Property {
   id: string;
@@ -9,7 +10,7 @@ interface Property {
   address: string;
   city: string;
   propertyType: string;
-  leases?: { status: string; monthlyRent: number }[];
+  leases?: { status: string; startDate?: string; endDate?: string; monthlyRent: number }[];
 }
 
 interface Lease {
@@ -46,7 +47,7 @@ function countPendingPayments(leases: Lease[], dbPayments: Payment[]): number {
 
   // Virtual slots (past due, not in DB)
   for (const lease of leases) {
-    if (lease.status !== "active") continue;
+    if (!isLeaseCurrentlyActive(lease)) continue;
     const start = new Date(lease.startDate);
     const end = new Date(lease.endDate);
     const cur = new Date(start.getFullYear(), start.getMonth(), 1);
@@ -103,7 +104,7 @@ export default function Dashboard() {
     );
   }
 
-  const activeLeases = properties.flatMap((p) => p.leases || []).filter((l) => l.status === "active");
+  const activeLeases = properties.flatMap((p) => p.leases || []).filter(isLeaseCurrentlyActive);
   const monthlyIncome = activeLeases.reduce((s, l) => s + l.monthlyRent, 0);
   const pendingPayments = countPendingPayments(leases, payments);
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
@@ -182,7 +183,7 @@ export default function Dashboard() {
         ) : (
           <div className="space-y-2">
             {properties.map((p) => {
-              const active = (p.leases || []).filter((l) => l.status === "active");
+              const active = (p.leases || []).filter(isLeaseCurrentlyActive);
               const rent = active.reduce((s, l) => s + l.monthlyRent, 0);
               return (
                 <Link key={p.id} href={`/dashboard/properties/${p.id}`}

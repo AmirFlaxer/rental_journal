@@ -105,6 +105,14 @@ create table if not exists leases (
   termination_effective_date  timestamptz,
   termination_reason          text,
 
+  -- Index linkage (הצמדה למדד)
+  linkage_type      text not null default 'none'
+    check (linkage_type in ('none','usd','cpi')),
+  linkage_frequency text not null default 'monthly'
+    check (linkage_frequency in ('monthly','quarterly','semiannual')),
+  base_amount       float,       -- שכ"ד בסיסי בעת חתימה
+  base_date         timestamptz, -- תאריך בסיס לחישוב
+
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
@@ -208,6 +216,22 @@ create table if not exists property_assets (
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );
+
+-- ----------------------------------------------------------------
+-- INDEX RATES (שערי מדד והצמדה)
+-- ----------------------------------------------------------------
+create table if not exists index_rates (
+  id          serial      primary key,
+  type        text        not null check (type in ('usd','cpi')),
+  period_date date        not null,
+  value       float       not null,
+  created_at  timestamptz not null default now(),
+  unique (type, period_date)
+);
+
+-- index_rates נגישה לכולם לקריאה (ציבורי), כתיבה רק דרך service role (cron)
+alter table index_rates enable row level security;
+create policy "index_rates_read" on index_rates for select using (true);
 
 -- ----------------------------------------------------------------
 -- ROW LEVEL SECURITY (RLS)
