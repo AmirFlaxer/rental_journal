@@ -2,7 +2,7 @@
 
 > מצב נוכחי, החלטות, והצעד הבא. מתעדכן בכל session.
 
-## מצב נוכחי (2026-04-27 — עדכון session)
+## מצב נוכחי (2026-04-27)
 
 ### מה עובד
 - **Auth**: Supabase Auth (email/password)
@@ -14,6 +14,7 @@
   - שוכר שני
   - שיטת תקבול (כולל שיקים עם תזכורות אוטומטיות)
   - **הצמדת שכ"ד**: linkage_type (none/usd/cpi), linkage_frequency (monthly/quarterly/semiannual)
+  - **פאנל השוואת מסלולים**: חישוב תיאורטי מה היה שכ"ד לו היה צמוד, בדף עריכת חוזה
 - **תקבולים**: CRUD, סטטוס (pending/paid/overdue/partial)
 - **הוצאות**: CRUD עם קטגוריות
 - **חובות**: חישוב חובות אוטומטי כולל slots וירטואליים
@@ -52,7 +53,8 @@
 
 ## בעיות ידועות / TODO פתוח
 - ~~**ספק LLM נשמר ב-cookie בלבד**~~ — **נפתר**: נשמר ב-Supabase user_metadata + cookie כ-cache
-- ~~**~50 שגיאות TypeScript `any`**~~ — **נפתר חלקית**: `src/types/database.ts` נוצר; עדכנו reports, leases/import, properties/[id] — נשארו 3 שורות שוליות
+- ~~**~50 שגיאות TypeScript `any`**~~ — **נפתר חלקית**: `src/types/database.ts` נוצר; 3 שורות שוליות נותרו
+- ~~**חוזים ישנים ב-status=active משפיעים על תצוגות**~~ — **נפתר**: `isLeaseCurrentlyActive` מוחל על כל הדשבורד (payments, properties, add-payment, property detail, leases import)
 - **PWA לא נבדקה על מכשיר אמיתי** — לבדוק התקנה ב-Chrome Android / Safari iOS
 - **CRON_SECRET** — צריך להגדיר כ-env var ב-Vercel לפני שה-cron יעבוד
 
