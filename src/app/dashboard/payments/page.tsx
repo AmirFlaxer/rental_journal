@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { NumberInput } from "@/components/number-input";
+import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 
 const TYPE_HE: Record<string, string> = {
   Rent: "שכ״ד",
@@ -78,7 +79,7 @@ function generateVirtualSlots(leases: Lease[], existingPayments: Payment[]): Pay
   const slots: Payment[] = [];
 
   for (const lease of leases) {
-    if (lease.status !== "active") continue;
+    if (!isLeaseCurrentlyActive(lease)) continue;
     const start = new Date(lease.startDate);
     const end = new Date(lease.endDate);
     const cur = new Date(start.getFullYear(), start.getMonth(), 1);

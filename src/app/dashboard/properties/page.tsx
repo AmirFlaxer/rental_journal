@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 
 const TYPE_HE: Record<string, string> = { Apartment: "דירה", House: "בית", Commercial: "מסחרי" };
 const TYPE_ICON: Record<string, string> = { Apartment: "🏢", House: "🏠", Commercial: "🏪" };
@@ -89,7 +90,7 @@ export default function PropertiesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {properties.map((p) => {
-            const active = (p.leases || []).filter((l) => l.status === "active");
+            const active = (p.leases || []).filter((l) => isLeaseCurrentlyActive(l));
             const rent = active.reduce((s, l) => s + l.monthlyRent, 0);
             return (
               <div key={p.id} className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-md hover:border-indigo-200 transition-all">

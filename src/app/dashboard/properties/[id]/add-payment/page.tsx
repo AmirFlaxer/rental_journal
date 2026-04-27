@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
+import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 
 interface Lease {
   id: string;
@@ -38,7 +39,7 @@ export default function AddPaymentPage() {
     fetch(`/api/properties/${propertyId}`)
       .then((r) => r.json())
       .then((d) => {
-        const active = (d.leases || []).filter((l: Lease) => l.status === "active");
+        const active = (d.leases || []).filter((l: Lease) => isLeaseCurrentlyActive(l));
         setLeases(active);
         if (active.length === 1) {
           setLeaseId(active[0].id);

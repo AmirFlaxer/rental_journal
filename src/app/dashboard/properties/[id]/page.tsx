@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import type { Lease, Expense, Payment, LeaseDocument } from "@/types/database";
+import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 
 interface Property {
   id: string;
@@ -138,12 +139,12 @@ export default function PropertyDetailPage() {
 
   // Leases with urgency indicators
   const alertLeases = property.leases.filter((l) => {
-    if (l.status !== "active") return false;
+    if (!isLeaseCurrentlyActive(l)) return false;
     const days = daysUntil(l.endDate);
     return days <= 90;
   });
 
-  const activeLeases = property.leases.filter((l) => l.status === "active");
+  const activeLeases = property.leases.filter((l) => isLeaseCurrentlyActive(l));
   const monthlyRent = activeLeases.reduce((s, l) => s + (l.monthlyRent || 0), 0);
   const totalExpenses = property.expenses.reduce((s, e) => s + (e.amount || 0), 0);
   const typeHe = PROPERTY_TYPE_HE[property.propertyType] ?? property.propertyType;
@@ -548,7 +549,7 @@ export default function PropertyDetailPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          lease.status === "active"
+                          isLeaseCurrentlyActive(lease)
                             ? "bg-green-100 text-green-700"
                             : lease.status === "ended"
                             ? "bg-gray-100 text-gray-600"
@@ -579,13 +580,13 @@ export default function PropertyDetailPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2 flex-wrap items-center">
-                          {lease.hasOption && !lease.optionActivated && lease.optionEnd && lease.status === "active" && (
+                          {lease.hasOption && !lease.optionActivated && lease.optionEnd && isLeaseCurrentlyActive(lease) && (
                             <button onClick={(e) => { e.stopPropagation(); setActivatingLeaseId(lease.id); }}
                               className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold hover:bg-blue-200">
                               🔄 אופציה
                             </button>
                           )}
-                          {!lease.earlyTermProtection && lease.status === "active" && (
+                          {!lease.earlyTermProtection && isLeaseCurrentlyActive(lease) && (
                             <button onClick={(e) => { e.stopPropagation(); setTerminateLease(lease); setTermBy("tenant"); setTermDate(new Date().toISOString().slice(0,10)); setTermReason(""); }}
                               className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-semibold hover:bg-red-200">
                               🚪 סיום

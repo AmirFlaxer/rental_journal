@@ -7,6 +7,7 @@ import { NumberInput } from "@/components/number-input";
 import { PhoneInput } from "@/components/phone-input";
 import { formatPhone } from "@/lib/phone";
 import type { Property, Lease } from "@/types/database";
+import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 
 type Step = "upload" | "review" | "complete";
 
@@ -690,7 +691,7 @@ export default function ImportLeasePage() {
                       צור נכס חדש
                     </button>
                   </div>
-                  {propertyAction === "use-existing" && (matchedProperty.leases || []).some((l) => l.status === "active") && (
+                  {propertyAction === "use-existing" && (matchedProperty.leases || []).some((l) => isLeaseCurrentlyActive(l)) && (
                     <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
                       ⚠️ לנכס זה יש חוזה פעיל — הוא יועבר לארכיון ולא יימחק
                     </p>
