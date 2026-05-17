@@ -53,8 +53,8 @@ function buildHistory(
   rates: IndexRate[]
 ): HistoryRow[] {
   const base = lease.monthlyRent;
-  const start = new Date(lease.startDate);
-  start.setDate(1);
+  const leaseStart = new Date(lease.startDate);
+  leaseStart.setDate(1);
   const today = new Date();
   today.setDate(1);
   const end = new Date(lease.endDate);
@@ -62,15 +62,24 @@ function buildHistory(
   const until = today < end ? today : end;
 
   if (type === "none") {
-    return [{ period: start.toISOString().slice(0, 7), rateValue: null, rent: base, diff: 0 }];
+    return [{ period: leaseStart.toISOString().slice(0, 7), rateValue: null, rent: base, diff: 0 }];
   }
 
-  const baseRate = pickRate(rates, type, start);
-  if (!baseRate) return [];
+  // Find base rate — use lease start date, or fall back to earliest available rate
+  let baseRate = pickRate(rates, type, leaseStart);
+  let effectiveStart = leaseStart;
+  if (!baseRate) {
+    const earliest = rates
+      .filter((r) => r.type === type)
+      .sort((a, b) => a.periodDate.localeCompare(b.periodDate))[0];
+    if (!earliest) return [];
+    baseRate = earliest;
+    effectiveStart = new Date(earliest.periodDate);
+  }
 
   const rows: HistoryRow[] = [];
   const step = freqStep(frequency);
-  let cur = getEffectivePeriodStart(start, frequency);
+  let cur = getEffectivePeriodStart(effectiveStart, frequency);
 
   while (cur <= until) {
     const rate = pickRate(rates, type, cur);
@@ -114,9 +123,11 @@ export default function LinkageComparisonPage() {
     try {
       const res = await fetch("/api/index-rates/refresh");
       if (!res.ok) throw new Error();
+      const json = await res.json() as { results?: { type: string; inserted: number }[] };
+      const total = (json.results ?? []).reduce((s, r) => s + r.inserted, 0);
       const data = await fetch("/api/index-rates").then((r) => r.json());
       if (Array.isArray(data)) setRates(data);
-      setRefreshMsg("המדדים עודכנו בהצלחה");
+      setRefreshMsg(total > 0 ? `נוספו ${total} נקודות נתונים` : data.length > 0 ? "קיימים נתונים בDB" : "השרתים החיצוניים לא החזירו נתונים");
     } catch {
       setRefreshMsg("שגיאה בעדכון המדדים");
     } finally {
@@ -129,9 +140,15 @@ export default function LinkageComparisonPage() {
       fetch("/api/leases").then((r) => r.json()),
       fetch("/api/index-rates").then((r) => r.json()),
     ]).then(([leasesData, ratesData]) => {
-      const all = Array.isArray(leasesData) ? leasesData : [];
-      setLeases(all);
-      if (all.length > 0) setSelectedId(all[0].id);
+      const all: Lease[] = Array.isArray(leasesData) ? leasesData : [];
+      // מציג רק חוזים פעילים; אם אין — מציג הכל ללא כפולים לפי נכס+שוכר
+      const active = all.filter((l) => l.status === "active");
+      const list = active.length > 0 ? active : all.filter((l, i, arr) =>
+        arr.findIndex((x) => x.properties?.title === l.properties?.title &&
+          x.tenant?.firstName === l.tenant?.firstName) === i
+      );
+      setLeases(list);
+      if (list.length > 0) setSelectedId(list[0].id);
       if (Array.isArray(ratesData)) setRates(ratesData);
     }).finally(() => setLoading(false));
   }, []);

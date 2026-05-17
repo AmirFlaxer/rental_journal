@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 // ----------------------------------------------------------------
 async function fetchUsd(): Promise<{ type: string; period_date: string; value: number }[]> {
   const today = new Date();
-  const startYear = today.getFullYear() - 1;
+  const startYear = today.getFullYear() - 4;
   const start = `${startYear}-01-01`;
   const end = today.toISOString().slice(0, 10);
 

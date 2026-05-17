@@ -12,7 +12,7 @@ export async function GET() {
     .from("index_rates")
     .select("*")
     .order("period_date", { ascending: false })
-    .limit(120); // ~5 שנים של נתונים חודשיים
+    .limit(240); // ~10 שנים של נתונים חודשיים
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(camelKeys(data));
