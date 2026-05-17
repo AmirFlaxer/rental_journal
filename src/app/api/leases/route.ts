@@ -13,7 +13,7 @@ export async function GET() {
   // Auto-expire leases whose end date has passed
   await supabase
     .from("leases")
-    .update({ status: "ended" })
+    .update({ status: "expired" })
     .eq("user_id", session.user.id)
     .in("status", ["active", "paused"])
     .lt("end_date", new Date().toISOString().slice(0, 10));

@@ -31,6 +31,10 @@ function daysUntilExpiry(lease: Lease): number {
 }
 
 function leaseStatus(lease: Lease): "active" | "future" | "ended" {
+  // DB status is the source of truth
+  if (lease.status === "active") return "active";
+  if (lease.status === "terminated" || lease.status === "expired" || lease.status === "ended") return "ended";
+  // Fallback to date-based for leases without a recognized status
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const start = new Date(lease.startDate);
