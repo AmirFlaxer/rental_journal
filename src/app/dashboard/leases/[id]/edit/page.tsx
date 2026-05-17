@@ -169,10 +169,15 @@ export default function EditLeasePage() {
         setOptionRent(lease.optionRent || undefined);
         setOptionTerms(lease.optionTerms || "");
 
-        // חישוב תאריכי אופציה: אם null בDB — חשב מתאריך הסיום
+        // חישוב תאריכי אופציה: אם null בDB או לא הגיוניים — חשב מתאריך הסיום
         const endStr = toDateInput(lease.endDate);
         let optStart = toDateInput(lease.optionStart);
         let optEnd   = toDateInput(lease.optionEnd);
+        // אופציה חייבת להתחיל אחרי סיום החוזה — אם לא, מאפסים
+        if (lease.hasOption && optStart && endStr && optStart <= endStr) {
+          optStart = "";
+          optEnd = "";
+        }
         if (lease.hasOption && !optStart && endStr) {
           const d = new Date(endStr);
           d.setDate(d.getDate() + 1);
