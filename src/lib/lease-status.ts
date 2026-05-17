@@ -18,14 +18,7 @@ export function effectiveLeaseStatus(lease: LeaseForStatus): EffectiveLeaseStatu
   if (lease.status === "paused") return "ended";
   if (lease.status === "expired") return "expired";
 
-  // status="active" — סומכים על ה-DB; ה-cron מעדכן לexpired כשצריך
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const startRaw = lease.startDate ?? lease.start_date;
-  const start = startRaw ? new Date(startRaw) : null;
-
-  if (start && start > today) return "future";
+  // status="active" — סומכים על ה-DB לחלוטין; ה-cron מעדכן לexpired כשצריך
   return "active";
 }
 
