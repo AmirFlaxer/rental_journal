@@ -37,15 +37,16 @@ interface Expense {
 
 const TYPE_HE: Record<string, string> = { Apartment: "דירה", House: "בית", Commercial: "מסחרי" };
 
-function countPendingPayments(leases: Lease[], dbPayments: Payment[]): number {
+function pendingPaymentsSummary(leases: Lease[], dbPayments: Payment[]): { count: number; amount: number } {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   let count = 0;
+  let amount = 0;
 
-  // DB payments that are not paid
-  count += dbPayments.filter((p) => p.status !== "paid").length;
+  for (const p of dbPayments) {
+    if (p.status !== "paid") { count++; amount += p.amount; }
+  }
 
-  // Virtual slots (past due, not in DB)
   for (const lease of leases) {
     if (!isLeaseCurrentlyActive(lease)) continue;
     const start = new Date(lease.startDate);
@@ -66,13 +67,18 @@ function countPendingPayments(leases: Lease[], dbPayments: Payment[]): number {
         const exists = dbPayments.some(
           (p) => p.lease?.id === lease.id && p.dueDate.slice(0, 7) === monthKey
         );
-        if (!exists) count++;
+        if (!exists) { count++; amount += lease.monthlyRent; }
       }
       cur.setMonth(cur.getMonth() + 1);
     }
   }
 
-  return count;
+  return { count, amount };
+}
+
+function daysUntil(dateStr: string): number {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.ceil((new Date(dateStr).getTime() - today.getTime()) / 86400000);
 }
 
 export default function Dashboard() {
@@ -106,14 +112,21 @@ export default function Dashboard() {
 
   const activeLeases = properties.flatMap((p) => p.leases || []).filter(isLeaseCurrentlyActive);
   const monthlyIncome = activeLeases.reduce((s, l) => s + l.monthlyRent, 0);
-  const pendingPayments = countPendingPayments(leases, payments);
+  const { count: pendingCount, amount: pendingAmount } = pendingPaymentsSummary(leases, payments);
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+
+  // חוזים שפוגים תוך 60 יום
+  const expiringLeases = leases
+    .filter((l) => isLeaseCurrentlyActive(l))
+    .map((l) => ({ ...l, daysLeft: daysUntil(l.endDate) }))
+    .filter((l) => l.daysLeft >= 0 && l.daysLeft <= 60)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
 
   const stats = [
     { label: "נכסים", value: properties.length, icon: "🏢", color: "bg-indigo-50 text-indigo-700", border: "border-indigo-200", href: "/dashboard/properties" },
     { label: "חוזים פעילים", value: activeLeases.length, icon: "📋", color: "bg-emerald-50 text-emerald-700", border: "border-emerald-200", href: "/dashboard/leases" },
     { label: "הכנסה חודשית", value: monthlyIncome > 0 ? `₪${monthlyIncome.toLocaleString()}` : "—", subValue: monthlyIncome > 0 ? `₪${Math.round(monthlyIncome * 0.9).toLocaleString()} לאחר מס` : undefined, icon: "💰", color: "bg-emerald-50 text-emerald-700", border: "border-emerald-200", href: "/dashboard/reports" },
-    { label: "תקבולים ממתינים", value: pendingPayments > 0 ? pendingPayments : "0", icon: "⏳", color: "bg-amber-50 text-amber-700", border: "border-amber-200", href: "/dashboard/payments" },
+    { label: "תקבולים ממתינים", value: pendingCount > 0 ? pendingCount : "0", subValue: pendingAmount > 0 ? `₪${pendingAmount.toLocaleString()}` : undefined, subColor: "text-amber-600", icon: "⏳", color: "bg-amber-50 text-amber-700", border: "border-amber-200", href: "/dashboard/payments" },
     { label: "הוצאות כוללות", value: totalExpenses > 0 ? `₪${totalExpenses.toLocaleString()}` : "₪0", icon: "💸", color: "bg-rose-50 text-rose-700", border: "border-rose-200", href: "/dashboard/expenses" },
   ];
 
@@ -154,12 +167,30 @@ export default function Dashboard() {
             <span className="text-2xl">{s.icon}</span>
             <div className={`text-xl font-bold ${s.color.split(" ")[1]}`}>{s.value}</div>
             {"subValue" in s && s.subValue && (
-              <div className="text-xs text-emerald-600 font-medium">{s.subValue}</div>
+              <div className={`text-xs font-medium ${"subColor" in s && s.subColor ? s.subColor : "text-emerald-600"}`}>{s.subValue}</div>
             )}
             <div className="text-xs text-gray-500 font-medium">{s.label}</div>
           </Link>
         ))}
       </div>
+
+      {/* Expiring leases warning */}
+      {expiringLeases.length > 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 space-y-2">
+          <p className="text-sm font-bold text-amber-800">⚠️ חוזים שעומדים לפוג בקרוב</p>
+          {expiringLeases.map((l) => (
+            <Link key={l.id} href="/dashboard/leases"
+              className="flex items-center justify-between bg-white rounded-xl px-4 py-2.5 border border-amber-200 hover:border-amber-400 transition-colors">
+              <span className="text-sm font-semibold text-gray-800">
+                {(l as unknown as { properties?: { title: string } }).properties?.title ?? "נכס"}
+              </span>
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${l.daysLeft <= 14 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                {l.daysLeft === 0 ? "מסתיים היום" : `עוד ${l.daysLeft} ימים`}
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Properties */}
       <div className="space-y-3">

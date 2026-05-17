@@ -41,22 +41,31 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  if (event.data) {
-    const data = event.data.json();
-    event.waitUntil(
-      self.registration.showNotification(data.title, {
-        body: data.body,
-        icon: data.icon || "/icon-192.png",
-        badge: "/icon-192.png",
-        vibrate: [100, 50, 100],
-        dir: "rtl",
-        lang: "he",
-      })
-    );
-  }
+  if (!event.data) return;
+  const data = event.data.json();
+  event.waitUntil(
+    self.registration.showNotification(data.title || "ניהול נכסים", {
+      body: data.body || "",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: data.tag || "default",
+      data: { url: data.url || "/dashboard" },
+      vibrate: [100, 50, 100],
+      dir: "rtl",
+      lang: "he",
+    })
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(clients.openWindow("/dashboard"));
+  const url = event.notification.data?.url || "/dashboard";
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if ("focus" in client) { client.focus(); return; }
+      }
+      return clients.openWindow(url);
+    })
+  );
 });

@@ -25,6 +25,11 @@ interface Lease {
   tenant?: { firstName: string; lastName: string; phone?: string };
 }
 
+function daysUntilExpiry(lease: Lease): number {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.ceil((new Date(lease.endDate).getTime() - today.getTime()) / 86400000);
+}
+
 function leaseStatus(lease: Lease): "active" | "future" | "ended" {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -162,6 +167,15 @@ export default function LeasesPage() {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLOR[st]}`}>
                         {STATUS_LABEL[st]}
                       </span>
+                      {st === "active" && (() => {
+                        const days = daysUntilExpiry(lease);
+                        if (days > 60) return null;
+                        return (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${days <= 14 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                            {days === 0 ? "מסתיים היום" : `עוד ${days} ימים`}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <p className="text-sm text-gray-500 mt-0.5">
                       {lease.properties?.city && `${lease.properties.city} · `}

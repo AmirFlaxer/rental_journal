@@ -72,6 +72,7 @@ export default function ExpensesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState("");
   const [filterProp, setFilterProp] = useState("");
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -91,6 +92,11 @@ export default function ExpensesPage() {
   const filtered = expenses.filter((e) => {
     if (filterCat && e.category !== filterCat) return false;
     if (filterProp && e.properties?.id !== filterProp) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const text = `${e.description} ${e.vendorName ?? ""} ${e.properties?.title ?? ""}`.toLowerCase();
+      if (!text.includes(q)) return false;
+    }
     return true;
   });
 
@@ -207,6 +213,13 @@ export default function ExpensesPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="חיפוש לפי תיאור, ספק, נכס..."
+          className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white min-w-[200px]"
+        />
         <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}
           className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
           <option value="">כל הקטגוריות</option>

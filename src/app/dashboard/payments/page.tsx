@@ -135,6 +135,7 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("");
   const [filterProp, setFilterProp] = useState("");
+  const [search, setSearch] = useState("");
   const [showVirtual, setShowVirtual] = useState(true);
   const [creatingPayment, setCreatingPayment] = useState<string | null>(null);
 
@@ -167,6 +168,11 @@ export default function PaymentsPage() {
     if (filterStatus && p.status !== filterStatus) return false;
     const propId = p.property?.id ?? p.propertyId;
     if (filterProp && propId !== filterProp) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const propTitle = (p.property?.title ?? p.propertyTitle ?? "").toLowerCase();
+      if (!propTitle.includes(q)) return false;
+    }
     return true;
   });
 
@@ -299,6 +305,13 @@ export default function PaymentsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="חיפוש לפי נכס..."
+          className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white min-w-[160px]"
+        />
         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
           className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
           <option value="">כל הסטטוסים</option>

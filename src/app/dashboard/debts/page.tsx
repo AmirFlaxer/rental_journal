@@ -127,6 +127,11 @@ function buildDebtList(payments: Payment[], leases: Lease[]): DebtItem[] {
   return items.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 
+function daysOverdue(dueDateStr: string): number {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.floor((today.getTime() - new Date(dueDateStr).getTime()) / 86400000);
+}
+
 const STATUS_HE: Record<string, string> = {
   pending: "ממתין",
   partial: "חלקי",
@@ -226,8 +231,17 @@ export default function DebtsPage() {
                             {reason && ` · ${reason}`}
                           </p>
                         )}
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          מועד: {new Date(d.dueDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
+                        <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-2">
+                          <span>מועד: {new Date(d.dueDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</span>
+                          {(() => {
+                            const days = daysOverdue(d.dueDate);
+                            if (days <= 0) return null;
+                            return (
+                              <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${days > 60 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                                {days} ימים איחור
+                              </span>
+                            );
+                          })()}
                         </p>
                       </div>
                       <div className="text-right">

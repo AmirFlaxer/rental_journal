@@ -28,12 +28,89 @@ export default function SettingsPage() {
   const [taxSuccess, setTaxSuccess] = useState("");
   const [taxError, setTaxError] = useState("");
 
+  const [pushStatus, setPushStatus] = useState<"unsupported" | "denied" | "granted" | "default" | "loading">("loading");
+  const [pushSaving, setPushSaving] = useState(false);
+  const [pushMsg, setPushMsg] = useState("");
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
   const [pwSuccess, setPwSuccess] = useState("");
   const [pwError, setPwError] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setPushStatus("unsupported");
+    } else {
+      setPushStatus(Notification.permission as "denied" | "granted" | "default");
+    }
+  }, []);
+
+  const handleTogglePush = async () => {
+    setPushMsg("");
+    if (pushStatus === "granted") {
+      // unsubscribe
+      setPushSaving(true);
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await fetch("/api/push/subscribe", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          });
+          await sub.unsubscribe();
+        }
+        setPushStatus("default");
+        setPushMsg("ההתראות בוטלו");
+      } catch {
+        setPushMsg("שגיאה בביטול ההתראות");
+      } finally {
+        setPushSaving(false);
+      }
+      return;
+    }
+
+    // subscribe
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setPushMsg("הדפדפן אינו תומך בהתראות");
+      return;
+    }
+    setPushSaving(true);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setPushStatus(permission as "denied" | "default");
+        setPushMsg("לא אושרה הרשאת התראות");
+        return;
+      }
+      setPushStatus("granted");
+
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      await navigator.serviceWorker.ready;
+
+      const keyRes = await fetch("/api/push/subscribe");
+      const { publicKey } = await keyRes.json() as { publicKey: string };
+
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: publicKey,
+      });
+
+      await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sub.toJSON()),
+      });
+      setPushMsg("התראות הופעלו בהצלחה");
+    } catch (err) {
+      setPushMsg(err instanceof Error ? err.message : "שגיאה בהפעלת התראות");
+    } finally {
+      setPushSaving(false);
+    }
+  };
 
   useEffect(() => {
     const supabase = createClient();
@@ -258,6 +335,55 @@ export default function SettingsPage() {
         </a>
         {taxError && <p className="text-sm text-red-600">{taxError}</p>}
         {taxSuccess && <p className="text-sm text-green-600">{taxSuccess}</p>}
+      </div>
+
+      {/* Push Notifications */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-bold text-gray-800">התראות Push</h2>
+          <p className="text-xs text-gray-500 mt-0.5">קבל התראה כשחוזה עומד לפוג או יש תזכורת הפקדת שק</p>
+        </div>
+        {pushStatus === "unsupported" ? (
+          <p className="text-sm text-gray-500">הדפדפן אינו תומך בהתראות Push</p>
+        ) : (
+          <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-gray-50">
+            <div>
+              <p className="text-sm font-semibold text-gray-800">
+                {pushStatus === "granted" ? "התראות פעילות" : pushStatus === "denied" ? "התראות חסומות בדפדפן" : "התראות כבויות"}
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {pushStatus === "denied"
+                  ? "יש לאפשר התראות ידנית בהגדרות הדפדפן"
+                  : pushStatus === "granted"
+                  ? "תקבל התראה ב-30 ו-7 ימים לפני סיום חוזה"
+                  : "לחץ להפעלה"}
+              </p>
+            </div>
+            {pushStatus !== "denied" && (
+              <button
+                type="button"
+                onClick={handleTogglePush}
+                disabled={pushSaving || pushStatus === "loading"}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${
+                  pushStatus === "granted" ? "bg-indigo-600" : "bg-gray-300"
+                }`}
+                role="switch"
+                aria-checked={pushStatus === "granted"}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${
+                    pushStatus === "granted" ? "-translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            )}
+          </div>
+        )}
+        {pushMsg && (
+          <p className={`text-sm ${pushMsg.includes("שגיאה") || pushMsg.includes("לא") ? "text-red-600" : "text-green-600"}`}>
+            {pushMsg}
+          </p>
+        )}
       </div>
 
       {/* Password */}
