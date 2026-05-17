@@ -34,6 +34,25 @@ export default function LinkageComparisonPage() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [frequency, setFrequency] = useState<LinkageFrequency>("monthly");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMsg, setRefreshMsg] = useState("");
+
+  const handleRefreshRates = async () => {
+    setRefreshing(true);
+    setRefreshMsg("");
+    try {
+      const res = await fetch("/api/index-rates/refresh");
+      if (!res.ok) throw new Error();
+      const ratesRes = await fetch("/api/index-rates");
+      const data = await ratesRes.json();
+      if (Array.isArray(data)) setRates(data);
+      setRefreshMsg("המדדים עודכנו בהצלחה");
+    } catch {
+      setRefreshMsg("שגיאה בעדכון המדדים");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     Promise.all([
@@ -146,7 +165,22 @@ export default function LinkageComparisonPage() {
                 </p>
 
                 {rates.length === 0 && (
-                  <p className="text-xs text-indigo-400 italic">אין נתוני שערים — יש לרענן את המדדים תחילה</p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-xs text-indigo-400 italic">אין נתוני שערים</p>
+                    <button
+                      type="button"
+                      onClick={handleRefreshRates}
+                      disabled={refreshing}
+                      className="px-3 py-1 text-xs font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      {refreshing ? "מעדכן..." : "רענן מדדים"}
+                    </button>
+                  </div>
+                )}
+                {refreshMsg && (
+                  <p className={`text-xs font-semibold ${refreshMsg.includes("שגיאה") ? "text-red-500" : "text-green-600"}`}>
+                    {refreshMsg}
+                  </p>
                 )}
 
                 {(["none", "usd", "cpi"] as const).map((type) => {
