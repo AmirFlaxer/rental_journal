@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { calcEffectiveRent, type IndexRate, type LinkageFrequency } from "@/lib/linkage";
 
 interface Lease {
@@ -29,6 +30,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function LinkageComparisonPage() {
+  const router = useRouter();
   const [leases, setLeases] = useState<Lease[]>([]);
   const [rates, setRates] = useState<IndexRate[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
@@ -59,11 +61,9 @@ export default function LinkageComparisonPage() {
       fetch("/api/leases").then((r) => r.json()),
       fetch("/api/index-rates").then((r) => r.json()),
     ]).then(([leasesData, ratesData]) => {
-      const active = Array.isArray(leasesData)
-        ? leasesData.filter((l: Lease) => l.status === "active")
-        : [];
-      setLeases(active);
-      if (active.length > 0) setSelectedId(active[0].id);
+      const all = Array.isArray(leasesData) ? leasesData : [];
+      setLeases(all);
+      if (all.length > 0) setSelectedId(all[0].id);
       if (Array.isArray(ratesData)) setRates(ratesData);
     }).finally(() => setLoading(false));
   }, []);
@@ -93,7 +93,7 @@ export default function LinkageComparisonPage() {
           </div>
         ) : leases.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center text-gray-400">
-            אין חוזים פעילים להשוואה
+            אין חוזים להשוואה
           </div>
         ) : (
           <>
@@ -199,10 +199,12 @@ export default function LinkageComparisonPage() {
                     (type === "none" || (lease.linkageFrequency ?? "monthly") === frequency);
 
                   return (
-                    <div
+                    <button
                       key={type}
-                      className={`flex items-center justify-between px-4 py-3 rounded-xl border ${
-                        isCurrent ? "bg-indigo-100 border-indigo-300" : "bg-white border-indigo-100"
+                      type="button"
+                      onClick={() => router.push(`/dashboard/leases/${lease.id}/edit`)}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-right transition-colors hover:opacity-80 ${
+                        isCurrent ? "bg-indigo-100 border-indigo-300" : "bg-white border-indigo-100 hover:bg-indigo-50"
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -233,11 +235,11 @@ export default function LinkageComparisonPage() {
                           </span>
                         )}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
 
-                <p className="text-[11px] text-indigo-400 pt-1">* חישוב תיאורטי בלבד — לידיעה, ללא שינוי בחוזה</p>
+                <p className="text-[11px] text-indigo-400 pt-1">* לחץ על שורה כדי לעבור לעריכת החוזה · חישוב תיאורטי בלבד</p>
               </div>
             )}
           </>
