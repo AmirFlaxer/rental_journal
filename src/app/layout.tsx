@@ -1,25 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Heebo, Outfit, Playfair_Display } from "next/font/google";
+import { Rubik } from "next/font/google";
 import { AuthProvider } from "@/components/auth-provider";
 import { HebrewValidation } from "@/components/hebrew-validation";
 import "./globals.css";
 
-const heebo = Heebo({
-  variable: "--font-heebo",
+const rubik = Rubik({
+  variable: "--font-rubik",
   subsets: ["hebrew", "latin"],
-  weight: ["300", "400", "500", "600", "700"],
-});
-
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-  weight: ["300", "400", "500"],
-});
-
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin"],
-  weight: ["700", "900"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
 });
 
 export const viewport: Viewport = {
@@ -51,7 +39,7 @@ export default function RootLayout({
     <html
       lang="he"
       dir="rtl"
-      className={`${heebo.variable} ${outfit.variable} ${playfair.variable} h-full antialiased`}
+      className={`${rubik.variable} h-full antialiased`}
     >
       <head>
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

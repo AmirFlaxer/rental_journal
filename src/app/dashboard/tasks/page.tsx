@@ -29,6 +29,36 @@ const CAT_ICON: Record<string, string> = {
   Other: "📌",
 };
 
+// צבעי רקע עדינים לכל קטגוריה
+const CAT_BG: Record<string, string> = {
+  "Rent Collection": "#d1fae5",
+  "Lease Renewal":   "#e0e7ff",
+  Insurance:         "#ede9fe",
+  Maintenance:       "#fed7aa",
+  Tax:               "#fef3c7",
+  Gas:               "#fee2e2",
+  Water:             "#e0f2fe",
+  Electricity:       "#fef9c3",
+  "Municipal Tax":   "#f1f5f9",
+  Other:             "#fae8ff",
+};
+const CAT_FG: Record<string, string> = {
+  "Rent Collection": "#065f46",
+  "Lease Renewal":   "#3730a3",
+  Insurance:         "#4c1d95",
+  Maintenance:       "#7c2d12",
+  Tax:               "#78350f",
+  Gas:               "#7f1d1d",
+  Water:             "#075985",
+  Electricity:       "#713f12",
+  "Municipal Tax":   "#334155",
+  Other:             "#701a75",
+};
+// פלטת צבעים לנכסים — שלוש רמות עוצמה לכל גוון (כהה / בסיס / בהיר)
+const PROP_PALETTE      = ["#6366f1","#ec4899","#f97316","#10b981","#3b82f6","#8b5cf6","#eab308","#06b6d4"];
+const PROP_PALETTE_DARK = ["#3730a3","#be185d","#c2410c","#065f46","#1d4ed8","#6d28d9","#a16207","#0e7490"];
+const PROP_PALETTE_LITE = ["#e0e7ff","#fce7f3","#ffedd5","#d1fae5","#dbeafe","#ede9fe","#fef9c3","#cffafe"];
+
 const CAT_GROUP: { label: string; items: string[] }[] = [
   { label: "ניהול חוזה", items: ["Rent Collection", "Lease Renewal", "Insurance"] },
   { label: "חשבונות תקופתיים", items: ["Gas", "Water", "Electricity", "Municipal Tax"] },
@@ -36,11 +66,8 @@ const CAT_GROUP: { label: string; items: string[] }[] = [
 ];
 
 const PRIORITY_HE: Record<string, string> = { low: "נמוכה", normal: "רגילה", high: "גבוהה" };
-const PRIORITY_COLOR: Record<string, string> = {
-  low: "bg-gray-100 text-gray-600",
-  normal: "bg-blue-100 text-blue-700",
-  high: "bg-red-100 text-red-700",
-};
+const PRIORITY_BG: Record<string, string> = { low: "#f1f5f9", normal: "#e0e7ff", high: "#fee2e2" };
+const PRIORITY_FG: Record<string, string> = { low: "#475569", normal: "#4338ca", high: "#b91c1c" };
 
 const CATEGORIES = ["Insurance", "Rent Collection", "Lease Renewal", "Maintenance", "Tax", "Gas", "Water", "Electricity", "Municipal Tax", "Other"];
 
@@ -167,7 +194,7 @@ export default function TasksPage() {
   const [leases, setLeases] = useState<Lease[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [showDone, setShowDone] = useState(false);
+  const [showDone, setShowDone] = useState(true);
   const [showFuture, setShowFuture] = useState(true);
   const [form, setForm] = useState({
     title: "",
@@ -397,73 +424,158 @@ export default function TasksPage() {
     );
   }
 
-  // Lease ID → property title lookup
+  // Lease ID → property title + color lookup
   const leasePropertyMap = new Map(
     leases.map((l) => [l.id, l.properties?.title ?? null])
   );
 
+  // צבע ייחודי לכל נכס — שלוש רמות לכל גוון
+  const uniquePropIds = [...new Set(leases.map((l) => l.properties?.id).filter(Boolean) as string[])];
+  const propIdxByPropId = new Map(uniquePropIds.map((id, i) => [id, i % PROP_PALETTE.length]));
+  const propColorsByLeaseId = new Map(
+    leases.map((l) => {
+      const idx = l.properties?.id ? (propIdxByPropId.get(l.properties.id) ?? 0) : 0;
+      return [l.id, {
+        base: PROP_PALETTE[idx],
+        dark: PROP_PALETTE_DARK[idx],
+        lite: PROP_PALETTE_LITE[idx],
+      }];
+    })
+  );
+
   const TaskRow = ({ t, isDone }: { t: Task; isDone: boolean }) => {
     const isOverdue = !isDone && new Date(t.dueDate) < today;
-    const dueLabel = formatDue(t.dueDate, isOverdue);
+    const dueLabel = isDone
+      ? new Date(t.dueDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })
+      : formatDue(t.dueDate, isOverdue);
     const propertyName =
       t.relatedEntityType === "lease" && t.relatedEntityId
         ? leasePropertyMap.get(t.relatedEntityId) ?? null
         : null;
-
+    const propColors = t.relatedEntityId ? propColorsByLeaseId.get(t.relatedEntityId) : undefined;
+    const propColor = propColors?.base ?? "#94a3b8";
+    const propDark  = propColors?.dark ?? "#64748b";
+    const propLite  = propColors?.lite ?? "#f1f5f9";
+    const catBg = CAT_BG[t.category] ?? "#f3f4f6";
+    const catFg = CAT_FG[t.category] ?? "#374151";
     return (
-      <div className={`bg-white rounded-xl flex items-center gap-3 px-4 py-3 shadow-sm ${isDone ? "opacity-50" : ""}`}>
-        <button
-          onClick={() => isDone ? reopen(t.id) : complete(t)}
-          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-            isDone ? "bg-emerald-500 border-emerald-500 text-white" : "border-gray-300 hover:border-emerald-400"
-          }`}
+      <div
+        className={`rounded-xl flex items-center gap-3 px-4 py-3.5 shadow-sm border border-gray-100 transition-opacity ${isDone ? "opacity-50" : ""}`}
+        style={{
+          background: isDone
+            ? "#f9fafb"
+            : `linear-gradient(to left, ${propDark}, ${propColor} 45%, ${propLite})`,
+        }}
+      >
+        {/* Complete / Undo button */}
+        {!isDone ? (
+          <button
+            onClick={() => complete(t)}
+            className="flex-shrink-0 px-3 py-1.5 rounded-lg font-bold text-sm text-white whitespace-nowrap"
+            style={{ background: "#16a34a" }}
+          >
+            בוצע
+          </button>
+        ) : (
+          <button
+            onClick={() => reopen(t.id)}
+            className="flex-shrink-0 px-3 py-1.5 rounded-lg font-semibold text-sm whitespace-nowrap border"
+            style={{ background: "#f0fdf4", color: "#166534", borderColor: "#86efac" }}
+          >
+            בטל
+          </button>
+        )}
+
+        {/* Category icon — larger, colored bg */}
+        <div
+          className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 shadow-sm"
+          style={{ background: catBg }}
         >
-          {isDone && <span className="text-xs">✓</span>}
-        </button>
-        <div className="text-xl flex-shrink-0">{CAT_ICON[t.category] || "📌"}</div>
-        <div className="flex-1 min-w-0">
-          <p className={`font-semibold text-sm ${isDone ? "line-through text-gray-400" : "text-gray-900"}`}>{t.title}</p>
-          <p className="text-xs text-gray-400">
-            {CAT_HE[t.category]}
-            {t.description && ` · ${t.description}`}
-            {t.isVirtual && <span className="text-indigo-400"> · אוטומטי</span>}
-          </p>
-          {propertyName && (
-            <p className="text-xs mt-0.5" style={{ color: "var(--accent)" }}>🏠 {propertyName}</p>
-          )}
+          {CAT_ICON[t.category] || "📌"}
         </div>
-        <div className="text-right text-xs shrink-0">
-          <p className={`font-medium ${isOverdue ? "text-red-600" : isDone ? "text-gray-400" : "text-gray-500"}`}>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <p className={`font-bold text-base leading-tight ${isDone ? "line-through text-gray-400" : "text-white"}`}>
+            {t.title}
+          </p>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <span
+              className="text-xs px-2 py-0.5 rounded-full font-semibold"
+              style={isDone
+                ? { background: catBg, color: catFg }
+                : { background: "rgba(255,255,255,0.25)", color: "white" }
+              }
+            >
+              {CAT_HE[t.category]}
+            </span>
+            {propertyName && (
+              <span
+                className="text-xs font-bold"
+                style={{ color: isDone ? "#94a3b8" : "rgba(255,255,255,0.9)" }}
+              >
+                {propertyName}
+              </span>
+            )}
+            {t.description && (
+              <span className="text-xs" style={{ color: isDone ? "#9ca3af" : "rgba(255,255,255,0.7)" }}>
+                {t.description}
+              </span>
+            )}
+            {t.isVirtual && (
+              <span className="text-xs" style={{ color: isDone ? "#9ca3af" : "rgba(255,255,255,0.6)" }}>
+                אוטומטי
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Due date */}
+        <div className="text-left shrink-0">
+          <p className={`font-bold text-sm ${isOverdue ? "text-red-200" : isDone ? "text-gray-400" : "text-white"}`}>
             {isOverdue && "⚠ "}{dueLabel}
           </p>
         </div>
-        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${PRIORITY_COLOR[t.priority] || "bg-gray-100 text-gray-600"}`}>
-          {PRIORITY_HE[t.priority] || t.priority}
-        </span>
+
+        {/* Priority badge */}
+        {(() => {
+          const liveBg =
+            t.priority === "high"   ? "#ef4444" :
+            t.priority === "normal" ? "rgba(255,255,255,0.22)" :
+                                      "rgba(255,255,255,0.1)";
+          const liveFg =
+            t.priority === "high"   ? "white" :
+            t.priority === "normal" ? "white" :
+                                      "rgba(255,255,255,0.65)";
+          return (
+            <span
+              className="text-xs px-2.5 py-1 rounded-lg font-bold flex-shrink-0"
+              style={isDone
+                ? { background: PRIORITY_BG[t.priority] ?? "#f1f5f9", color: PRIORITY_FG[t.priority] ?? "#475569" }
+                : { background: liveBg, color: liveFg }
+              }
+            >
+              {PRIORITY_HE[t.priority]}
+            </span>
+          );
+        })()}
+
+        {/* Delete */}
         {!t.isVirtual && (
-          <button onClick={() => remove(t)} className="text-gray-300 hover:text-red-500 text-sm">🗑</button>
+          <button
+            onClick={() => remove(t)}
+            className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-base transition-colors"
+            style={isDone
+              ? { background: "#f3f4f6", color: "#9ca3af" }
+              : { background: "rgba(0,0,0,0.25)", color: "white" }
+            }
+          >
+            🗑
+          </button>
         )}
       </div>
     );
   };
-
-  const SectionHeader = ({
-    title, count, badge, open, onToggle,
-  }: { title: string; count: number; badge?: string; open?: boolean; onToggle?: () => void }) => (
-    <div
-      className={`px-5 py-3 border-b border-gray-100 flex items-center justify-between ${onToggle ? "cursor-pointer hover:bg-slate-50" : ""}`}
-      onClick={onToggle}
-    >
-      <div className="flex items-center gap-2">
-        <h2 className="font-semibold text-gray-700 text-sm">{title}</h2>
-        {badge && (
-          <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">{badge}</span>
-        )}
-        <span className="text-xs text-gray-400">({count})</span>
-      </div>
-      {onToggle && <span className="text-gray-400 text-xs">{open ? "▲" : "▼"}</span>}
-    </div>
-  );
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -720,15 +832,31 @@ export default function TasksPage() {
         <div className="space-y-2">
           <button
             onClick={() => setShowDone((v) => !v)}
-            className="w-full flex items-center justify-between px-1 py-0.5"
+            className="w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors"
+            style={{
+              background: showDone ? "#f0fdf4" : "#f9fafb",
+              borderColor: "#86efac",
+            }}
           >
             <div className="flex items-center gap-2">
-              <h2 className="font-semibold text-gray-600 text-sm">הושלמו</h2>
-              <span className="text-xs text-gray-400">({done.length})</span>
+              <span className="text-lg">✅</span>
+              <h2 className="font-bold text-sm" style={{ color: "#166534" }}>הושלמו</h2>
+              <span
+                className="text-xs font-bold px-2 py-0.5 rounded-full"
+                style={{ background: "#dcfce7", color: "#166534" }}
+              >
+                {done.length}
+              </span>
             </div>
-            <span className="text-gray-400 text-xs">{showDone ? "▲" : "▼"}</span>
+            <span className="text-sm font-semibold" style={{ color: "#16a34a" }}>
+              {showDone ? "סגור ▲" : "הצג ▼"}
+            </span>
           </button>
-          {showDone && done.map((t) => <TaskRow key={t.id} t={t} isDone={true} />)}
+          {showDone && (
+            <div className="space-y-2">
+              {done.map((t) => <TaskRow key={t.id} t={t} isDone={true} />)}
+            </div>
+          )}
         </div>
       )}
     </div>

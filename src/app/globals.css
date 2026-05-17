@@ -25,7 +25,7 @@ html {
 body {
   background: var(--bg-base);
   color: var(--text-1);
-  font-family: var(--font-outfit), var(--font-heebo), sans-serif;
+  font-family: var(--font-rubik), sans-serif;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
@@ -37,7 +37,9 @@ button, a, [role="button"] {
 }
 
 h1, h2 {
-  font-family: var(--font-playfair), var(--font-heebo), serif;
+  font-family: var(--font-rubik), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 /* ── Tailwind overrides — backgrounds ───────────────── */

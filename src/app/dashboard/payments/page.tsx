@@ -11,15 +11,6 @@ const TYPE_HE: Record<string, string> = {
   Other: "אחר",
 };
 
-const STATUS_HE: Record<string, string> = {
-  pending: "ממתין",
-  paid: "שולם",
-  late: "באיחור",
-  partial: "חלקי",
-  due: "לתשלום",
-  future: "ממתין",
-};
-
 const STATUS_COLOR: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
   paid: "bg-emerald-100 text-emerald-700",
@@ -27,6 +18,15 @@ const STATUS_COLOR: Record<string, string> = {
   partial: "bg-blue-100 text-blue-700",
   due: "bg-red-100 text-red-700",
   future: "bg-gray-100 text-gray-500",
+};
+
+const STATUS_HE: Record<string, string> = {
+  pending: "ממתין",
+  paid: "שולם",
+  late: "באיחור",
+  partial: "חלקי",
+  due: "לתשלום",
+  future: "ממתין",
 };
 
 function encodePartial(amount: number, reason: string) {
@@ -78,7 +78,6 @@ function generateVirtualSlots(leases: Lease[], existingPayments: Payment[]): Pay
   today.setHours(0, 0, 0, 0);
   const slots: Payment[] = [];
 
-  // dedup לפי נכס+חודש — מונע כפילות כשיש שני חוזים פעילים לאותו נכס (אופציה + חוזה סרוק)
   const coveredPropertyMonths = new Set<string>();
   for (const p of existingPayments) {
     if (p.paymentType === "Rent") {
@@ -128,18 +127,17 @@ function generateVirtualSlots(leases: Lease[], existingPayments: Payment[]): Pay
   return slots;
 }
 
+const ACTION_PRIORITY: Record<string, number> = { late: 0, due: 1, partial: 2, pending: 3 };
+
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [leases, setLeases] = useState<Lease[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState("");
   const [filterProp, setFilterProp] = useState("");
-  const [search, setSearch] = useState("");
-  const [showVirtual, setShowVirtual] = useState(true);
+  const [showPaid, setShowPaid] = useState(false);
   const [creatingPayment, setCreatingPayment] = useState<string | null>(null);
 
-  // Partial payment state
   const [partialOpenId, setPartialOpenId] = useState<string | null>(null);
   const [partialAmount, setPartialAmount] = useState<number | undefined>(undefined);
   const [partialReason, setPartialReason] = useState("");
@@ -158,27 +156,38 @@ export default function PaymentsPage() {
   }, []);
 
   const virtualSlots = generateVirtualSlots(leases, payments);
-
-  const allItems: Payment[] = [
-    ...payments,
-    ...(showVirtual ? virtualSlots : []),
-  ].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-
-  const filtered = allItems.filter((p) => {
-    if (filterStatus && p.status !== filterStatus) return false;
+  const allItems = [...payments, ...virtualSlots].filter((p) => {
     const propId = p.property?.id ?? p.propertyId;
-    if (filterProp && propId !== filterProp) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      const propTitle = (p.property?.title ?? p.propertyTitle ?? "").toLowerCase();
-      if (!propTitle.includes(q)) return false;
-    }
-    return true;
+    return !filterProp || propId === filterProp;
   });
 
-  const totalPaid = payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
-  const totalPending = payments.filter((p) => p.status !== "paid").reduce((s, p) => s + p.amount, 0);
-  const totalDue = virtualSlots.filter((p) => p.status === "due").reduce((s, p) => s + p.amount, 0);
+  const actionItems = allItems
+    .filter((p) => ["due", "late", "pending", "partial"].includes(p.status))
+    .sort((a, b) => {
+      const pa = ACTION_PRIORITY[a.status] ?? 4;
+      const pb = ACTION_PRIORITY[b.status] ?? 4;
+      if (pa !== pb) return pa - pb;
+      return a.dueDate.localeCompare(b.dueDate);
+    });
+
+  const futureItems = allItems
+    .filter((p) => p.status === "future")
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+  const paidItems = allItems
+    .filter((p) => p.status === "paid")
+    .sort((a, b) => b.dueDate.localeCompare(a.dueDate));
+
+  const totalDue = actionItems
+    .filter((p) => p.status === "due" || p.status === "late")
+    .reduce((s, p) => s + p.amount, 0);
+  const totalDebt = actionItems
+    .filter((p) => p.status === "partial")
+    .reduce((s, p) => {
+      const paid = parsePartialPaid(p.notes) ?? 0;
+      return s + (p.amount - paid);
+    }, 0);
+  const totalPaidAmt = paidItems.reduce((s, p) => s + p.amount, 0);
 
   const togglePaid = async (payment: Payment) => {
     const nowPaid = payment.status !== "paid";
@@ -197,8 +206,7 @@ export default function PaymentsPage() {
   };
 
   const openPartial = (payment: Payment) => {
-    const existing = parsePartialPaid(payment.notes);
-    setPartialAmount(existing || undefined);
+    setPartialAmount(parsePartialPaid(payment.notes) || undefined);
     setPartialReason(parsePartialReason(payment.notes));
     setPartialOpenId(payment.id);
   };
@@ -255,7 +263,7 @@ export default function PaymentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           propertyId: slot.propertyId,
-          leaseId: slot.leaseId,
+            leaseId: slot.leaseId,
           paymentType: "Rent",
           amount: slot.amount,
           dueDate: slot.dueDate,
@@ -272,6 +280,138 @@ export default function PaymentsPage() {
     }
   };
 
+  const renderCard = (p: Payment) => {
+    const propTitle = p.property?.title ?? p.propertyTitle ?? "";
+    const isVirtual = p.isVirtual === true;
+    const partialPaid = parsePartialPaid(p.notes);
+    const partialReasonText = parsePartialReason(p.notes);
+    const remaining = partialPaid != null ? p.amount - partialPaid : null;
+    const isPartialOpen = partialOpenId === p.id;
+    const isPaid = p.status === "paid";
+    const isFuture = p.status === "future";
+
+    return (
+      <div key={p.id} className={`bg-white rounded-xl px-4 py-3.5 shadow-sm border ${isPaid ? "border-gray-100 opacity-75" : isFuture ? "border-gray-100" : "border-gray-200"}`}>
+        <div className="flex items-center gap-3">
+          {/* Status dot */}
+          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+            p.status === "paid" ? "bg-emerald-400" :
+            p.status === "due" || p.status === "late" ? "bg-red-500" :
+            p.status === "partial" ? "bg-blue-400" :
+            p.status === "future" ? "bg-gray-300" : "bg-amber-400"
+          }`} />
+
+          {/* Main info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-sm text-gray-900">
+                {TYPE_HE[p.paymentType] || p.paymentType}
+              </span>
+              {propTitle && <span className="text-xs text-gray-500">{propTitle}</span>}
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLOR[p.status] || "bg-gray-100 text-gray-600"}`}>
+                {STATUS_HE[p.status] || p.status}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <span className="text-xs text-gray-400">
+                {new Date(p.dueDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
+              </span>
+              {p.paidDate && (
+                <span className="text-xs text-gray-400">
+                  · שולם {new Date(p.paidDate).toLocaleDateString("he-IL")}
+                </span>
+              )}
+            </div>
+            {p.status === "partial" && partialPaid != null && (
+              <p className="text-xs text-blue-600 mt-0.5">
+                שולם ₪{partialPaid.toLocaleString()} · יתרה: ₪{remaining!.toLocaleString()}
+                {partialReasonText && ` · ${partialReasonText}`}
+              </p>
+            )}
+          </div>
+
+          {/* Amount + actions */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <span className={`font-bold text-sm ${isPaid ? "text-emerald-700" : isFuture ? "text-gray-500" : "text-gray-900"}`}>
+              ₪{p.amount.toLocaleString()}
+            </span>
+            {!isPaid && !isFuture && (
+              <div className="flex gap-1.5">
+                {isVirtual ? (
+                  <>
+                    <button onClick={() => markVirtualPaid(p)} disabled={creatingPayment === p.id}
+                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50">
+                      {creatingPayment === p.id ? "..." : "שולם"}
+                    </button>
+                    <button onClick={() => { setPartialOpenId(isPartialOpen ? null : p.id); setPartialAmount(undefined); setPartialReason(""); }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${isPartialOpen ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-gray-300 text-gray-600 hover:bg-blue-50"}`}>
+                      חלקי
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => togglePaid(p)}
+                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
+                      שולם
+                    </button>
+                    <button onClick={() => openPartial(p)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${isPartialOpen ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-gray-300 text-gray-600 hover:bg-blue-50"}`}>
+                      חלקי
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+            {isPaid && !isVirtual && (
+              <button onClick={() => togglePaid(p)}
+                className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-semibold hover:bg-red-100 hover:text-red-700">
+                בטל
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Partial payment form */}
+        {isPartialOpen && (
+          <div className="mt-3 p-3 bg-blue-50 rounded-xl border border-blue-200 space-y-2">
+            <p className="text-xs font-semibold text-blue-700">רישום תשלום חלקי</p>
+            <div className="flex gap-2 items-center">
+              <div className="flex items-center gap-1 bg-white border border-blue-200 rounded-lg px-2 py-1.5">
+                <span className="text-gray-500 text-xs">₪</span>
+                <NumberInput
+                  value={partialAmount}
+                  onChange={setPartialAmount}
+                  placeholder={`מתוך ${p.amount.toLocaleString()}`}
+                  className="w-28 outline-none text-gray-900 text-xs"
+                />
+              </div>
+              <input
+                type="text"
+                value={partialReason}
+                onChange={(e) => setPartialReason(e.target.value)}
+                placeholder="סיבה (אופציונלי)..."
+                className="flex-1 bg-white border border-blue-200 rounded-lg px-2 py-1.5 text-xs outline-none"
+              />
+            </div>
+            {partialAmount && partialAmount > 0 && partialAmount < p.amount && (
+              <p className="text-xs text-blue-600">יתרת חוב: ₪{(p.amount - partialAmount).toLocaleString()}</p>
+            )}
+            <div className="flex gap-2">
+              <button onClick={() => savePartial(p, isVirtual)} disabled={savingPartial || !partialAmount || partialAmount <= 0 || partialAmount >= p.amount}
+                className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 disabled:opacity-40">
+                {savingPartial ? "שומר..." : "אישור"}
+              </button>
+              <button onClick={() => setPartialOpenId(null)}
+                className="px-3 py-1 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50">
+                ביטול
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -281,205 +421,82 @@ export default function PaymentsPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">תקבולים</h1>
-        <p className="text-sm text-gray-500 mt-0.5">מעקב תקבולים לכל הנכסים</p>
-      </div>
-
-      {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-          <p className="text-xs text-emerald-600 font-semibold">שולם</p>
-          <p className="text-2xl font-bold text-emerald-700 mt-1">₪{totalPaid.toLocaleString()}</p>
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">תקבולים</h1>
+          <p className="text-sm text-gray-500 mt-0.5">מה צריך לסמן</p>
         </div>
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-          <p className="text-xs text-amber-600 font-semibold">ממתין (רשום)</p>
-          <p className="text-2xl font-bold text-amber-700 mt-1">₪{totalPending.toLocaleString()}</p>
-        </div>
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-          <p className="text-xs text-red-600 font-semibold">לתשלום (לא נרשם)</p>
-          <p className="text-2xl font-bold text-red-700 mt-1">₪{totalDue.toLocaleString()}</p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="חיפוש לפי נכס..."
-          className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white min-w-[160px]"
-        />
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
-          <option value="">כל הסטטוסים</option>
-          {Object.entries(STATUS_HE).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
-        <select value={filterProp} onChange={(e) => setFilterProp(e.target.value)}
-          className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
-          <option value="">כל הנכסים</option>
-          {properties.map((p) => (
-            <option key={p.id} value={p.id}>{p.title}</option>
-          ))}
-        </select>
-        <button onClick={() => setShowVirtual((v) => !v)}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-            showVirtual ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "bg-white border-gray-200 text-gray-500"
-          }`}>
-          {showVirtual ? "✓ לוח חוזה מוצג" : "הצג לוח חוזה"}
-        </button>
-        {(filterStatus || filterProp) && (
-          <button onClick={() => { setFilterStatus(""); setFilterProp(""); }}
-            className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">נקה ✕</button>
+        {properties.length > 1 && (
+          <select value={filterProp} onChange={(e) => setFilterProp(e.target.value)}
+            className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+            <option value="">כל הנכסים</option>
+            {properties.map((prop) => (
+              <option key={prop.id} value={prop.id}>{prop.title}</option>
+            ))}
+          </select>
         )}
       </div>
 
-      {/* List */}
-      {filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl py-16 text-center space-y-2">
-          <div className="text-4xl">💳</div>
-          <p className="text-gray-500 font-medium">אין תקבולים</p>
-          <p className="text-sm text-gray-400">תקבולים נוצרים בעת הוספת חוזה שכירות</p>
+      {/* KPI summary */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+          <p className="text-xs text-red-600 font-semibold">לתשלום</p>
+          <p className="text-xl font-bold text-red-700 mt-1">₪{totalDue.toLocaleString()}</p>
+        </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <p className="text-xs text-amber-600 font-semibold">יתרה חלקית</p>
+          <p className="text-xl font-bold text-amber-700 mt-1">₪{totalDebt.toLocaleString()}</p>
+        </div>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+          <p className="text-xs text-emerald-600 font-semibold">שולם</p>
+          <p className="text-xl font-bold text-emerald-700 mt-1">₪{totalPaidAmt.toLocaleString()}</p>
+        </div>
+      </div>
+
+      {/* Action items */}
+      {actionItems.length === 0 ? (
+        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl py-10 text-center space-y-2">
+          <div className="text-4xl">✅</div>
+          <p className="text-emerald-700 font-semibold">הכל מעודכן!</p>
+          <p className="text-xs text-emerald-600">אין תקבולים הממתינים לסימון</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((p) => {
-            const propTitle = p.property?.title ?? p.propertyTitle ?? "";
-            const isVirtual = p.isVirtual === true;
-            const partialPaid = parsePartialPaid(p.notes);
-            const partialReasonText = parsePartialReason(p.notes);
-            const remaining = partialPaid != null ? p.amount - partialPaid : null;
-            const isPartialOpen = partialOpenId === p.id;
+        <section className="space-y-2">
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            דורשים טיפול ({actionItems.length})
+          </h2>
+          {actionItems.map(renderCard)}
+        </section>
+      )}
 
-            return (
-              <div key={p.id} className="bg-white rounded-xl px-4 py-4 shadow-sm">
-                  {/* שורה עליונה: אייקון + טקסט + סכום */}
-                  <div className="flex items-start gap-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 mt-0.5 ${
-                      isVirtual ? "bg-gray-200" : "bg-blue-100"
-                    }`}>
-                      {isVirtual ? "🗓️" : "💳"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <p className={`font-semibold ${isVirtual ? "text-gray-600" : "text-gray-900"}`}>
-                          {TYPE_HE[p.paymentType] || p.paymentType}
-                          {isVirtual && <span className="text-xs font-normal text-gray-500 mr-1"> · לפי חוזה</span>}
-                        </p>
-                        <p className={`font-bold flex-shrink-0 ${isVirtual ? "text-gray-600" : "text-gray-900"}`}>
-                          ₪{p.amount.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between gap-2 mt-0.5 flex-wrap">
-                        <p className="text-xs text-gray-500 truncate">
-                          {propTitle}
-                          {p.paidDate && ` · שולם ${new Date(p.paidDate).toLocaleDateString("he-IL")}`}
-                        </p>
-                        <p className="text-xs text-gray-400 flex-shrink-0">
-                          {new Date(p.dueDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
-                        </p>
-                      </div>
-                      {p.status === "partial" && partialPaid != null && (
-                        <p className="text-xs text-blue-600 font-medium mt-0.5">
-                          שולם ₪{partialPaid.toLocaleString()} · יתרת חוב: ₪{remaining!.toLocaleString()}
-                          {partialReasonText && ` · ${partialReasonText}`}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  {/* שורה תחתונה: סטטוס + כפתורים */}
-                  <div className="flex items-center gap-2 mt-2 mr-12 flex-wrap">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${STATUS_COLOR[p.status] || "bg-gray-100 text-gray-600"}`}>
-                      {STATUS_HE[p.status] || p.status}
-                    </span>
-                    <div className="flex gap-1.5 flex-shrink-0">
-                      {isVirtual ? (
-                        <>
-                          <button onClick={() => markVirtualPaid(p)} disabled={creatingPayment === p.id}
-                            className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap">
-                            {creatingPayment === p.id ? "..." : "שולם"}
-                          </button>
-                          <button onClick={() => { setPartialOpenId(isPartialOpen ? null : p.id); setPartialAmount(undefined); setPartialReason(""); }}
-                            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap border ${
-                              isPartialOpen ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-gray-300 text-gray-600 hover:bg-blue-50"
-                            }`}>
-                            חלקי
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          {p.status !== "paid" && (
-                            <>
-                              <button onClick={() => togglePaid(p)}
-                                className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 whitespace-nowrap">
-                                שולם
-                              </button>
-                              <button onClick={() => openPartial(p)}
-                                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap border ${
-                                  isPartialOpen ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-gray-300 text-gray-600 hover:bg-blue-50"
-                                }`}>
-                                חלקי
-                              </button>
-                            </>
-                          )}
-                          {p.status === "paid" && (
-                            <button onClick={() => togglePaid(p)}
-                              className="px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold hover:bg-red-100 hover:text-red-700 whitespace-nowrap">
-                              בטל
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
+      {/* Future items */}
+      {futureItems.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            צפויים ({futureItems.length})
+          </h2>
+          {futureItems.map(renderCard)}
+        </section>
+      )}
 
-                  {/* Partial payment form */}
-                  {isPartialOpen && (
-                    <div className="mt-3 mr-12 p-3 bg-blue-50 rounded-xl border border-blue-200 space-y-2">
-                      <p className="text-xs font-semibold text-blue-700">רישום תשלום חלקי</p>
-                      <div className="flex gap-2 items-center">
-                        <div className="flex items-center gap-1 bg-white border border-blue-200 rounded-lg px-2 py-1.5 text-sm">
-                          <span className="text-gray-500 text-xs">₪</span>
-                          <NumberInput
-                            value={partialAmount}
-                            onChange={setPartialAmount}
-                            placeholder={`מתוך ${p.amount.toLocaleString()}`}
-                            className="w-28 outline-none text-gray-900 text-xs"
-                          />
-                        </div>
-                        <input
-                          type="text"
-                          value={partialReason}
-                          onChange={(e) => setPartialReason(e.target.value)}
-                          placeholder="סיבה לתשלום חלקי..."
-                          className="flex-1 bg-white border border-blue-200 rounded-lg px-2 py-1.5 text-xs outline-none"
-                        />
-                      </div>
-                      {partialAmount && partialAmount > 0 && partialAmount < p.amount && (
-                        <p className="text-xs text-blue-600">
-                          יתרת חוב: ₪{(p.amount - partialAmount).toLocaleString()}
-                        </p>
-                      )}
-                      <div className="flex gap-2">
-                        <button onClick={() => savePartial(p, isVirtual)} disabled={savingPartial || !partialAmount || partialAmount <= 0 || partialAmount >= p.amount}
-                          className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 disabled:opacity-40">
-                          {savingPartial ? "שומר..." : "אישור"}
-                        </button>
-                        <button onClick={() => setPartialOpenId(null)}
-                          className="px-3 py-1 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50">
-                          ביטול
-                        </button>
-                      </div>
-                    </div>
-                  )}
-              </div>
-            );
-          })}
-        </div>
+      {/* Paid items - collapsed */}
+      {paidItems.length > 0 && (
+        <section className="space-y-2">
+          <button
+            onClick={() => setShowPaid((v) => !v)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <span className="text-[10px]">{showPaid ? "▼" : "▶"}</span>
+            שולמו ({paidItems.length}) · ₪{totalPaidAmt.toLocaleString()}
+          </button>
+          {showPaid && (
+            <div className="space-y-2">
+              {paidItems.map(renderCard)}
+            </div>
+          )}
+        </section>
       )}
     </div>
   );
