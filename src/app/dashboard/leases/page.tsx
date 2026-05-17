@@ -85,12 +85,27 @@ export default function LeasesPage() {
 
   const withStatus = leases.map((l) => ({ ...l, _status: leaseStatus(l) }));
 
-  const filtered = filter === "all" ? withStatus : withStatus.filter((l) => l._status === filter);
+  // הסרת חוזים "עתידיים" שהם כפילויות של חוזה פעיל באותו נכס ואותם תאריכים
+  const deduped = withStatus.filter((lease) => {
+    if (lease._status !== "future") return true;
+    const propId = lease.properties?.id;
+    if (!propId) return true;
+    return !withStatus.some(
+      (other) =>
+        other.id !== lease.id &&
+        other._status === "active" &&
+        other.properties?.id === propId &&
+        other.startDate === lease.startDate &&
+        other.endDate === lease.endDate
+    );
+  });
+
+  const filtered = filter === "all" ? deduped : deduped.filter((l) => l._status === filter);
 
   const counts = {
-    active: withStatus.filter((l) => l._status === "active").length,
-    future: withStatus.filter((l) => l._status === "future").length,
-    ended: withStatus.filter((l) => l._status === "ended").length,
+    active: deduped.filter((l) => l._status === "active").length,
+    future: deduped.filter((l) => l._status === "future").length,
+    ended: deduped.filter((l) => l._status === "ended").length,
   };
 
   if (loading) {
@@ -120,7 +135,7 @@ export default function LeasesPage() {
       <div className="flex gap-2 flex-wrap">
         {(["all", "active", "future", "ended"] as const).map((f) => {
           const labels = { all: "הכל", active: "בתוקף", future: "עתידיים", ended: "🗂 ארכיון" };
-          const count = f === "all" ? leases.length : counts[f];
+          const count = f === "all" ? deduped.length : counts[f];
           return (
             <button
               key={f}
