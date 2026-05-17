@@ -78,8 +78,20 @@ function generateVirtualSlots(leases: Lease[], existingPayments: Payment[]): Pay
   today.setHours(0, 0, 0, 0);
   const slots: Payment[] = [];
 
+  // dedup לפי נכס+חודש — מונע כפילות כשיש שני חוזים פעילים לאותו נכס (אופציה + חוזה סרוק)
+  const coveredPropertyMonths = new Set<string>();
+  for (const p of existingPayments) {
+    if (p.paymentType === "Rent") {
+      const propId = p.property?.id ?? p.propertyId;
+      if (propId && p.dueDate) coveredPropertyMonths.add(`${propId}-${p.dueDate.slice(0, 7)}`);
+    }
+  }
+
   for (const lease of leases) {
     if (!isLeaseCurrentlyActive(lease)) continue;
+    const propId = lease.properties?.id;
+    if (!propId) continue;
+
     const start = new Date(lease.startDate);
     const end = new Date(lease.endDate);
     const cur = new Date(start.getFullYear(), start.getMonth(), 1);
@@ -90,25 +102,25 @@ function generateVirtualSlots(leases: Lease[], existingPayments: Payment[]): Pay
       const year = cur.getFullYear();
       const month = cur.getMonth() + 1;
       const monthKey = `${year}-${String(month).padStart(2, "0")}`;
-      const lastDay = new Date(year, month, 0).getDate();
-      const day = Math.min(startDay, lastDay);
-      const existing = existingPayments.find(
-        (p) => p.lease?.id === lease.id && p.paymentType === "Rent" && p.dueDate.slice(0, 7) === monthKey
-      );
-      if (!existing) {
+      const key = `${propId}-${monthKey}`;
+
+      if (!coveredPropertyMonths.has(key)) {
+        const lastDay = new Date(year, month, 0).getDate();
+        const day = Math.min(startDay, lastDay);
         const dueDate = `${monthKey}-${String(day).padStart(2, "0")}`;
         const isPast = new Date(dueDate) <= today;
         slots.push({
           id: `virtual-${lease.id}-${monthKey}`,
           isVirtual: true,
           leaseId: lease.id,
-          propertyId: lease.properties?.id,
+          propertyId: propId,
           propertyTitle: lease.properties?.title,
           paymentType: "Rent",
           amount: lease.monthlyRent,
           dueDate,
           status: isPast ? "due" : "future",
         });
+        coveredPropertyMonths.add(key);
       }
       cur.setMonth(cur.getMonth() + 1);
     }

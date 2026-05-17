@@ -76,8 +76,20 @@ function buildDebtList(payments: Payment[], leases: Lease[]): DebtItem[] {
   }
 
   // Virtual overdue slots (past due, no payment record)
+  // dedup לפי נכס+חודש — מונע כפילות כשיש שני חוזים פעילים לאותו נכס
+  const coveredPropertyMonths = new Set<string>();
+  for (const p of payments) {
+    if (p.paymentType === "Rent") {
+      const propId = p.property?.id;
+      if (propId && p.dueDate) coveredPropertyMonths.add(`${propId}-${p.dueDate.slice(0, 7)}`);
+    }
+  }
+
   for (const lease of leases) {
     if (!isLeaseCurrentlyActive(lease)) continue;
+    const propId = lease.properties?.id;
+    if (!propId) continue;
+
     const start = new Date(lease.startDate);
     const end = new Date(lease.endDate);
     const cur = new Date(start.getFullYear(), start.getMonth(), 1);
@@ -91,25 +103,22 @@ function buildDebtList(payments: Payment[], leases: Lease[]): DebtItem[] {
       const lastDay = new Date(year, month, 0).getDate();
       const day = Math.min(startDay, lastDay);
       const dueDate = `${monthKey}-${String(day).padStart(2, "0")}`;
+      const key = `${propId}-${monthKey}`;
 
-      if (new Date(dueDate) <= today) {
-        const existing = payments.find(
-          (p) => p.lease?.id === lease.id && p.paymentType === "Rent" && p.dueDate.slice(0, 7) === monthKey
-        );
-        if (!existing) {
-          items.push({
-            id: `virtual-${lease.id}-${monthKey}`,
-            dueDate,
-            amount: lease.monthlyRent,
-            debtAmount: lease.monthlyRent,
-            status: "due",
-            propertyTitle: lease.properties?.title ?? "",
-            propertyId: lease.properties?.id,
-            isVirtual: true,
-            leaseId: lease.id,
-            propertyIdForCreate: lease.properties?.id,
-          });
-        }
+      if (new Date(dueDate) <= today && !coveredPropertyMonths.has(key)) {
+        items.push({
+          id: `virtual-${lease.id}-${monthKey}`,
+          dueDate,
+          amount: lease.monthlyRent,
+          debtAmount: lease.monthlyRent,
+          status: "due",
+          propertyTitle: lease.properties?.title ?? "",
+          propertyId: propId,
+          isVirtual: true,
+          leaseId: lease.id,
+          propertyIdForCreate: propId,
+        });
+        coveredPropertyMonths.add(key);
       }
       cur.setMonth(cur.getMonth() + 1);
     }
