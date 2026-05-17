@@ -219,17 +219,17 @@ export default function ImportLeasePage() {
           try { evt = JSON.parse(jsonStr) as Record<string, unknown>; } catch { continue; }
 
           if (evt.type === "status") {
-            setProgressStep(evt.step ?? 0);
-            setProgressText(evt.text ?? "");
+            setProgressStep((evt.step as number) ?? 0);
+            setProgressText((evt.text as string) ?? "");
           } else if (evt.type === "thinking") {
-            setThinkingTokens((prev) => prev + (evt.text ?? ""));
+            setThinkingTokens((prev) => prev + ((evt.text as string) ?? ""));
           } else if (evt.type === "token") {
-            setLlmTokens((prev) => prev + (evt.text ?? ""));
+            setLlmTokens((prev) => prev + ((evt.text as string) ?? ""));
           } else if (evt.type === "result") {
-            extracted = evt.data;
+            extracted = evt.data as Record<string, unknown>;
             break outer;
           } else if (evt.type === "error") {
-            throw new Error(evt.text || "שגיאה בחילוץ");
+            throw new Error((evt.text as string | undefined) || "שגיאה בחילוץ");
           }
         }
       }
@@ -350,7 +350,7 @@ export default function ImportLeasePage() {
       // 1b. Archive any active lease on this property (fresh fetch — not cached data)
       const freshProp = await fetch(`/api/properties/${propertyId}`).then((r) => r.ok ? r.json() : null);
       const existingLeases = (freshProp?.leases || []) as Lease[];
-      const activeLeases = existingLeases.filter((l) => l.status !== "ended");
+      const activeLeases = existingLeases.filter(isLeaseCurrentlyActive);
       await Promise.all(activeLeases.map((l) =>
         fetch(`/api/leases/${l.id}`, {
           method: "PUT",
