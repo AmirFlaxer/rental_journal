@@ -63,6 +63,7 @@ export async function GET() {
     for (const pay of allPayments) {
       // Group by due_date (the rent month) rather than paid_date (when it was recorded)
       const dateKey = pay.due_date || pay.paid_date;
+      if (!dateKey) continue;
       const key = new Date(dateKey).toISOString().slice(0, 7);
       if (!monthlyMap[key]) monthlyMap[key] = { income: 0, expenses: 0 };
       monthlyMap[key].income += pay.amount;
