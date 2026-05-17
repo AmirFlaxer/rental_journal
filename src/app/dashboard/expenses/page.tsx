@@ -72,6 +72,7 @@ export default function ExpensesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState("");
   const [filterProp, setFilterProp] = useState("");
+  const [filterYear, setFilterYear] = useState("");
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
@@ -89,9 +90,14 @@ export default function ExpensesPage() {
     }).finally(() => setLoading(false));
   }, []);
 
+  const availableYears = Array.from(
+    new Set(expenses.map((e) => new Date(e.date).getFullYear()))
+  ).sort((a, b) => b - a);
+
   const filtered = expenses.filter((e) => {
     if (filterCat && e.category !== filterCat) return false;
     if (filterProp && e.properties?.id !== filterProp) return false;
+    if (filterYear && new Date(e.date).getFullYear() !== parseInt(filterYear)) return false;
     if (search) {
       const q = search.toLowerCase();
       const text = `${e.description} ${e.vendorName ?? ""} ${e.properties?.title ?? ""}`.toLowerCase();
@@ -234,8 +240,15 @@ export default function ExpensesPage() {
             <option key={p.id} value={p.id}>{p.title}</option>
           ))}
         </select>
-        {(filterCat || filterProp) && (
-          <button onClick={() => { setFilterCat(""); setFilterProp(""); }}
+        <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)}
+          className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+          <option value="">כל השנים</option>
+          {availableYears.map((y) => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+        {(filterCat || filterProp || filterYear) && (
+          <button onClick={() => { setFilterCat(""); setFilterProp(""); setFilterYear(""); }}
             className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">נקה סינון ✕</button>
         )}
         <div className="mr-auto px-3 py-1.5 bg-rose-50 text-rose-700 rounded-lg text-sm font-semibold">
