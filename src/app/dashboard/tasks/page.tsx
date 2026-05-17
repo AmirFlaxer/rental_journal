@@ -74,12 +74,24 @@ function generateCheckReminders(leases: Lease[], dbTasks: Task[]): Task[] {
   today.setHours(0, 0, 0, 0);
   const virtual: Task[] = [];
 
+  // בנה מפה leaseId → propertyId לצורך dedup בין חוזים של אותו נכס
+  const leaseToProperty = new Map(leases.map((l) => [l.id, l.properties?.id ?? l.id]));
+
+  // חודשים שכבר מכוסים ע"י משימת DB (לפי נכס+חודש)
+  const coveredPropertyMonths = new Set<string>();
+  for (const t of dbTasks) {
+    if (t.category === "Rent Collection" && t.relatedEntityType === "lease" && t.relatedEntityId) {
+      const propId = leaseToProperty.get(t.relatedEntityId);
+      if (propId) coveredPropertyMonths.add(`${propId}-${t.dueDate.slice(0, 7)}`);
+    }
+  }
+
   for (const lease of leases) {
     const pm = lease.paymentMethod?.toLowerCase();
-    // סטטוס: רק "ended" / "paused" פוסלים — null/undefined נחשב כפעיל
     if (lease.status === "ended" || lease.status === "paused") continue;
-    // אמצעי תקבול: שק בלבד (תומך ב-"checks","Check","check" וגם null = ברירת מחדל שק)
     if (pm && pm !== "check" && pm !== "checks") continue;
+    const propId = lease.properties?.id;
+    if (!propId) continue;
 
     const start = new Date(lease.startDate);
     const end = new Date(lease.endDate);
@@ -99,32 +111,23 @@ function generateCheckReminders(leases: Lease[], dbTasks: Task[]): Task[] {
         reminderDate.setDate(reminderDate.getDate() - 1);
         const dueDateStr = reminderDate.toISOString().split("T")[0];
         const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+        const propertyMonthKey = `${propId}-${monthKey}`;
 
-        // בדוק אם קיימת כבר משימה בDB לחוזה+חודש זה
-        const existing = dbTasks.find(
-          (t) =>
-            t.relatedEntityType === "lease" &&
-            t.relatedEntityId === lease.id &&
-            t.category === "Rent Collection" &&
-            t.dueDate.slice(0, 7) === dueDateStr.slice(0, 7)
-        );
-        if (existing) {
-          cur.setMonth(cur.getMonth() + 1);
-          continue;
+        if (!coveredPropertyMonths.has(propertyMonthKey)) {
+          const monthLabel = paymentDue.toLocaleDateString("he-IL", { month: "long", year: "numeric" });
+          const propertyLabel = lease.properties?.title ?? "נכס";
+          virtual.push({
+            id: `virtual-check-${lease.id}-${monthKey}`,
+            title: `הפקדת שק שכ"ד — ${propertyLabel} — ${monthLabel}`,
+            category: "Rent Collection",
+            dueDate: dueDateStr,
+            priority: "normal",
+            relatedEntityType: "lease",
+            relatedEntityId: lease.id,
+            isVirtual: true,
+          });
+          coveredPropertyMonths.add(propertyMonthKey);
         }
-
-        const monthLabel = paymentDue.toLocaleDateString("he-IL", { month: "long", year: "numeric" });
-        const propertyLabel = lease.properties?.title ?? "נכס";
-        virtual.push({
-          id: `virtual-check-${lease.id}-${monthKey}`,
-          title: `הפקדת שק שכ"ד — ${propertyLabel} — ${monthLabel}`,
-          category: "Rent Collection",
-          dueDate: dueDateStr,
-          priority: "normal",
-          relatedEntityType: "lease",
-          relatedEntityId: lease.id,
-          isVirtual: true,
-        });
       }
       cur.setMonth(cur.getMonth() + 1);
     }
@@ -223,14 +226,16 @@ export default function TasksPage() {
 
   const virtualCheck = generateCheckReminders(leases, dbTasks);
 
-  // כל המשימות הפתוחות: DB + וירטואליות, עם ביטול כפילויות לפי חוזה+חודש
+  // כל המשימות הפתוחות: DB + וירטואליות, עם ביטול כפילויות לפי נכס+חודש
+  const leaseToPropertyId = new Map(leases.map((l) => [l.id, l.properties?.id ?? l.id]));
   const dedupedPending: Task[] = [];
-  const seenLeaseMonth = new Set<string>();
+  const seenPropertyMonth = new Set<string>();
   for (const t of [...pendingDb, ...virtualCheck].sort((a, b) => a.dueDate.localeCompare(b.dueDate))) {
     if (t.category === "Rent Collection" && t.relatedEntityType === "lease" && t.relatedEntityId) {
-      const key = `${t.relatedEntityId}-${t.dueDate.slice(0, 7)}`;
-      if (seenLeaseMonth.has(key)) continue;
-      seenLeaseMonth.add(key);
+      const propId = leaseToPropertyId.get(t.relatedEntityId) ?? t.relatedEntityId;
+      const key = `${propId}-${t.dueDate.slice(0, 7)}`;
+      if (seenPropertyMonth.has(key)) continue;
+      seenPropertyMonth.add(key);
     }
     dedupedPending.push(t);
   }

@@ -141,6 +141,10 @@ export default function Dashboard() {
           className="flex items-center gap-2 px-5 py-2.5 bg-white text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-50 border border-gray-200 transition-all">
           <span>📊</span> דוחות
         </Link>
+        <Link href="/dashboard/reports/tax"
+          className="flex items-center gap-2 px-5 py-2.5 bg-orange-50 text-orange-700 rounded-xl font-semibold text-sm hover:bg-orange-100 border border-orange-200 transition-all">
+          <span>📋</span> דוח מס שנתי
+        </Link>
       </div>
 
       {/* Stats */}
