@@ -206,7 +206,10 @@ export default function ReportsPage() {
             </div>
             <h1 className="text-2xl font-bold text-gray-900">דוחות ואנליטיקה</h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/dashboard/reports/linkage" className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 font-semibold text-sm">
+              השוואת הצמדה 📈
+            </Link>
             <Link href="/dashboard/reports/tax" className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 font-semibold text-sm">
               דוח מס שנתי 📋
             </Link>
