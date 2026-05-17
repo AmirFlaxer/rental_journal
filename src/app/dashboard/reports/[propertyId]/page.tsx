@@ -24,6 +24,8 @@ const PAYMENT_TYPE_HE: Record<string, string> = {
 const LEASE_STATUS_HE: Record<string, string> = {
   active: "פעיל",
   ended: "הסתיים",
+  terminated: "הסתיים",
+  expired: "פג תוקף",
   paused: "מושהה",
 };
 
@@ -189,7 +191,7 @@ export default function PropertyReportPage() {
                       </span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
                         lease.status === "active" ? "bg-green-100 text-green-700" :
-                        lease.status === "ended" ? "bg-gray-100 text-gray-600" :
+                        (lease.status === "terminated" || lease.status === "expired") ? "bg-gray-100 text-gray-600" :
                         "bg-yellow-100 text-yellow-700"
                       }`}>
                         {LEASE_STATUS_HE[lease.status] ?? lease.status}
@@ -244,7 +246,7 @@ export default function PropertyReportPage() {
                 </div>
                 <span className={`text-xs px-3 py-1 rounded-full font-bold ${
                   lease.status === "active" ? "bg-green-100 text-green-700" :
-                  lease.status === "ended" ? "bg-gray-100 text-gray-600" :
+                  (lease.status === "terminated" || lease.status === "expired") ? "bg-gray-100 text-gray-600" :
                   "bg-yellow-100 text-yellow-700"
                 }`}>
                   {LEASE_STATUS_HE[lease.status] ?? lease.status}

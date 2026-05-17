@@ -37,6 +37,8 @@ const PROPERTY_TYPE_HE: Record<string, string> = {
 const LEASE_STATUS_HE: Record<string, string> = {
   active: "פעיל",
   ended: "הסתיים",
+  terminated: "הסתיים",
+  expired: "פג תוקף",
   paused: "מושהה",
 };
 
@@ -163,7 +165,7 @@ export default function PropertyDetailPage() {
               return (
                 <ul className="text-sm text-gray-700 mb-6 space-y-1 bg-gray-50 rounded-lg p-3">
                   <li>תאריך התחלה: <strong>{new Date(l.optionStart ?? l.endDate).toLocaleDateString("he-IL")}</strong></li>
-                  <li>תאריך סיום: <strong>{new Date(l.optionEnd).toLocaleDateString("he-IL")}</strong></li>
+                  <li>תאריך סיום: <strong>{l.optionEnd ? new Date(l.optionEnd).toLocaleDateString("he-IL") : "-"}</strong></li>
                   {l.optionRent && <li>שכ"ד חדש: <strong>₪{Number(l.optionRent).toLocaleString()}</strong></li>}
                 </ul>
               );
@@ -551,7 +553,7 @@ export default function PropertyDetailPage() {
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                           isLeaseCurrentlyActive(lease)
                             ? "bg-green-100 text-green-700"
-                            : lease.status === "ended"
+                            : (lease.status === "terminated" || lease.status === "expired")
                             ? "bg-gray-100 text-gray-600"
                             : "bg-yellow-100 text-yellow-700"
                         }`}>
@@ -560,9 +562,9 @@ export default function PropertyDetailPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                        {lease.leaseDocuments?.length > 0 ? (
+                        {(lease.leaseDocuments?.length ?? 0) > 0 ? (
                           <div className="flex flex-col gap-1">
-                            {lease.leaseDocuments.map((doc) => (
+                            {lease.leaseDocuments?.map((doc) => (
                               <a
                                 key={doc.id}
                                 href={`/api/documents/${doc.id}`}
