@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-// Vercel Cron + קריאה ידנית לבדיקה
-// Header נדרש: Authorization: Bearer <CRON_SECRET>
-export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+// GET — קריאה מהקליינט על ידי משתמש מחובר
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  return runRefresh();
+}
 
+async function runRefresh(): Promise<NextResponse> {
   const results: { type: string; inserted: number; error?: string }[] = [];
 
   // --- USD: בנק ישראל ---
@@ -42,6 +43,16 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, results });
+}
+
+// POST — Vercel Cron (Authorization: Bearer <CRON_SECRET>)
+export async function POST(request: NextRequest) {
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  return runRefresh();
 }
 
 // ----------------------------------------------------------------
