@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { calcEffectiveRent, type IndexRate, type LinkageFrequency } from "@/lib/linkage";
+import { calcEffectiveRent, pickRate, getEffectivePeriodStart, type IndexRate, type LinkageType, type LinkageFrequency } from "@/lib/linkage";
 
 interface Lease {
   id: string;
@@ -15,6 +14,13 @@ interface Lease {
   linkageFrequency?: LinkageFrequency;
   properties?: { title: string; city: string };
   tenant?: { firstName: string; lastName: string };
+}
+
+interface HistoryRow {
+  period: string;       // "2025-01"
+  rateValue: number | null;
+  rent: number;
+  diff: number;
 }
 
 const FREQ_LABELS: Record<string, string> = {
@@ -29,12 +35,75 @@ const TYPE_LABELS: Record<string, string> = {
   cpi: "מדד כללי (CPI)",
 };
 
+function addMonths(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + n);
+  d.setDate(1);
+  return d;
+}
+
+function freqStep(freq: LinkageFrequency): number {
+  return freq === "monthly" ? 1 : freq === "quarterly" ? 3 : 6;
+}
+
+function buildHistory(
+  lease: Lease,
+  type: LinkageType,
+  frequency: LinkageFrequency,
+  rates: IndexRate[]
+): HistoryRow[] {
+  const base = lease.monthlyRent;
+  const start = new Date(lease.startDate);
+  start.setDate(1);
+  const today = new Date();
+  today.setDate(1);
+  const end = new Date(lease.endDate);
+  end.setDate(1);
+  const until = today < end ? today : end;
+
+  if (type === "none") {
+    return [{ period: start.toISOString().slice(0, 7), rateValue: null, rent: base, diff: 0 }];
+  }
+
+  const baseRate = pickRate(rates, type, start);
+  if (!baseRate) return [];
+
+  const rows: HistoryRow[] = [];
+  const step = freqStep(frequency);
+  let cur = getEffectivePeriodStart(start, frequency);
+
+  while (cur <= until) {
+    const rate = pickRate(rates, type, cur);
+    if (rate) {
+      const rent = Math.round((base * rate.value) / baseRate.value);
+      rows.push({
+        period: cur.toISOString().slice(0, 7),
+        rateValue: rate.value,
+        rent,
+        diff: rent - base,
+      });
+    }
+    cur = addMonths(cur, step);
+  }
+
+  return rows;
+}
+
+function fmtPeriod(p: string, freq: LinkageFrequency): string {
+  const [y, m] = p.split("-");
+  const months = ["ינו'", "פבר'", "מרץ", "אפר'", "מאי", "יוני", "יולי", "אוג'", "ספט'", "אוק'", "נוב'", "דצמ'"];
+  const mi = parseInt(m) - 1;
+  if (freq === "quarterly") return `רבעון ${Math.floor(mi / 3) + 1}/${y}`;
+  if (freq === "semiannual") return `${mi < 6 ? "ח' א'" : "ח' ב'"} ${y}`;
+  return `${months[mi]} ${y}`;
+}
+
 export default function LinkageComparisonPage() {
-  const router = useRouter();
   const [leases, setLeases] = useState<Lease[]>([]);
   const [rates, setRates] = useState<IndexRate[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [frequency, setFrequency] = useState<LinkageFrequency>("monthly");
+  const [selectedType, setSelectedType] = useState<LinkageType | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState("");
@@ -45,8 +114,7 @@ export default function LinkageComparisonPage() {
     try {
       const res = await fetch("/api/index-rates/refresh");
       if (!res.ok) throw new Error();
-      const ratesRes = await fetch("/api/index-rates");
-      const data = await ratesRes.json();
+      const data = await fetch("/api/index-rates").then((r) => r.json());
       if (Array.isArray(data)) setRates(data);
       setRefreshMsg("המדדים עודכנו בהצלחה");
     } catch {
@@ -70,10 +138,14 @@ export default function LinkageComparisonPage() {
 
   const lease = leases.find((l) => l.id === selectedId);
 
+  const history: HistoryRow[] = lease && selectedType
+    ? buildHistory(lease, selectedType, frequency, rates)
+    : [];
+
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 py-5 sm:px-6">
+        <div className="max-w-4xl mx-auto px-4 py-5 sm:px-6">
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-1">
             <Link href="/dashboard" className="hover:text-gray-600">לוח בקרה</Link>
             <span>/</span>
@@ -82,11 +154,11 @@ export default function LinkageComparisonPage() {
             <span className="text-gray-600">השוואת מסלולי הצמדה</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">השוואת מסלולי הצמדה</h1>
-          <p className="text-sm text-gray-500 mt-0.5">מה היה שכ"ד היום לו החוזה היה צמוד מתחילתו — חישוב תיאורטי</p>
+          <p className="text-sm text-gray-500 mt-0.5">בחר חוזה ומסלול — תראה כיצד היה משתנה שכ"ד לאורך הזמן</p>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 sm:px-6 space-y-5">
+      <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 space-y-5">
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
@@ -97,76 +169,62 @@ export default function LinkageComparisonPage() {
           </div>
         ) : (
           <>
-            {/* Lease selector */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">בחר חוזה</label>
-              <select
-                value={selectedId}
-                onChange={(e) => setSelectedId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                {leases.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.properties?.title ?? "נכס"} —{" "}
-                    {l.tenant ? `${l.tenant.firstName} ${l.tenant.lastName}` : "שוכר"} —{" "}
-                    ₪{l.monthlyRent.toLocaleString()} לחודש
-                  </option>
-                ))}
-              </select>
+            {/* Lease + frequency selectors */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">בחר חוזה</label>
+                <select
+                  value={selectedId}
+                  onChange={(e) => { setSelectedId(e.target.value); setSelectedType(null); }}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {leases.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.properties?.title ?? "נכס"} —{" "}
+                      {l.tenant ? `${l.tenant.firstName} ${l.tenant.lastName}` : "שוכר"} —{" "}
+                      ₪{l.monthlyRent.toLocaleString()} לחודש
+                    </option>
+                  ))}
+                </select>
+                {lease && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    {new Date(lease.startDate).toLocaleDateString("he-IL")} –{" "}
+                    {new Date(lease.endDate).toLocaleDateString("he-IL")} ·{" "}
+                    הצמדה נוכחית: {TYPE_LABELS[lease.linkageType ?? "none"]}
+                  </p>
+                )}
+              </div>
 
-              {lease && (
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-gray-500">
-                  <div>
-                    <span className="font-semibold text-gray-700">תחילת חוזה: </span>
-                    {new Date(lease.startDate).toLocaleDateString("he-IL")}
-                  </div>
-                  <div>
-                    <span className="font-semibold text-gray-700">סיום חוזה: </span>
-                    {new Date(lease.endDate).toLocaleDateString("he-IL")}
-                  </div>
-                  <div>
-                    <span className="font-semibold text-gray-700">שכ"ד בסיס: </span>
-                    ₪{lease.monthlyRent.toLocaleString()}
-                  </div>
-                  <div>
-                    <span className="font-semibold text-gray-700">הצמדה נוכחית: </span>
-                    {TYPE_LABELS[lease.linkageType ?? "none"] ?? "ללא"}
-                  </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">תדירות עדכון</label>
+                <div className="flex gap-2">
+                  {(["monthly", "quarterly", "semiannual"] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => { setFrequency(f); setSelectedType(null); }}
+                      className={`px-4 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                        frequency === f
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-white text-indigo-600 border-indigo-300 hover:bg-indigo-50"
+                      }`}
+                    >
+                      {FREQ_LABELS[f]}
+                    </button>
+                  ))}
                 </div>
-              )}
-            </div>
-
-            {/* Frequency selector */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <p className="text-sm font-semibold text-gray-700 mb-3">תדירות עדכון</p>
-              <div className="flex gap-2">
-                {(["monthly", "quarterly", "semiannual"] as const).map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setFrequency(f)}
-                    className={`px-4 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
-                      frequency === f
-                        ? "bg-indigo-600 text-white border-indigo-600"
-                        : "bg-white text-indigo-600 border-indigo-300 hover:bg-indigo-50"
-                    }`}
-                  >
-                    {FREQ_LABELS[f]}
-                  </button>
-                ))}
               </div>
             </div>
 
-            {/* Comparison */}
+            {/* Comparison type selector */}
             {lease && (
-              <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl border border-indigo-100 p-6 space-y-3">
-                <p className="text-xs text-indigo-500 mb-1">
-                  מחושב מ-{new Date(lease.startDate).toLocaleDateString("he-IL")} · בסיס ₪{lease.monthlyRent.toLocaleString()}
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-2">
+                <p className="text-sm font-semibold text-gray-700 mb-3">
+                  בחר מסלול לפירוט חישוב ←
                 </p>
-
                 {rates.length === 0 && (
-                  <div className="flex items-center gap-3">
-                    <p className="text-xs text-indigo-400 italic">אין נתוני שערים</p>
+                  <div className="flex items-center gap-3 mb-2">
+                    <p className="text-xs text-amber-600 italic">אין נתוני שערים</p>
                     <button
                       type="button"
                       onClick={handleRefreshRates}
@@ -175,71 +233,146 @@ export default function LinkageComparisonPage() {
                     >
                       {refreshing ? "מעדכן..." : "רענן מדדים"}
                     </button>
+                    {refreshMsg && <span className={`text-xs font-semibold ${refreshMsg.includes("שגיאה") ? "text-red-500" : "text-green-600"}`}>{refreshMsg}</span>}
                   </div>
                 )}
-                {refreshMsg && (
-                  <p className={`text-xs font-semibold ${refreshMsg.includes("שגיאה") ? "text-red-500" : "text-green-600"}`}>
-                    {refreshMsg}
-                  </p>
-                )}
-
                 {(["none", "usd", "cpi"] as const).map((type) => {
-                  const simLease = {
-                    linkageType: type,
-                    linkageFrequency: frequency,
-                    baseAmount: lease.monthlyRent,
-                    baseDate: lease.startDate,
-                    monthlyRent: lease.monthlyRent,
-                  };
-                  const effective = calcEffectiveRent(simLease, rates);
+                  const effective = calcEffectiveRent(
+                    { linkageType: type, linkageFrequency: frequency, baseAmount: lease.monthlyRent, baseDate: lease.startDate, monthlyRent: lease.monthlyRent },
+                    rates
+                  );
                   const diff = effective - lease.monthlyRent;
                   const pct = lease.monthlyRent > 0 ? ((diff / lease.monthlyRent) * 100).toFixed(1) : "0.0";
-                  const isCurrent =
-                    (lease.linkageType ?? "none") === type &&
-                    (type === "none" || (lease.linkageFrequency ?? "monthly") === frequency);
+                  const isCurrent = (lease.linkageType ?? "none") === type;
+                  const isSelected = selectedType === type;
 
                   return (
                     <button
                       key={type}
                       type="button"
-                      onClick={() => router.push(`/dashboard/leases/${lease.id}/edit`)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-right transition-colors hover:opacity-80 ${
-                        isCurrent ? "bg-indigo-100 border-indigo-300" : "bg-white border-indigo-100 hover:bg-indigo-50"
+                      onClick={() => setSelectedType(isSelected ? null : type)}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-right transition-all ${
+                        isSelected
+                          ? "bg-indigo-600 text-white border-indigo-600 shadow-md"
+                          : isCurrent
+                          ? "bg-indigo-50 border-indigo-300 hover:bg-indigo-100"
+                          : "bg-gray-50 border-gray-200 hover:bg-indigo-50 hover:border-indigo-200"
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        {isCurrent && (
+                        {isCurrent && !isSelected && (
                           <span className="text-xs bg-indigo-600 text-white px-2 py-0.5 rounded-full">נוכחי</span>
                         )}
-                        <span className="text-sm font-semibold text-gray-800">{TYPE_LABELS[type]}</span>
+                        <span className={`text-sm font-semibold ${isSelected ? "text-white" : "text-gray-800"}`}>
+                          {TYPE_LABELS[type]}
+                        </span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="font-bold text-gray-900 text-sm">
-                          ₪{effective.toLocaleString("he-IL")}
+                        <span className={`font-bold text-sm ${isSelected ? "text-white" : "text-gray-900"}`}>
+                          ₪{effective.toLocaleString("he-IL")} / חודש
                         </span>
                         {type !== "none" && (
-                          <span
-                            className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                              diff > 0
-                                ? "bg-green-100 text-green-700"
-                                : diff < 0
-                                ? "bg-red-100 text-red-700"
-                                : "bg-gray-100 text-gray-500"
-                            }`}
-                          >
-                            {diff >= 0 ? "+" : ""}
-                            {diff !== 0
-                              ? `₪${Math.abs(diff).toLocaleString("he-IL")}`
-                              : "ללא שינוי"}{" "}
-                            ({diff >= 0 ? "+" : ""}{pct}%)
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                            isSelected
+                              ? "bg-white/20 text-white"
+                              : diff > 0 ? "bg-green-100 text-green-700"
+                              : diff < 0 ? "bg-red-100 text-red-700"
+                              : "bg-gray-100 text-gray-500"
+                          }`}>
+                            {diff >= 0 ? "+" : ""}{diff !== 0 ? `₪${Math.abs(diff).toLocaleString()}` : "ללא שינוי"} ({diff >= 0 ? "+" : ""}{pct}%)
                           </span>
                         )}
+                        <span className={`text-sm ${isSelected ? "text-white/70" : "text-gray-400"}`}>
+                          {isSelected ? "▲" : "▼"}
+                        </span>
                       </div>
                     </button>
                   );
                 })}
+              </div>
+            )}
 
-                <p className="text-[11px] text-indigo-400 pt-1">* לחץ על שורה כדי לעבור לעריכת החוזה · חישוב תיאורטי בלבד</p>
+            {/* Detail table */}
+            {selectedType && lease && (
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-base font-bold text-gray-900">
+                      פירוט — {TYPE_LABELS[selectedType]} · {FREQ_LABELS[frequency]}
+                    </h2>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      בסיס: ₪{lease.monthlyRent.toLocaleString()} ·{" "}
+                      {new Date(lease.startDate).toLocaleDateString("he-IL")} עד היום
+                    </p>
+                  </div>
+                </div>
+
+                {history.length === 0 ? (
+                  <div className="px-5 py-8 text-center text-sm text-gray-400">
+                    אין נתוני שערים לתקופה זו — לחץ &quot;רענן מדדים&quot; למעלה
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 text-xs font-semibold text-gray-500">
+                        <tr>
+                          <th className="px-4 py-3 text-right">תקופה</th>
+                          {selectedType !== "none" && (
+                            <th className="px-4 py-3 text-right">
+                              {selectedType === "usd" ? "שער דולר" : "מדד"}
+                            </th>
+                          )}
+                          <th className="px-4 py-3 text-right">שכ"ד מחושב</th>
+                          <th className="px-4 py-3 text-right">שינוי מהבסיס</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {[...history].reverse().map((row) => (
+                          <tr key={row.period} className="hover:bg-gray-50">
+                            <td className="px-4 py-2.5 font-medium text-gray-700">
+                              {fmtPeriod(row.period, frequency)}
+                            </td>
+                            {selectedType !== "none" && (
+                              <td className="px-4 py-2.5 text-gray-600">
+                                {row.rateValue !== null
+                                  ? selectedType === "usd"
+                                    ? `$${row.rateValue.toFixed(3)}`
+                                    : row.rateValue.toFixed(2)
+                                  : "—"}
+                              </td>
+                            )}
+                            <td className="px-4 py-2.5 font-bold text-gray-900">
+                              ₪{row.rent.toLocaleString("he-IL")}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              {row.diff === 0 ? (
+                                <span className="text-gray-400">—</span>
+                              ) : (
+                                <span className={`font-semibold ${row.diff > 0 ? "text-green-600" : "text-red-500"}`}>
+                                  {row.diff > 0 ? "+" : ""}₪{row.diff.toLocaleString("he-IL")}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                        <tr>
+                          <td colSpan={selectedType !== "none" ? 2 : 1} className="px-4 py-3 text-xs text-gray-400">
+                            * חישוב תיאורטי בלבד
+                          </td>
+                          <td className="px-4 py-3 font-bold text-indigo-700">
+                            ₪{calcEffectiveRent(
+                              { linkageType: selectedType, linkageFrequency: frequency, baseAmount: lease.monthlyRent, baseDate: lease.startDate, monthlyRent: lease.monthlyRent },
+                              rates
+                            ).toLocaleString("he-IL")}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-400">שכ"ד נוכחי</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </>
