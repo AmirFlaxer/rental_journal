@@ -2,12 +2,6 @@ import { NextResponse } from "next/server";
 import webpush from "web-push";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT ?? "mailto:admin@example.com",
-  process.env.VAPID_PUBLIC_KEY ?? "",
-  process.env.VAPID_PRIVATE_KEY ?? ""
-);
-
 interface PushSubscription {
   endpoint: string;
   p256dh: string;
@@ -27,7 +21,12 @@ async function sendToUser(subs: PushSubscription[], title: string, body: string,
 }
 
 export async function GET(req: Request) {
-  // אבטחה: Vercel שולח header זה בלבד ל-cron routes
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT ?? "mailto:admin@example.com",
+    process.env.VAPID_PUBLIC_KEY ?? "",
+    process.env.VAPID_PRIVATE_KEY ?? ""
+  );
+
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
