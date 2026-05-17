@@ -72,6 +72,8 @@ export default function PropertyDetailPage() {
   const [error, setError] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  const [selectedExpenseYear, setSelectedExpenseYear] = useState<number | null>(null);
+
   // Option activation
   const [activatingLeaseId, setActivatingLeaseId] = useState<string | null>(null);
   const [activateLoading, setActivateLoading] = useState(false);
@@ -682,41 +684,93 @@ export default function PropertyDetailPage() {
         })()}
 
         {/* Expenses section */}
-        <div id="expenses" className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">הוצאות</h2>
-            <Link href={`/dashboard/properties/${property.id}/add-expense`}
-              className="px-3 py-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-semibold text-sm">
-              + הוסף הוצאה
-            </Link>
-          </div>
-          {property.expenses.length === 0 ? (
-            <p className="px-6 py-8 text-gray-400 text-center">אין הוצאות רשומות</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                  <tr>
-                    <th className="px-4 py-3 text-right">קטגוריה</th>
-                    <th className="px-4 py-3 text-right">תיאור</th>
-                    <th className="px-4 py-3 text-right">סכום</th>
-                    <th className="px-4 py-3 text-right">תאריך</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {property.expenses.map((expense) => (
-                    <tr key={expense.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium">{EXPENSE_CAT_HE[expense.category] ?? expense.category}</td>
-                      <td className="px-4 py-3 text-gray-600">{expense.description}</td>
-                      <td className="px-4 py-3 font-semibold text-orange-600">₪{expense.amount.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-gray-500">{new Date(expense.date).toLocaleDateString("he-IL")}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {(() => {
+          const expenseYears = Array.from(
+            new Set(property.expenses.map((e) => new Date(e.date).getFullYear()))
+          ).sort((a, b) => b - a);
+
+          const filteredExpenses = selectedExpenseYear
+            ? property.expenses.filter((e) => new Date(e.date).getFullYear() === selectedExpenseYear)
+            : property.expenses;
+
+          const yearTotal = filteredExpenses.reduce((s, e) => s + e.amount, 0);
+
+          return (
+            <div id="expenses" className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900">הוצאות</h2>
+                <Link href={`/dashboard/properties/${property.id}/add-expense`}
+                  className="px-3 py-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-semibold text-sm">
+                  + הוסף הוצאה
+                </Link>
+              </div>
+              {property.expenses.length === 0 ? (
+                <p className="px-6 py-8 text-gray-400 text-center">אין הוצאות רשומות</p>
+              ) : (
+                <>
+                  {expenseYears.length > 1 && (
+                    <div className="px-6 py-3 border-b border-gray-100 flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => setSelectedExpenseYear(null)}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${
+                          selectedExpenseYear === null
+                            ? "bg-orange-500 text-white border-orange-500"
+                            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        הכל
+                      </button>
+                      {expenseYears.map((y) => (
+                        <button
+                          key={y}
+                          onClick={() => setSelectedExpenseYear(y)}
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${
+                            selectedExpenseYear === y
+                              ? "bg-orange-500 text-white border-orange-500"
+                              : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                          }`}
+                        >
+                          {y}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+                        <tr>
+                          <th className="px-4 py-3 text-right">קטגוריה</th>
+                          <th className="px-4 py-3 text-right">תיאור</th>
+                          <th className="px-4 py-3 text-right">סכום</th>
+                          <th className="px-4 py-3 text-right">תאריך</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filteredExpenses.map((expense) => (
+                          <tr key={expense.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 font-medium">{EXPENSE_CAT_HE[expense.category] ?? expense.category}</td>
+                            <td className="px-4 py-3 text-gray-600">{expense.description}</td>
+                            <td className="px-4 py-3 font-semibold text-orange-600">₪{expense.amount.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-gray-500">{new Date(expense.date).toLocaleDateString("he-IL")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                        <tr>
+                          <td colSpan={2} className="px-4 py-3 font-bold text-gray-700">
+                            סה&quot;כ{selectedExpenseYear ? ` ${selectedExpenseYear}` : ""}
+                          </td>
+                          <td className="px-4 py-3 font-bold text-orange-600">₪{yearTotal.toLocaleString()}</td>
+                          <td />
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()}
 
         {/* Payments section */}
         <div id="payments" className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
