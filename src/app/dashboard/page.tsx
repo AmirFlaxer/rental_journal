@@ -154,7 +154,7 @@ export default function Dashboard() {
             <span className="text-2xl">{s.icon}</span>
             <div className={`text-xl font-bold ${s.color.split(" ")[1]}`}>{s.value}</div>
             {"subValue" in s && s.subValue && (
-              <div className="text-xs text-orange-600 font-medium">{s.subValue}</div>
+              <div className="text-xs text-emerald-600 font-medium">{s.subValue}</div>
             )}
             <div className="text-xs text-gray-500 font-medium">{s.label}</div>
           </Link>
