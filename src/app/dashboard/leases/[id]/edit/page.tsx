@@ -7,6 +7,7 @@ import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
 import { PhoneInput } from "@/components/phone-input";
 import { formatPhone } from "@/lib/phone";
+import { pickRate, type IndexRate } from "@/lib/linkage";
 
 interface LeaseDocument {
   id: string;
@@ -134,6 +135,15 @@ export default function EditLeasePage() {
   const [linkageFrequency, setLinkageFrequency] = useState<"monthly" | "quarterly" | "semiannual">("monthly");
   const [baseAmount, setBaseAmount] = useState<number | undefined>(undefined);
   const [baseDate, setBaseDate] = useState<string | undefined>(undefined);
+
+  const [indexRates, setIndexRates] = useState<IndexRate[]>([]);
+
+  useEffect(() => {
+    fetch("/api/index-rates")
+      .then((r) => r.ok ? r.json() : [])
+      .then((d) => { if (Array.isArray(d)) setIndexRates(d); })
+      .catch(() => {});
+  }, []);
 
   // Termination protection fields
   const [earlyTermProtection, setEarlyTermProtection] = useState(false);
@@ -504,7 +514,41 @@ export default function EditLeasePage() {
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-400 mt-2">הסכום הבסיסי ותאריך הבסיס לא ישתנו בעריכה</p>
+                {/* Base info display */}
+                {(() => {
+                  const effectiveBase = baseAmount ?? monthlyRent;
+                  const effectiveDate = baseDate ?? startDate;
+                  const baseRateRow = effectiveDate
+                    ? pickRate(indexRates, linkageType, new Date(effectiveDate))
+                    : null;
+                  const rateLabel = linkageType === "usd" ? "שער דולר" : "מדד";
+                  return (
+                    <div className="mt-3 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-xs text-blue-800 space-y-1">
+                      <div className="flex gap-4 flex-wrap">
+                        <span>
+                          <span className="font-semibold">שכ"ד בסיס: </span>
+                          ₪{effectiveBase?.toLocaleString("he-IL") ?? "—"}
+                        </span>
+                        <span>
+                          <span className="font-semibold">תאריך בסיס: </span>
+                          {effectiveDate
+                            ? new Date(effectiveDate).toLocaleDateString("he-IL", { month: "long", year: "numeric" })
+                            : "—"}
+                        </span>
+                        {baseRateRow ? (
+                          <span>
+                            <span className="font-semibold">{rateLabel} בבסיס: </span>
+                            {linkageType === "usd"
+                              ? `$${baseRateRow.value.toFixed(3)}`
+                              : baseRateRow.value.toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="text-blue-400 italic">אין נתון {rateLabel} לתאריך הבסיס</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
