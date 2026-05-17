@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/expenses", label: "הוצאות", icon: "💸" },
   { href: "/dashboard/payments", label: "תקבולים", icon: "💳" },
   { href: "/dashboard/reports", label: "דוחות", icon: "📊" },
+  { href: "/dashboard/reports/tax", label: "דוח מס", icon: "📋" },
   { href: "/dashboard/debts", label: "חובות", icon: "🔴" },
   { href: "/dashboard/tasks", label: "תזכורות", icon: "🔔" },
 ];
@@ -149,6 +150,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             { href: "/dashboard/debts", label: "חובות", icon: "🔴" },
             { href: "/dashboard/tasks", label: "תזכורות", icon: "🔔" },
             { href: "/dashboard/reports", label: "דוחות", icon: "📊" },
+            { href: "/dashboard/reports/tax", label: "דוח מס", icon: "📋" },
             { href: "/dashboard/leases/import", label: "ייבוא", icon: "📥" },
           ].map((item) => (
             <MobileNavItem key={item.href} {...item} />

@@ -252,6 +252,10 @@ export default function SettingsPage() {
         <p className="text-xs text-gray-400">
           בחרת במסלול אחר (מסלול רגיל / 10% בעל הכנסות)? כבה את האפשרות הזו ונהל את המס בעצמך.
         </p>
+        <a href="/dashboard/reports/tax"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-xl text-sm font-semibold hover:bg-orange-100 transition-colors">
+          📋 פתח דוח מס שנתי
+        </a>
         {taxError && <p className="text-sm text-red-600">{taxError}</p>}
         {taxSuccess && <p className="text-sm text-green-600">{taxSuccess}</p>}
       </div>

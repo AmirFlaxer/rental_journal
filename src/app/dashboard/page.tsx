@@ -112,7 +112,7 @@ export default function Dashboard() {
   const stats = [
     { label: "נכסים", value: properties.length, icon: "🏢", color: "bg-indigo-50 text-indigo-700", border: "border-indigo-200", href: "/dashboard/properties" },
     { label: "חוזים פעילים", value: activeLeases.length, icon: "📋", color: "bg-emerald-50 text-emerald-700", border: "border-emerald-200", href: "/dashboard/leases" },
-    { label: "הכנסה חודשית", value: monthlyIncome > 0 ? `₪${monthlyIncome.toLocaleString()}` : "—", icon: "💰", color: "bg-blue-50 text-blue-700", border: "border-blue-200", href: "/dashboard/reports" },
+    { label: "הכנסה חודשית", value: monthlyIncome > 0 ? `₪${monthlyIncome.toLocaleString()}` : "—", icon: "💰", color: "bg-emerald-50 text-emerald-700", border: "border-emerald-200", href: "/dashboard/reports" },
     { label: "תקבולים ממתינים", value: pendingPayments > 0 ? pendingPayments : "0", icon: "⏳", color: "bg-amber-50 text-amber-700", border: "border-amber-200", href: "/dashboard/payments" },
     { label: "הוצאות כוללות", value: totalExpenses > 0 ? `₪${totalExpenses.toLocaleString()}` : "₪0", icon: "💸", color: "bg-rose-50 text-rose-700", border: "border-rose-200", href: "/dashboard/expenses" },
   ];
