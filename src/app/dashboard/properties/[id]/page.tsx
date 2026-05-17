@@ -6,6 +6,22 @@ import Link from "next/link";
 import type { Lease, Expense, Payment, LeaseDocument } from "@/types/database";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 
+const EXPENSE_CAT_HE: Record<string, string> = {
+  Maintenance: "תחזוקה",
+  Insurance: "ביטוח",
+  Tax: "מס",
+  Utilities: "שירותים",
+  "Professional Fees": 'שכ"ט',
+  Other: "אחר",
+};
+
+const PAYMENT_TYPE_HE: Record<string, string> = {
+  Rent: 'שכ"ד',
+  Deposit: "פיקדון",
+  Return: "החזר",
+  Other: "אחר",
+};
+
 interface Property {
   id: string;
   title: string;
@@ -690,7 +706,7 @@ export default function PropertyDetailPage() {
                 <tbody className="divide-y divide-gray-100">
                   {property.expenses.map((expense) => (
                     <tr key={expense.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium">{expense.category}</td>
+                      <td className="px-4 py-3 font-medium">{EXPENSE_CAT_HE[expense.category] ?? expense.category}</td>
                       <td className="px-4 py-3 text-gray-600">{expense.description}</td>
                       <td className="px-4 py-3 font-semibold text-orange-600">₪{expense.amount.toLocaleString()}</td>
                       <td className="px-4 py-3 text-gray-500">{new Date(expense.date).toLocaleDateString("he-IL")}</td>
@@ -728,7 +744,7 @@ export default function PropertyDetailPage() {
                 <tbody className="divide-y divide-gray-100">
                   {property.payments.map((payment) => (
                     <tr key={payment.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium">{payment.paymentType}</td>
+                      <td className="px-4 py-3 font-medium">{PAYMENT_TYPE_HE[payment.paymentType] ?? payment.paymentType}</td>
                       <td className="px-4 py-3 font-semibold text-green-700">₪{payment.amount.toLocaleString()}</td>
                       <td className="px-4 py-3 text-gray-500">{new Date(payment.dueDate).toLocaleDateString("he-IL")}</td>
                       <td className="px-4 py-3 text-gray-500">{payment.paidDate ? new Date(payment.paidDate).toLocaleDateString("he-IL") : "—"}</td>
