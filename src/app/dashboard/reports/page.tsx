@@ -30,6 +30,7 @@ interface PropertyRaw {
   propertyType: string;
   activeLeases: number;
   monthlyRent: number;
+  lastMonthlyRent: number;
   payments: RawPayment[];
   expenses: RawExpense[];
 }
@@ -41,9 +42,12 @@ interface PropertyStat {
   propertyType: string;
   activeLeases: number;
   monthlyRent: number;
+  lastMonthlyRent: number;
   totalExpenses: number;
   totalPaid: number;
   netIncome: number;
+  tax10: number;
+  netAfterTax: number;
 }
 
 interface Totals {
@@ -53,6 +57,8 @@ interface Totals {
   totalExpenses: number;
   totalPaid: number;
   netIncome: number;
+  tax10: number;
+  netAfterTax: number;
 }
 
 interface MonthlyEntry { month: string; income: number; expenses: number; net: number; }
@@ -103,6 +109,7 @@ function computeStats(properties: PropertyRaw[], year: number | null): {
     const totalPaid = payments.filter((pay) => pay.paidDate).reduce((s, pay) => s + pay.amount, 0);
     const totalExpenses = expenses.reduce((s, exp) => s + exp.amount, 0);
 
+    const tax10 = Math.round(totalPaid * 0.1);
     return {
       id: p.id,
       title: p.title,
@@ -110,9 +117,12 @@ function computeStats(properties: PropertyRaw[], year: number | null): {
       propertyType: p.propertyType,
       activeLeases: p.activeLeases,
       monthlyRent: p.monthlyRent,
+      lastMonthlyRent: p.lastMonthlyRent,
       totalPaid,
       totalExpenses,
       netIncome: totalPaid - totalExpenses,
+      tax10,
+      netAfterTax: totalPaid - totalExpenses - tax10,
     };
   });
 
@@ -123,6 +133,8 @@ function computeStats(properties: PropertyRaw[], year: number | null): {
     totalExpenses: propertyStats.reduce((s, p) => s + p.totalExpenses, 0),
     totalPaid: propertyStats.reduce((s, p) => s + p.totalPaid, 0),
     netIncome: propertyStats.reduce((s, p) => s + p.netIncome, 0),
+    tax10: propertyStats.reduce((s, p) => s + p.tax10, 0),
+    netAfterTax: propertyStats.reduce((s, p) => s + p.netAfterTax, 0),
   };
 
   // Include only PAID payments in income, but bucket them by their rent month (dueDate),
@@ -164,6 +176,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedYear, setSelectedYear] = useState<number | null>(null); // null = סה"כ
+  const [showTax, setShowTax] = useState(false);
 
   useEffect(() => {
     fetch("/api/reports")
@@ -223,8 +236,8 @@ export default function ReportsPage() {
       <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 space-y-6">
         {error && <div className="p-4 bg-red-100 border border-red-300 text-red-700 rounded-xl">{error}</div>}
 
-        {/* Year filter */}
-        <div className="flex items-center gap-3">
+        {/* Year filter + tax toggle */}
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm font-semibold text-gray-600">תקופה:</span>
           <div className="flex flex-wrap gap-2">
             <button
@@ -251,6 +264,18 @@ export default function ReportsPage() {
               </button>
             ))}
           </div>
+          <div className="mr-auto">
+            <button
+              onClick={() => setShowTax((v) => !v)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+                showTax
+                  ? "bg-amber-500 text-white border-amber-500"
+                  : "bg-white text-amber-600 border-amber-300 hover:bg-amber-50"
+              }`}
+            >
+              מסלול מס 10%
+            </button>
+          </div>
         </div>
 
         {/* KPIs */}
@@ -259,7 +284,9 @@ export default function ReportsPage() {
             { label: "נכסים", value: String(totals.properties), color: "text-gray-800" },
             { label: "חוזים פעילים", value: String(totals.activeLeases), color: "text-blue-600" },
             { label: selectedYear ? `הכנסה ${selectedYear}` : "הכנסה חודשית", value: selectedYear ? fmt(totals.totalPaid) : fmt(totals.monthlyRent), color: "text-green-600" },
-            { label: selectedYear ? `נטו ${selectedYear}` : "הכנסה נטו (כולל)", value: fmt(totals.netIncome), color: totals.netIncome >= 0 ? "text-green-600" : "text-red-500" },
+            showTax
+              ? { label: selectedYear ? `נטו אחרי מס ${selectedYear}` : "נטו אחרי מס", value: fmt(totals.netAfterTax), color: totals.netAfterTax >= 0 ? "text-green-600" : "text-red-500" }
+              : { label: selectedYear ? `נטו ${selectedYear}` : "הכנסה נטו (כולל)", value: fmt(totals.netIncome), color: totals.netIncome >= 0 ? "text-green-600" : "text-red-500" },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <div className="text-xs font-semibold text-gray-400 uppercase mb-1">{label}</div>
@@ -267,6 +294,22 @@ export default function ReportsPage() {
             </div>
           ))}
         </div>
+        {showTax && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="bg-amber-50 rounded-xl border border-amber-200 p-5">
+              <div className="text-xs font-semibold text-amber-600 uppercase mb-1">מס 10% משוער</div>
+              <div className="text-2xl font-bold text-amber-600">{fmt(totals.tax10)}</div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-xs font-semibold text-gray-400 uppercase mb-1">נטו לפני מס</div>
+              <div className={`text-2xl font-bold ${totals.netIncome >= 0 ? "text-green-600" : "text-red-500"}`}>{fmt(totals.netIncome)}</div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="text-xs font-semibold text-gray-400 uppercase mb-1">נטו אחרי מס</div>
+              <div className={`text-2xl font-bold ${totals.netAfterTax >= 0 ? "text-green-600" : "text-red-500"}`}>{fmt(totals.netAfterTax)}</div>
+            </div>
+          </div>
+        )}
 
         {/* Per-property summary table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -287,7 +330,9 @@ export default function ReportsPage() {
                     <th className="px-4 py-3 text-right font-semibold text-gray-600">{'שכ"ד'} / חודש</th>
                     <th className="px-4 py-3 text-right font-semibold text-gray-600">הכנסה כוללת</th>
                     <th className="px-4 py-3 text-right font-semibold text-gray-600">הוצאות</th>
-                    <th className="px-4 py-3 text-right font-semibold text-gray-600">נטו</th>
+                    {showTax && <th className="px-4 py-3 text-right font-semibold text-amber-600">מס 10%</th>}
+                    <th className="px-4 py-3 text-right font-semibold text-gray-600">{showTax ? "נטו לפני מס" : "נטו"}</th>
+                    {showTax && <th className="px-4 py-3 text-right font-semibold text-gray-600">נטו אחרי מס</th>}
                     <th className="px-4 py-3 text-right font-semibold text-gray-600">פעולות</th>
                   </tr>
                 </thead>
@@ -299,12 +344,24 @@ export default function ReportsPage() {
                         <div className="text-gray-400 text-xs">{p.city}</div>
                       </td>
                       <td className="px-4 py-4 text-gray-600">{PROPERTY_TYPE_HE[p.propertyType] ?? p.propertyType}</td>
-                      <td className="px-4 py-4 font-semibold text-green-600">{p.monthlyRent > 0 ? fmt(p.monthlyRent) : "—"}</td>
+                      <td className="px-4 py-4 font-semibold">
+                        {p.monthlyRent > 0
+                          ? <span className="text-green-600">{fmt(p.monthlyRent)}</span>
+                          : p.lastMonthlyRent > 0
+                            ? <span className="text-gray-400">{fmt(p.lastMonthlyRent)} <span className="text-xs font-normal">(לא פעיל)</span></span>
+                            : "—"}
+                      </td>
                       <td className="px-4 py-4 text-gray-700">{p.totalPaid > 0 ? fmt(p.totalPaid) : "—"}</td>
                       <td className="px-4 py-4 text-red-500">{p.totalExpenses > 0 ? fmt(p.totalExpenses) : "—"}</td>
+                      {showTax && <td className="px-4 py-4 font-semibold text-amber-600">{p.tax10 > 0 ? fmt(p.tax10) : "—"}</td>}
                       <td className={`px-4 py-4 font-bold ${p.netIncome >= 0 ? "text-green-600" : "text-red-500"}`}>
                         {fmt(p.netIncome)}
                       </td>
+                      {showTax && (
+                        <td className={`px-4 py-4 font-bold ${p.netAfterTax >= 0 ? "text-green-600" : "text-red-500"}`}>
+                          {fmt(p.netAfterTax)}
+                        </td>
+                      )}
                       <td className="px-4 py-4">
                         <Link
                           href={`/dashboard/reports/${p.id}`}
@@ -322,7 +379,9 @@ export default function ReportsPage() {
                     <td className="px-4 py-3 font-bold text-green-600">{fmt(totals.monthlyRent)}</td>
                     <td className="px-4 py-3 font-bold text-gray-700">{fmt(totals.totalPaid)}</td>
                     <td className="px-4 py-3 font-bold text-red-500">{fmt(totals.totalExpenses)}</td>
+                    {showTax && <td className="px-4 py-3 font-bold text-amber-600">{fmt(totals.tax10)}</td>}
                     <td className={`px-4 py-3 font-bold ${totals.netIncome >= 0 ? "text-green-600" : "text-red-500"}`}>{fmt(totals.netIncome)}</td>
+                    {showTax && <td className={`px-4 py-3 font-bold ${totals.netAfterTax >= 0 ? "text-green-600" : "text-red-500"}`}>{fmt(totals.netAfterTax)}</td>}
                     <td />
                   </tr>
                 </tfoot>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { effectiveLeaseStatus } from "@/lib/lease-status";
 import Link from "next/link";
 import type { Lease, Expense, Payment } from "@/types/database";
 
@@ -63,6 +64,7 @@ export default function PropertyReportPage() {
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showTax, setShowTax] = useState(false);
 
   useEffect(() => {
     fetch("/api/reports")
@@ -114,6 +116,16 @@ export default function PropertyReportPage() {
             <p className="text-gray-500 text-sm mt-0.5">{report.city}</p>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => setShowTax((v) => !v)}
+              className={`px-4 py-2 rounded-lg font-semibold text-sm border transition-colors ${
+                showTax
+                  ? "bg-amber-500 text-white border-amber-500"
+                  : "bg-white text-amber-600 border-amber-300 hover:bg-amber-50"
+              }`}
+            >
+              מסלול מס 10%
+            </button>
             <Link
               href={`/dashboard/properties/${propertyId}`}
               className="px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 font-semibold text-sm"
@@ -133,19 +145,45 @@ export default function PropertyReportPage() {
       <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 space-y-6">
 
         {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: "שכ\"ד חודשי", value: report.monthlyRent > 0 ? fmt(report.monthlyRent) : "—", color: "text-green-600" },
-            { label: "הכנסה כוללת", value: fmt(report.totalPaid), color: "text-blue-600" },
-            { label: "הוצאות כוללות", value: fmt(report.totalExpenses), color: "text-red-500" },
-            { label: "רווח נטו", value: fmt(report.netIncome), color: report.netIncome >= 0 ? "text-green-600" : "text-red-500" },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-xs font-semibold text-gray-400 uppercase mb-1">{label}</div>
-              <div className={`text-xl font-bold ${color}`}>{value}</div>
-            </div>
-          ))}
-        </div>
+        {(() => {
+          const tax10 = Math.round(report.totalPaid * 0.1);
+          const netAfterTax = report.totalPaid - report.totalExpenses - tax10;
+          return (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: "שכ\"ד חודשי", value: report.monthlyRent > 0 ? fmt(report.monthlyRent) : "—", color: "text-green-600" },
+                  { label: "הכנסה כוללת", value: fmt(report.totalPaid), color: "text-green-600" },
+                  { label: "הוצאות כוללות", value: fmt(report.totalExpenses), color: "text-red-500" },
+                  showTax
+                    ? { label: "נטו אחרי מס", value: fmt(netAfterTax), color: netAfterTax >= 0 ? "text-green-600" : "text-red-500" }
+                    : { label: "רווח נטו", value: fmt(report.netIncome), color: report.netIncome >= 0 ? "text-green-600" : "text-red-500" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div className="text-xs font-semibold text-gray-400 uppercase mb-1">{label}</div>
+                    <div className={`text-xl font-bold ${color}`}>{value}</div>
+                  </div>
+                ))}
+              </div>
+              {showTax && (
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-amber-50 rounded-xl border border-amber-200 p-5">
+                    <div className="text-xs font-semibold text-amber-600 uppercase mb-1">מס 10% משוער</div>
+                    <div className="text-xl font-bold text-amber-600">{fmt(tax10)}</div>
+                  </div>
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div className="text-xs font-semibold text-gray-400 uppercase mb-1">נטו לפני מס</div>
+                    <div className={`text-xl font-bold ${report.netIncome >= 0 ? "text-green-600" : "text-red-500"}`}>{fmt(report.netIncome)}</div>
+                  </div>
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div className="text-xs font-semibold text-gray-400 uppercase mb-1">נטו אחרי מס</div>
+                    <div className={`text-xl font-bold ${netAfterTax >= 0 ? "text-green-600" : "text-red-500"}`}>{fmt(netAfterTax)}</div>
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {/* Expenses breakdown + Leases side by side */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -208,8 +246,8 @@ export default function PropertyReportPage() {
           </div>
         </div>
 
-        {/* Monthly rent schedule per lease */}
-        {(report.leases || []).map((lease) => {
+        {/* Monthly rent schedule — only active leases */}
+        {(report.leases || []).filter((l) => effectiveLeaseStatus(l) === "active").map((lease) => {
           const start = new Date(lease.startDate);
           const end = new Date(lease.endDate);
           const today = new Date();

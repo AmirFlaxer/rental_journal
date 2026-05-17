@@ -23,6 +23,10 @@ export async function GET() {
       // מסנן לפי תאריכים ולא רק status — חוזים ישנים שנשארו "active" לא נספרים
       const currentLeases = (p.leases ?? []).filter((l: LeaseRow) => isLeaseCurrentlyActive(l));
       const monthlyRent = currentLeases.reduce((s, l) => s + l.monthly_rent, 0);
+      const sortedLeases = [...(p.leases ?? [])].sort(
+        (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+      );
+      const lastMonthlyRent = sortedLeases.length > 0 ? sortedLeases[0].monthly_rent : 0;
       const totalExpenses = (p.expenses ?? []).reduce((s, e) => s + e.amount, 0);
       const totalPaid = (p.payments ?? []).filter((pay) => pay.paid_date).reduce((s, pay) => s + pay.amount, 0);
       const totalPending = (p.payments ?? []).filter((pay) => !pay.paid_date && pay.payment_type === "Rent").reduce((s, pay) => s + pay.amount, 0);
@@ -35,7 +39,7 @@ export async function GET() {
       return {
         id: p.id, title: p.title, city: p.city, propertyType: p.property_type,
         activeLeases: currentLeases.length, totalLeases: (p.leases ?? []).length,
-        monthlyRent, totalExpenses, totalPaid, totalPending,
+        monthlyRent, lastMonthlyRent, totalExpenses, totalPaid, totalPending,
         netIncome: totalPaid - totalExpenses, expensesByCategory,
         leases: camelKeys(p.leases) as unknown[],
         expenses: camelKeys(p.expenses) as unknown[],
