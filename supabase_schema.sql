@@ -151,9 +151,19 @@ create table if not exists expenses (
   bill_transferred_date timestamptz,
   linked_asset_id text,
   notes           text,
+  is_auto_tax     boolean     not null default false,
+  source_payment_id text,
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );
+
+-- ----------------------------------------------------------------
+-- EXPENSES (המשך — עמודות מס אוטומטי)
+-- הרץ ALTER אם הטבלה כבר קיימת:
+--   ALTER TABLE expenses
+--     ADD COLUMN IF NOT EXISTS is_auto_tax boolean NOT NULL DEFAULT false,
+--     ADD COLUMN IF NOT EXISTS source_payment_id text;
+-- ----------------------------------------------------------------
 
 -- ----------------------------------------------------------------
 -- PAYMENTS
@@ -270,6 +280,35 @@ create policy "tasks_owner" on tasks for all using (user_id = auth.uid());
 
 -- Property assets
 create policy "property_assets_owner" on property_assets for all using (user_id = auth.uid());
+
+-- ----------------------------------------------------------------
+-- GRANTS — נדרש מ-30 אוקטובר 2026 (Supabase Data API change)
+-- טבלאות ב-public חייבות GRANT מפורש כדי להיות נגישות ל-API
+-- ----------------------------------------------------------------
+
+-- index_rates — ציבורי לקריאה
+grant select                            on public.index_rates       to anon;
+grant select                            on public.index_rates       to authenticated;
+grant select, insert, update, delete    on public.index_rates       to service_role;
+
+-- טבלאות פרטיות — רק משתמשים מחוברים (RLS מגן על הנתונים)
+grant select, insert, update, delete    on public.properties        to authenticated;
+grant select, insert, update, delete    on public.tenants           to authenticated;
+grant select, insert, update, delete    on public.leases            to authenticated;
+grant select, insert, update, delete    on public.lease_documents   to authenticated;
+grant select, insert, update, delete    on public.expenses          to authenticated;
+grant select, insert, update, delete    on public.payments          to authenticated;
+grant select, insert, update, delete    on public.tasks             to authenticated;
+grant select, insert, update, delete    on public.property_assets   to authenticated;
+
+grant select, insert, update, delete    on public.properties        to service_role;
+grant select, insert, update, delete    on public.tenants           to service_role;
+grant select, insert, update, delete    on public.leases            to service_role;
+grant select, insert, update, delete    on public.lease_documents   to service_role;
+grant select, insert, update, delete    on public.expenses          to service_role;
+grant select, insert, update, delete    on public.payments          to service_role;
+grant select, insert, update, delete    on public.tasks             to service_role;
+grant select, insert, update, delete    on public.property_assets   to service_role;
 
 -- ----------------------------------------------------------------
 -- STORAGE BUCKET

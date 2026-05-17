@@ -16,6 +16,7 @@
   - **הצמדת שכ"ד**: linkage_type (none/usd/cpi), linkage_frequency (monthly/quarterly/semiannual)
   - **פאנל השוואת מסלולים**: חישוב תיאורטי מה היה שכ"ד לו היה צמוד, בדף עריכת חוזה
 - **תקבולים**: CRUD, סטטוס (pending/paid/overdue/partial)
+- **מס הכנסה**: הוצאת מס 10% אוטומטית עם כל תקבול שכ"ד (ניתן לכבות בהגדרות), דוח מס שנתי לפי נכס וחודש
 - **הוצאות**: CRUD עם קטגוריות
 - **חובות**: חישוב חובות אוטומטי כולל slots וירטואליים
 - **דוחות**: הכנסות/הוצאות לפי חודש, סיכום לפי נכס
@@ -32,6 +33,7 @@
 ### DB
 - טבלאות: properties, tenants, leases, lease_documents, expenses, payments, tasks, property_assets, **index_rates** (חדש)
 - leases: הוספו עמודות linkage_type, linkage_frequency, base_amount, base_date
+- expenses: הוספו עמודות is_auto_tax (boolean), source_payment_id (text) — לחישוב מס אוטומטי
 - **⚠️ לא קיימות מיגרציות** — שינויי schema צריכים ALTER TABLE ידני ב-Supabase Dashboard
 
 ### PWA
@@ -61,6 +63,11 @@
 ## לפני פריסה / שינוי DB
 ```sql
 -- להריץ ב-Supabase SQL Editor:
+
+-- [חדש] מס אוטומטי — עמודות בטבלת expenses:
+ALTER TABLE expenses
+  ADD COLUMN IF NOT EXISTS is_auto_tax boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS source_payment_id text;
 ALTER TABLE leases
   ADD COLUMN IF NOT EXISTS linkage_type text NOT NULL DEFAULT 'none'
     CHECK (linkage_type IN ('none','usd','cpi')),

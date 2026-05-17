@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { paymentSchema } from "@/lib/validations";
+import { isAutoTaxEnabled, createAutoTaxExpense } from "@/lib/auto-tax";
 import { z } from "zod";
 
 export async function GET() {
@@ -56,6 +57,22 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // יצירת הוצאת מס אוטומטית אם התקבול שולם
+    if (data.paidDate && data.paymentType === "Rent" && row) {
+      const autoTax = await isAutoTaxEnabled(session.user.id);
+      if (autoTax) {
+        await createAutoTaxExpense(
+          supabase,
+          session.user.id,
+          row.id,
+          data.propertyId,
+          data.amount,
+          new Date(data.paidDate).toISOString()
+        );
+      }
+    }
+
     return NextResponse.json(camelKeys(row), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError)

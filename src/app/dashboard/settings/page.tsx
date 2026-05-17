@@ -23,6 +23,11 @@ export default function SettingsPage() {
   const [llmSuccess, setLlmSuccess] = useState("");
   const [llmError, setLlmError] = useState("");
 
+  const [autoTaxEnabled, setAutoTaxEnabled] = useState(true);
+  const [taxSaving, setTaxSaving] = useState(false);
+  const [taxSuccess, setTaxSuccess] = useState("");
+  const [taxError, setTaxError] = useState("");
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -41,6 +46,9 @@ export default function SettingsPage() {
     fetch("/api/settings/llm-provider")
       .then((r) => r.json())
       .then((d) => { if (d.provider) setLlmProvider(d.provider as LLMProvider); });
+    fetch("/api/settings/tax")
+      .then((r) => r.json())
+      .then((d) => { setAutoTaxEnabled(d.autoTaxEnabled !== false); });
   }, []);
 
   const handleSaveName = async (e: React.FormEvent) => {
@@ -81,6 +89,26 @@ export default function SettingsPage() {
       setLlmError("שגיאה בשמירת הספק");
     } finally {
       setLlmSaving(false);
+    }
+  };
+
+  const handleToggleTax = async (enabled: boolean) => {
+    setTaxError("");
+    setTaxSuccess("");
+    setTaxSaving(true);
+    try {
+      const res = await fetch("/api/settings/tax", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoTaxEnabled: enabled }),
+      });
+      if (!res.ok) throw new Error("שגיאה בשמירה");
+      setAutoTaxEnabled(enabled);
+      setTaxSuccess(enabled ? "חישוב מס אוטומטי הופעל" : "חישוב מס אוטומטי כובה");
+    } catch {
+      setTaxError("שגיאה בשמירת ההגדרה");
+    } finally {
+      setTaxSaving(false);
     }
   };
 
@@ -187,6 +215,45 @@ export default function SettingsPage() {
         </div>
         {llmError && <p className="text-sm text-red-600">{llmError}</p>}
         {llmSuccess && <p className="text-sm text-green-600">{llmSuccess}</p>}
+      </div>
+
+      {/* Tax settings */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-bold text-gray-800">חישוב מס הכנסה אוטומטי</h2>
+          <p className="text-xs text-gray-500 mt-0.5">בעת רישום תקבול שכ&quot;ד כ&quot;שולם&quot; — תיווצר הוצאת מס אוטומטית בגובה 10%</p>
+        </div>
+        <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-gray-50">
+          <div>
+            <p className="text-sm font-semibold text-gray-800">מסלול 10% על תקבולים</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {autoTaxEnabled
+                ? "פעיל — הוצאת מס נוצרת אוטומטית עם כל תקבול"
+                : "כבוי — לא נוצרות הוצאות מס אוטומטיות"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleToggleTax(!autoTaxEnabled)}
+            disabled={taxSaving}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${
+              autoTaxEnabled ? "bg-indigo-600" : "bg-gray-300"
+            }`}
+            role="switch"
+            aria-checked={autoTaxEnabled}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${
+                autoTaxEnabled ? "-translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+        <p className="text-xs text-gray-400">
+          בחרת במסלול אחר (מסלול רגיל / 10% בעל הכנסות)? כבה את האפשרות הזו ונהל את המס בעצמך.
+        </p>
+        {taxError && <p className="text-sm text-red-600">{taxError}</p>}
+        {taxSuccess && <p className="text-sm text-green-600">{taxSuccess}</p>}
       </div>
 
       {/* Password */}

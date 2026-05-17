@@ -206,9 +206,14 @@ export default function ReportsPage() {
             </div>
             <h1 className="text-2xl font-bold text-gray-900">דוחות ואנליטיקה</h1>
           </div>
-          <Link href="/dashboard" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold text-sm">
-            חזרה
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/dashboard/reports/tax" className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 font-semibold text-sm">
+              דוח מס שנתי 📋
+            </Link>
+            <Link href="/dashboard" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold text-sm">
+              חזרה
+            </Link>
+          </div>
         </div>
       </div>
 

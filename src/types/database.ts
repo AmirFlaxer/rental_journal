@@ -144,6 +144,8 @@ export interface Expense {
   billTransferredDate?: string | null;
   linkedAssetId?: string | null;
   notes?: string | null;
+  isAutoTax: boolean;
+  sourcePaymentId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -298,6 +300,8 @@ export interface ExpenseRow {
   bill_transferred_date?: string | null;
   linked_asset_id?: string | null;
   notes?: string | null;
+  is_auto_tax: boolean;
+  source_payment_id?: string | null;
   created_at: string;
   updated_at: string;
 }
