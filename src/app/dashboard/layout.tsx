@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/reports/tax", label: "דוח מס", icon: "📋" },
   { href: "/dashboard/debts", label: "חובות", icon: "🔴" },
   { href: "/dashboard/tasks", label: "תזכורות", icon: "🔔" },
+  { href: "/dashboard/about", label: "אודות", icon: "ℹ️" },
 ];
 
 function NavItem({ href, label, icon, exact }: { href: string; label: string; icon: string; exact?: boolean }) {

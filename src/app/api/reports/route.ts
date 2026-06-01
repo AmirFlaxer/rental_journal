@@ -27,12 +27,15 @@ export async function GET() {
         (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
       );
       const lastMonthlyRent = sortedLeases.length > 0 ? sortedLeases[0].monthly_rent : 0;
-      const totalExpenses = (p.expenses ?? []).reduce((s, e) => s + e.amount, 0);
+      // מסנן הוצאות מס אוטומטיות (is_auto_tax) — המס מוצג בנפרד כשורת 10% בדוחות,
+      // כך שלא ייספר פעמיים (גם כהוצאה וגם כחישוב 10%).
+      const realExpenses = (p.expenses ?? []).filter((e) => !e.is_auto_tax);
+      const totalExpenses = realExpenses.reduce((s, e) => s + e.amount, 0);
       const totalPaid = (p.payments ?? []).filter((pay) => pay.paid_date).reduce((s, pay) => s + pay.amount, 0);
       const totalPending = (p.payments ?? []).filter((pay) => !pay.paid_date && pay.payment_type === "Rent").reduce((s, pay) => s + pay.amount, 0);
 
       const expensesByCategory: Record<string, number> = {};
-      for (const e of (p.expenses ?? [])) {
+      for (const e of realExpenses) {
         expensesByCategory[e.category] = (expensesByCategory[e.category] || 0) + e.amount;
       }
 
@@ -42,7 +45,7 @@ export async function GET() {
         monthlyRent, lastMonthlyRent, totalExpenses, totalPaid, totalPending,
         netIncome: totalPaid - totalExpenses, expensesByCategory,
         leases: camelKeys(p.leases) as unknown[],
-        expenses: camelKeys(p.expenses) as unknown[],
+        expenses: camelKeys(realExpenses) as unknown[],
         payments: camelKeys(p.payments) as unknown[],
       };
     });
@@ -60,7 +63,7 @@ export async function GET() {
       (p.payments ?? []).filter((pay: PaymentRow) => pay.paid_date).map((pay) => ({ ...pay, propertyTitle: p.title }))
     );
     const allExpenses = (properties as PropertyRow[] ?? []).flatMap((p) =>
-      (p.expenses ?? []).map((e: ExpenseRow) => ({ ...e, propertyTitle: p.title }))
+      (p.expenses ?? []).filter((e: ExpenseRow) => !e.is_auto_tax).map((e: ExpenseRow) => ({ ...e, propertyTitle: p.title }))
     );
 
     const monthlyMap: Record<string, { income: number; expenses: number }> = {};

@@ -53,8 +53,11 @@ function fmt(n: number) {
 function Bar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = max > 0 ? Math.min(Math.round((value / max) * 100), 100) : 0;
   return (
-    <div className="w-full bg-gray-100 rounded-full h-2">
-      <div className={`h-2 rounded-full ${color}`} style={{ width: `${pct}%` }} />
+    <div className="w-full bg-black/30 rounded-full h-2.5 overflow-hidden">
+      <div
+        className={`h-2.5 rounded-full bg-gradient-to-l ${color} transition-all duration-700 ease-out`}
+        style={{ width: `${Math.max(pct, value > 0 ? 4 : 0)}%` }}
+      />
     </div>
   );
 }
@@ -112,8 +115,11 @@ export default function PropertyReportPage() {
               <span>/</span>
               <span className="text-gray-600">{report.title}</span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">{report.title}</h1>
-            <p className="text-gray-500 text-sm mt-0.5">{report.city}</p>
+            <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
+              <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+              {report.title}
+            </h1>
+            <p className="text-gray-500 text-sm mt-0.5 pr-4">{report.city}</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -152,24 +158,25 @@ export default function PropertyReportPage() {
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: "שכ\"ד חודשי", value: report.monthlyRent > 0 ? fmt(report.monthlyRent) : "—", color: "text-green-600" },
-                  { label: "הכנסה כוללת", value: fmt(report.totalPaid), color: "text-green-600" },
-                  { label: "הוצאות כוללות", value: fmt(report.totalExpenses), color: "text-red-500" },
+                  { label: "שכ\"ד חודשי", value: report.monthlyRent > 0 ? fmt(report.monthlyRent) : "—", icon: "📄", gradient: "from-pink-500 to-pink-700" },
+                  { label: "הכנסה כוללת", value: fmt(report.totalPaid), icon: "💰", gradient: "from-emerald-500 to-emerald-700" },
+                  { label: "הוצאות כוללות", value: fmt(report.totalExpenses), icon: "💸", gradient: "from-rose-500 to-rose-700" },
                   showTax
-                    ? { label: "נטו אחרי מס", value: fmt(netAfterTax), color: netAfterTax >= 0 ? "text-green-600" : "text-red-500" }
-                    : { label: "רווח נטו", value: fmt(report.netIncome), color: report.netIncome >= 0 ? "text-green-600" : "text-red-500" },
-                ].map(({ label, value, color }) => (
-                  <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                    <div className="text-xs font-semibold text-gray-400 uppercase mb-1">{label}</div>
-                    <div className={`text-xl font-bold ${color}`}>{value}</div>
+                    ? { label: "נטו אחרי מס", value: fmt(netAfterTax), icon: netAfterTax >= 0 ? "📈" : "📉", gradient: netAfterTax >= 0 ? "from-emerald-500 to-emerald-700" : "from-rose-500 to-rose-700" }
+                    : { label: "רווח נטו", value: fmt(report.netIncome), icon: report.netIncome >= 0 ? "📈" : "📉", gradient: report.netIncome >= 0 ? "from-emerald-500 to-emerald-700" : "from-rose-500 to-rose-700" },
+                ].map(({ label, value, icon, gradient }) => (
+                  <div key={label} className={`relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br ${gradient} text-white`}>
+                    <div className="absolute -top-3 -left-3 text-5xl opacity-15 select-none">{icon}</div>
+                    <div className="text-[11px] font-bold text-white/75 uppercase tracking-wide mb-1.5 relative">{label}</div>
+                    <div className="text-xl font-extrabold relative drop-shadow-sm">{value}</div>
                   </div>
                 ))}
               </div>
               {showTax && (
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-amber-50 rounded-xl border border-amber-200 p-5">
-                    <div className="text-xs font-semibold text-amber-600 uppercase mb-1">מס 10% משוער</div>
-                    <div className="text-xl font-bold text-amber-600">{fmt(tax10)}</div>
+                  <div className="rounded-xl border border-amber-500/30 p-5 bg-gradient-to-br from-amber-500/15 to-amber-700/5">
+                    <div className="text-xs font-semibold text-amber-500 uppercase mb-1">מס 10% משוער</div>
+                    <div className="text-xl font-bold text-amber-400">{fmt(tax10)}</div>
                   </div>
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                     <div className="text-xs font-semibold text-gray-400 uppercase mb-1">נטו לפני מס</div>
@@ -190,7 +197,10 @@ export default function PropertyReportPage() {
 
           {/* Expenses by category */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">הוצאות לפי קטגוריה</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2.5">
+              <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-orange-400 to-orange-600" />
+              הוצאות לפי קטגוריה
+            </h2>
             {Object.keys(report.expensesByCategory).length === 0 ? (
               <p className="text-gray-400 text-sm">אין הוצאות רשומות</p>
             ) : (
@@ -203,7 +213,7 @@ export default function PropertyReportPage() {
                         <span className="font-semibold text-gray-700">{EXPENSE_CAT_HE[cat] ?? cat}</span>
                         <span className="text-red-500 font-bold">{fmt(amount)}</span>
                       </div>
-                      <Bar value={amount} max={maxCat} color="bg-orange-400" />
+                      <Bar value={amount} max={maxCat} color="from-orange-400 to-orange-600" />
                     </div>
                   ))}
                 <div className="pt-2 border-t border-gray-100 flex justify-between text-sm font-bold">
@@ -216,7 +226,10 @@ export default function PropertyReportPage() {
 
           {/* Leases */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">חוזי שכירות</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2.5">
+              <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+              חוזי שכירות
+            </h2>
             {(report.leases || []).length === 0 ? (
               <p className="text-gray-400 text-sm">אין חוזים</p>
             ) : (
@@ -325,7 +338,10 @@ export default function PropertyReportPage() {
         {/* תקבולים table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">תקבולים</h2>
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2.5">
+              <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600" />
+              תקבולים
+            </h2>
             <div className="flex gap-4 text-sm">
               <span className="text-green-600 font-semibold">שולם: {fmt(report.totalPaid)}</span>
               {report.totalPending > 0 && (
@@ -378,7 +394,10 @@ export default function PropertyReportPage() {
         {/* Expenses detail */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-lg font-bold text-gray-900">פירוט הוצאות</h2>
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2.5">
+              <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-orange-400 to-orange-600" />
+              פירוט הוצאות
+            </h2>
           </div>
           {(report.expenses || []).length === 0 ? (
             <div className="px-6 py-10 text-center text-gray-400">אין הוצאות</div>

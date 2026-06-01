@@ -70,8 +70,11 @@ function fmt(n: number) {
 function Bar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
-    <div className="w-full bg-gray-100 rounded-full h-2">
-      <div className={`h-2 rounded-full ${color}`} style={{ width: `${pct}%` }} />
+    <div className="w-full bg-black/30 rounded-full h-2.5 overflow-hidden">
+      <div
+        className={`h-2.5 rounded-full bg-gradient-to-l ${color} transition-all duration-700 ease-out`}
+        style={{ width: `${Math.max(pct, value > 0 ? 4 : 0)}%` }}
+      />
     </div>
   );
 }
@@ -209,24 +212,28 @@ export default function ReportsPage() {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 py-5 sm:px-6 flex justify-between items-center">
+      <div className="bg-white border-b border-gray-200 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-l from-pink-500/10 via-transparent to-transparent" />
+        <div className="max-w-6xl mx-auto px-4 py-5 sm:px-6 flex justify-between items-center relative">
           <div>
-            <div className="flex items-center gap-2 text-sm text-gray-400 mb-1">
-              <Link href="/dashboard" className="hover:text-gray-600">לוח בקרה</Link>
-              <span>/</span>
+            <div className="flex items-center gap-2 text-sm text-gray-400 mb-1.5">
+              <Link href="/dashboard" className="hover:text-gray-600 transition-colors">לוח בקרה</Link>
+              <span className="opacity-50">/</span>
               <span className="text-gray-600">דוחות</span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">דוחות ואנליטיקה</h1>
+            <h1 className="text-2xl sm:text-[28px] font-extrabold text-gray-900 flex items-center gap-2.5">
+              <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+              דוחות ואנליטיקה
+            </h1>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Link href="/dashboard/reports/linkage" className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 font-semibold text-sm">
+            <Link href="/dashboard/reports/linkage" className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 font-semibold text-sm transition-colors">
               השוואת הצמדה 📈
             </Link>
-            <Link href="/dashboard/reports/tax" className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 font-semibold text-sm">
+            <Link href="/dashboard/reports/tax" className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 font-semibold text-sm transition-colors">
               דוח מס שנתי 📋
             </Link>
-            <Link href="/dashboard" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold text-sm">
+            <Link href="/dashboard" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold text-sm transition-colors">
               חזרה
             </Link>
           </div>
@@ -280,33 +287,36 @@ export default function ReportsPage() {
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: "נכסים", value: String(totals.properties), color: "text-gray-800" },
-            { label: "חוזים פעילים", value: String(totals.activeLeases), color: "text-blue-600" },
-            { label: selectedYear ? `הכנסה ${selectedYear}` : "הכנסה חודשית", value: selectedYear ? fmt(totals.totalPaid) : fmt(totals.monthlyRent), color: "text-green-600" },
-            showTax
-              ? { label: selectedYear ? `נטו אחרי מס ${selectedYear}` : "נטו אחרי מס", value: fmt(totals.netAfterTax), color: totals.netAfterTax >= 0 ? "text-green-600" : "text-red-500" }
-              : { label: selectedYear ? `נטו ${selectedYear}` : "הכנסה נטו (כולל)", value: fmt(totals.netIncome), color: totals.netIncome >= 0 ? "text-green-600" : "text-red-500" },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-xs font-semibold text-gray-400 uppercase mb-1">{label}</div>
-              <div className={`text-2xl font-bold ${color}`}>{value}</div>
-            </div>
-          ))}
+          {(() => {
+            const profitCard = showTax
+              ? { label: selectedYear ? `רווח אחרי מס ${selectedYear}` : "רווח אחרי מס", value: fmt(totals.netAfterTax), positive: totals.netAfterTax >= 0 }
+              : { label: selectedYear ? `רווח נטו ${selectedYear}` : "רווח נטו (כולל)", value: fmt(totals.netIncome), positive: totals.netIncome >= 0 };
+            const cards = [
+              { label: "נכסים", value: String(totals.properties), icon: "🏠", gradient: "from-zinc-600 to-zinc-800" },
+              { label: "חוזים פעילים", value: String(totals.activeLeases), icon: "📄", gradient: "from-pink-500 to-pink-700" },
+              { label: selectedYear ? `הכנסה ${selectedYear}` : "הכנסה חודשית", value: selectedYear ? fmt(totals.totalPaid) : fmt(totals.monthlyRent), icon: "💰", gradient: "from-emerald-500 to-emerald-700" },
+              { label: profitCard.label, value: profitCard.value, icon: profitCard.positive ? "📈" : "📉", gradient: profitCard.positive ? "from-emerald-500 to-emerald-700" : "from-rose-500 to-rose-700" },
+            ];
+            return cards.map(({ label, value, icon, gradient }) => (
+              <div key={label} className={`relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br ${gradient} text-white`}>
+                <div className="absolute -top-3 -left-3 text-5xl opacity-15 select-none">{icon}</div>
+                <div className="text-[11px] font-bold text-white/75 uppercase tracking-wide mb-1.5 relative">{label}</div>
+                <div className="text-2xl font-extrabold relative drop-shadow-sm">{value}</div>
+              </div>
+            ));
+          })()}
         </div>
         {showTax && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="bg-amber-50 rounded-xl border border-amber-200 p-5">
-              <div className="text-xs font-semibold text-amber-600 uppercase mb-1">מס 10% משוער</div>
-              <div className="text-2xl font-bold text-amber-600">{fmt(totals.tax10)}</div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-xl border border-amber-500/30 p-5 bg-gradient-to-br from-amber-500/15 to-amber-700/5">
+              <div className="text-xs font-semibold text-amber-500 uppercase mb-1">מס 10% משוער</div>
+              <div className="text-2xl font-bold text-amber-400">{fmt(totals.tax10)}</div>
+              <div className="text-xs text-amber-500/80 mt-1">10% מ-{fmt(totals.totalPaid)} הכנסה</div>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-xs font-semibold text-gray-400 uppercase mb-1">נטו לפני מס</div>
+              <div className="text-xs font-semibold text-gray-400 uppercase mb-1">רווח לפני מס</div>
               <div className={`text-2xl font-bold ${totals.netIncome >= 0 ? "text-green-600" : "text-red-500"}`}>{fmt(totals.netIncome)}</div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="text-xs font-semibold text-gray-400 uppercase mb-1">נטו אחרי מס</div>
-              <div className={`text-2xl font-bold ${totals.netAfterTax >= 0 ? "text-green-600" : "text-red-500"}`}>{fmt(totals.netAfterTax)}</div>
+              <div className="text-xs text-gray-400 mt-1">הכנסות פחות הוצאות</div>
             </div>
           </div>
         )}
@@ -314,7 +324,8 @@ export default function ReportsPage() {
         {/* Per-property summary table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2.5">
+              <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
               סיכום לפי נכס{selectedYear ? ` — ${selectedYear}` : ""}
             </h2>
           </div>
@@ -393,7 +404,8 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Monthly breakdown */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">
+            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2.5">
+              <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600" />
               פעילות חודשית{selectedYear ? ` — ${selectedYear}` : ""}
             </h2>
             {monthly.length === 0 ? (
@@ -414,12 +426,12 @@ export default function ReportsPage() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 text-xs">
                           <span className="w-14 text-gray-500">הכנסה</span>
-                          <div className="flex-1"><Bar value={m.income} max={maxMonthlyIncome} color="bg-green-400" /></div>
+                          <div className="flex-1"><Bar value={m.income} max={maxMonthlyIncome} color="from-emerald-400 to-emerald-600" /></div>
                           <span className="w-20 text-left text-green-600 font-semibold">{fmt(m.income)}</span>
                         </div>
                         <div className="flex items-center gap-2 text-xs">
                           <span className="w-14 text-gray-500">הוצאות</span>
-                          <div className="flex-1"><Bar value={m.expenses} max={maxMonthlyIncome} color="bg-red-400" /></div>
+                          <div className="flex-1"><Bar value={m.expenses} max={maxMonthlyIncome} color="from-rose-400 to-rose-600" /></div>
                           <span className="w-20 text-left text-red-500 font-semibold">{fmt(m.expenses)}</span>
                         </div>
                       </div>
@@ -432,7 +444,8 @@ export default function ReportsPage() {
 
           {/* Expenses by category */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">
+            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2.5">
+              <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-orange-400 to-orange-600" />
               הוצאות לפי קטגוריה{selectedYear ? ` — ${selectedYear}` : ""}
             </h2>
             {Object.keys(expensesByCategory).length === 0 ? (
@@ -447,7 +460,7 @@ export default function ReportsPage() {
                         <span className="font-semibold text-gray-700">{EXPENSE_CAT_HE[cat] ?? cat}</span>
                         <span className="text-red-500 font-bold">{fmt(amount)}</span>
                       </div>
-                      <Bar value={amount} max={maxCatExpense} color="bg-orange-400" />
+                      <Bar value={amount} max={maxCatExpense} color="from-orange-400 to-orange-600" />
                     </div>
                   ))}
               </div>

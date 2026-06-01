@@ -581,7 +581,10 @@ export default function TasksPage() {
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">תזכורות</h1>
+          <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
+            <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+            תזכורות
+          </h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {relevant.length} רלוונטיות · {future.length} עתידיות
             {overdueCount > 0 && <span className="text-red-600 font-semibold"> · {overdueCount} פג מועד</span>}
@@ -788,6 +791,7 @@ export default function TasksPage() {
       {/* Relevant tasks */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 px-1">
+          <span className="inline-block w-1 h-4 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
           <h2 className="font-semibold text-gray-600 text-sm">רלוונטיות</h2>
           {overdueCount > 0 && (
             <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">{overdueCount} פג מועד</span>
@@ -832,23 +836,16 @@ export default function TasksPage() {
         <div className="space-y-2">
           <button
             onClick={() => setShowDone((v) => !v)}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors"
-            style={{
-              background: showDone ? "#f0fdf4" : "#f9fafb",
-              borderColor: "#86efac",
-            }}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 to-emerald-700/5 transition-colors hover:from-emerald-500/20"
           >
             <div className="flex items-center gap-2">
               <span className="text-lg">✅</span>
-              <h2 className="font-bold text-sm" style={{ color: "#166534" }}>הושלמו</h2>
-              <span
-                className="text-xs font-bold px-2 py-0.5 rounded-full"
-                style={{ background: "#dcfce7", color: "#166534" }}
-              >
+              <h2 className="font-bold text-sm text-emerald-300">הושלמו</h2>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
                 {done.length}
               </span>
             </div>
-            <span className="text-sm font-semibold" style={{ color: "#16a34a" }}>
+            <span className="text-sm font-semibold text-emerald-400">
               {showDone ? "סגור ▲" : "הצג ▼"}
             </span>
           </button>

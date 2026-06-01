@@ -209,7 +209,10 @@ export default function ExpensesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">הוצאות</h1>
+          <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
+            <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+            הוצאות
+          </h1>
           <p className="text-sm text-gray-500 mt-0.5">מעקב הוצאות לכל הנכסים</p>
         </div>
         <button onClick={openNew} className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700">
@@ -251,7 +254,7 @@ export default function ExpensesPage() {
           <button onClick={() => { setFilterCat(""); setFilterProp(""); setFilterYear(""); }}
             className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">נקה סינון ✕</button>
         )}
-        <div className="mr-auto px-3 py-1.5 bg-rose-50 text-rose-700 rounded-lg text-sm font-semibold">
+        <div className="mr-auto px-3.5 py-1.5 bg-gradient-to-br from-rose-500 to-rose-700 text-white rounded-lg text-sm font-bold drop-shadow-sm">
           סה״כ: ₪{total.toLocaleString()}
         </div>
       </div>
@@ -376,7 +379,7 @@ export default function ExpensesPage() {
             {filtered.map((e) => (
               <div key={e.id} className="px-5 py-4 hover:bg-slate-50">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
+                  <div className="w-10 h-10 bg-gradient-to-br from-rose-500/25 to-rose-700/15 ring-1 ring-rose-500/30 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
                     {CAT_ICON[e.category] || "📦"}
                   </div>
                   <div className="flex-1 min-w-0">

@@ -31,10 +31,11 @@ function daysUntilExpiry(lease: Lease): number {
 }
 
 function leaseStatus(lease: Lease): "active" | "future" | "ended" {
-  // DB status is the source of truth
-  if (lease.status === "active") return "active";
+  // חוזים שבוטלו/הסתיימו במפורש — תמיד לא בתוקף
   if (lease.status === "terminated" || lease.status === "expired" || lease.status === "ended") return "ended";
-  // Fallback to date-based for leases without a recognized status
+  // לכל היתר (כולל status="active") — קובעים לפי תאריכים ולא לפי שדה status:
+  // חוזים ישנים עלולים להישאר status="active" אחרי שתוקפם פג (ה-cron לא תמיד רץ),
+  // ולכן תאריך הסיום הוא מקור האמת. הנתונים עצמם נשמרים כהיסטוריה.
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const start = new Date(lease.startDate);
@@ -85,20 +86,20 @@ export default function LeasesPage() {
 
   const withStatus = leases.map((l) => ({ ...l, _status: leaseStatus(l) }));
 
-  // הסרת חוזים "עתידיים" שהם כפילויות של חוזה פעיל באותו נכס ואותם תאריכים
-  const deduped = withStatus.filter((lease) => {
-    if (lease._status !== "future") return true;
-    const propId = lease.properties?.id;
-    if (!propId) return true;
-    return !withStatus.some(
-      (other) =>
-        other.id !== lease.id &&
-        other._status === "active" &&
-        other.properties?.id === propId &&
-        other.startDate === lease.startDate &&
-        other.endDate === lease.endDate
-    );
-  });
+  // איחוד כפילויות: חוזים עם אותו נכס ואותם תאריכים (חוזה שיובא יותר מפעם אחת,
+  // או חידוש שנרשם בנפרד) מוצגים פעם אחת בלבד. שומרים נציג אחד לפי עדיפות
+  // בתוקף > עתידי > הסתיים — בלי למחוק את הנתונים עצמם.
+  const STATUS_RANK: Record<string, number> = { active: 0, future: 1, ended: 2 };
+  const dupKey = (l: (typeof withStatus)[number]) =>
+    `${l.properties?.id ?? l.id}|${(l.startDate ?? "").slice(0, 10)}|${(l.endDate ?? "").slice(0, 10)}`;
+  const chosen = new Map<string, (typeof withStatus)[number]>();
+  for (const lease of withStatus) {
+    const existing = chosen.get(dupKey(lease));
+    if (!existing || STATUS_RANK[lease._status] < STATUS_RANK[existing._status]) {
+      chosen.set(dupKey(lease), lease);
+    }
+  }
+  const deduped = withStatus.filter((l) => chosen.get(dupKey(l)) === l);
 
   const filtered = filter === "all" ? deduped : deduped.filter((l) => l._status === filter);
 
@@ -120,7 +121,10 @@ export default function LeasesPage() {
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">חוזים</h1>
+          <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
+            <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+            חוזים
+          </h1>
           <p className="text-sm text-gray-500 mt-0.5">כל חוזי השכירות שלך</p>
         </div>
         <Link

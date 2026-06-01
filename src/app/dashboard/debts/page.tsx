@@ -183,17 +183,21 @@ export default function DebtsPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">דוח חובות</h1>
+        <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
+          <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+          דוח חובות
+        </h1>
         <p className="text-sm text-gray-500 mt-0.5">תשלומים שלא התקבלו במלואם</p>
       </div>
 
       {/* Total */}
-      <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-red-700">סה״כ חוב פתוח</p>
-          <p className="text-3xl font-bold text-red-700 mt-1">₪{totalDebt.toLocaleString()}</p>
+      <div className="relative overflow-hidden rounded-2xl p-5 flex items-center justify-between bg-gradient-to-br from-rose-500 to-rose-700 text-white">
+        <span className="absolute -top-4 -left-3 text-7xl opacity-15 select-none">🔴</span>
+        <div className="relative">
+          <p className="text-sm font-semibold text-white/80">סה״כ חוב פתוח</p>
+          <p className="text-3xl font-extrabold mt-1 drop-shadow-sm">₪{totalDebt.toLocaleString()}</p>
         </div>
-        <div className="text-right text-sm text-red-600 space-y-0.5">
+        <div className="text-right text-sm text-white/80 space-y-0.5 relative">
           <p>{debts.length} רשומות חוב</p>
           <p>{Object.keys(byProperty).length} נכסים</p>
         </div>

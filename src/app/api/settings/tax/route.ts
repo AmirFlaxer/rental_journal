@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { backfillAutoTaxForYear, deleteAllAutoTaxExpenses } from "@/lib/auto-tax";
 
 export async function GET() {
   const session = await auth();
@@ -19,5 +20,13 @@ export async function POST(req: NextRequest) {
   await supabaseAdmin.auth.admin.updateUserById(session.user.id, {
     user_metadata: { auto_tax_enabled: autoTaxEnabled },
   });
-  return NextResponse.json({ ok: true });
+
+  // הפעלה → תיקון רטרואקטיבי מתחילת השנה; כיבוי → מחיקת כל הוצאות המס האוטומטיות
+  let affected = 0;
+  if (autoTaxEnabled) {
+    affected = await backfillAutoTaxForYear(supabaseAdmin, session.user.id);
+  } else {
+    affected = await deleteAllAutoTaxExpenses(supabaseAdmin, session.user.id);
+  }
+  return NextResponse.json({ ok: true, affected });
 }

@@ -425,7 +425,10 @@ export default function PaymentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">תקבולים</h1>
+          <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
+            <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+            תקבולים
+          </h1>
           <p className="text-sm text-gray-500 mt-0.5">מה צריך לסמן</p>
         </div>
         {properties.length > 1 && (
@@ -441,26 +444,26 @@ export default function PaymentsPage() {
 
       {/* KPI summary */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-          <p className="text-xs text-red-600 font-semibold">לתשלום</p>
-          <p className="text-xl font-bold text-red-700 mt-1">₪{totalDue.toLocaleString()}</p>
+        <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-rose-500 to-rose-700 text-white">
+          <p className="text-xs text-white/80 font-semibold">לתשלום</p>
+          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">₪{totalDue.toLocaleString()}</p>
         </div>
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-          <p className="text-xs text-amber-600 font-semibold">יתרה חלקית</p>
-          <p className="text-xl font-bold text-amber-700 mt-1">₪{totalDebt.toLocaleString()}</p>
+        <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-amber-700 text-white">
+          <p className="text-xs text-white/80 font-semibold">יתרה חלקית</p>
+          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">₪{totalDebt.toLocaleString()}</p>
         </div>
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-          <p className="text-xs text-emerald-600 font-semibold">שולם</p>
-          <p className="text-xl font-bold text-emerald-700 mt-1">₪{totalPaidAmt.toLocaleString()}</p>
+        <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-500 to-emerald-700 text-white">
+          <p className="text-xs text-white/80 font-semibold">שולם</p>
+          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">₪{totalPaidAmt.toLocaleString()}</p>
         </div>
       </div>
 
       {/* Action items */}
       {actionItems.length === 0 ? (
-        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl py-10 text-center space-y-2">
+        <div className="rounded-2xl py-10 text-center space-y-2 border border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 to-emerald-700/5">
           <div className="text-4xl">✅</div>
-          <p className="text-emerald-700 font-semibold">הכל מעודכן!</p>
-          <p className="text-xs text-emerald-600">אין תקבולים הממתינים לסימון</p>
+          <p className="text-emerald-300 font-semibold">הכל מעודכן!</p>
+          <p className="text-xs text-emerald-400/80">אין תקבולים הממתינים לסימון</p>
         </div>
       ) : (
         <section className="space-y-2">
