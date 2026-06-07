@@ -32,6 +32,9 @@ export default function SettingsPage() {
   const [pushSaving, setPushSaving] = useState(false);
   const [pushMsg, setPushMsg] = useState("");
 
+  const [cleanupRunning, setCleanupRunning] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<{ deleted: number; label: string } | null>(null);
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -186,6 +189,54 @@ export default function SettingsPage() {
       setTaxError("שגיאה בשמירת ההגדרה");
     } finally {
       setTaxSaving(false);
+    }
+  };
+
+  const handleCleanupOrphanTasks = async () => {
+    setCleanupRunning(true);
+    setCleanupResult(null);
+    try {
+      const [tasksRes, leasesRes] = await Promise.all([
+        fetch("/api/tasks").then((r) => r.json()),
+        fetch("/api/leases").then((r) => r.json()),
+      ]);
+      if (!Array.isArray(tasksRes) || !Array.isArray(leasesRes)) throw new Error("שגיאה בטעינת נתונים");
+
+      const leaseIds = new Set((leasesRes as { id: string }[]).map((l) => l.id));
+      const toDelete: string[] = [];
+      const seen = new Map<string, string>();
+
+      for (const task of tasksRes as { id: string; category: string; relatedEntityType?: string; relatedEntityId?: string; dueDate: string; completedAt?: string }[]) {
+        if (task.category !== "Rent Collection" || task.relatedEntityType !== "lease" || !task.relatedEntityId) continue;
+
+        // יתומים — חוזה לא קיים
+        if (!leaseIds.has(task.relatedEntityId)) {
+          toDelete.push(task.id);
+          continue;
+        }
+
+        // כפילויות — אותו חוזה+חודש
+        const key = `${task.relatedEntityId}-${task.dueDate.slice(0, 7)}`;
+        if (seen.has(key)) {
+          const prevId = seen.get(key)!;
+          const prevTask = (tasksRes as { id: string; completedAt?: string }[]).find((t) => t.id === prevId);
+          if (task.completedAt && !prevTask?.completedAt) {
+            toDelete.push(prevId);
+            seen.set(key, task.id);
+          } else {
+            toDelete.push(task.id);
+          }
+        } else {
+          seen.set(key, task.id);
+        }
+      }
+
+      await Promise.all(toDelete.map((id) => fetch(`/api/tasks/${id}`, { method: "DELETE" })));
+      setCleanupResult({ deleted: toDelete.length, label: "משימות תזכורת שק יתומות/כפולות" });
+    } catch {
+      setCleanupResult({ deleted: -1, label: "שגיאה בניקוי" });
+    } finally {
+      setCleanupRunning(false);
     }
   };
 
@@ -384,6 +435,39 @@ export default function SettingsPage() {
             {pushMsg}
           </p>
         )}
+      </div>
+
+      {/* Maintenance */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-bold text-gray-800">תחזוקה</h2>
+          <p className="text-xs text-gray-500 mt-0.5">פעולות ניקוי חד-פעמיות לנתונים מיותרים שנצברו</p>
+        </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-gray-50">
+            <div>
+              <p className="text-sm font-semibold text-gray-800">ניקוי תזכורות שק יתומות / כפולות</p>
+              <p className="text-xs text-gray-500 mt-0.5">מוחק משימות "הפקדת שק" שהחוזה שלהן נמחק או שנוצרו כפולות בריצות ישנות</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleCleanupOrphanTasks}
+              disabled={cleanupRunning}
+              className="flex-shrink-0 mr-4 px-4 py-2 rounded-xl text-sm font-semibold border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 disabled:opacity-50 transition-colors"
+            >
+              {cleanupRunning ? "מנקה..." : "נקה"}
+            </button>
+          </div>
+          {cleanupResult && (
+            <p className={`text-sm font-medium ${cleanupResult.deleted < 0 ? "text-red-600" : "text-green-700"}`}>
+              {cleanupResult.deleted < 0
+                ? cleanupResult.label
+                : cleanupResult.deleted === 0
+                  ? "לא נמצאו פריטים לניקוי"
+                  : `נמחקו ${cleanupResult.deleted} ${cleanupResult.label}`}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Password */}
