@@ -259,6 +259,9 @@ export default function TasksPage() {
 
   const virtualCheck = generateCheckReminders(leases, dbTasks);
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   // כל המשימות הפתוחות: DB + וירטואליות, עם ביטול כפילויות לפי נכס+חודש
   const leaseToPropertyId = new Map(leases.map((l) => [l.id, l.properties?.id ?? l.id]));
   const dedupedPending: Task[] = [];
@@ -279,9 +282,6 @@ export default function TasksPage() {
     dedupedPending.push(t);
   }
   const allPending = dedupedPending;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
   const relevant = allPending.filter((t) => isRelevant(t));
   const future = allPending.filter((t) => !isRelevant(t));
