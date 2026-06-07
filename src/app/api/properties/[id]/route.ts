@@ -1,98 +1,54 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
-import { camelKeys, snakeKeys } from "@/lib/supabase/case";
-import { leaseSchema } from "@/lib/validations";
-import { z } from "zod";
+import { camelKeys } from "@/lib/supabase/case";
 
-export async function GET() {
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { id } = await params;
   const supabase = await createClient();
-  // Auto-expire leases whose end date has passed
-  await supabase
-    .from("leases")
-    .update({ status: "expired" })
-    .eq("user_id", session.user.id)
-    .in("status", ["active", "paused"])
-    .lt("end_date", new Date().toISOString().slice(0, 10));
 
   const { data, error } = await supabase
-    .from("leases")
-    .select("*, properties(*), tenant:tenants(*), payments(*)")
+    .from("properties")
+    .select(`
+      *,
+      leases(
+        *,
+        tenant:tenants(*),
+        lease_documents(*)
+      ),
+      expenses(*),
+      payments(*)
+    `)
+    .eq("id", id)
     .eq("user_id", session.user.id)
-    .order("created_at", { ascending: false });
+    .single();
 
-  if (error) return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
+  if (error || !data) return NextResponse.json({ error: "הנכס לא נמצא" }, { status: 404 });
   return NextResponse.json(camelKeys(data));
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const body = await request.json();
-    const data = leaseSchema.parse(body);
+  const { id } = await params;
+  const supabase = await createClient();
 
-    const supabase = await createClient();
+  const { error } = await supabase
+    .from("properties")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", session.user.id);
 
-    // Verify property belongs to user
-    const { data: property } = await supabase
-      .from("properties")
-      .select("id")
-      .eq("id", data.propertyId)
-      .eq("user_id", session.user.id)
-      .single();
-
-    if (!property) return NextResponse.json({ error: "Property not found or unauthorized" }, { status: 404 });
-
-    // Block overlapping active leases on same property
-    const { data: overlap } = await supabase
-      .from("leases")
-      .select("id")
-      .eq("property_id", data.propertyId)
-      .eq("user_id", session.user.id)
-      .neq("status", "ended")
-      .lte("start_date", data.endDate)
-      .gte("end_date", data.startDate)
-      .limit(1)
-      .maybeSingle();
-
-    if (overlap) return NextResponse.json({ error: "לנכס זה כבר קיים חוזה פעיל בתקופה זו" }, { status: 409 });
-
-    // Verify tenant belongs to user
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("id", data.tenantId)
-      .eq("user_id", session.user.id)
-      .single();
-
-    if (!tenant) return NextResponse.json({ error: "Tenant not found or unauthorized" }, { status: 404 });
-
-    // כאשר יש הצמדה ולא סופקו ערכי בסיס, נגדיר ברירות מחדל
-    if (data.linkageType !== "none") {
-      if (!data.baseAmount) data.baseAmount = data.monthlyRent;
-      if (!data.baseDate) data.baseDate = data.startDate;
-    }
-
-    const { data: row, error } = await supabase
-      .from("leases")
-      .insert({ ...(snakeKeys(data) as object), user_id: session.user.id })
-      .select("*, properties(*), tenant:tenants(*), payments(*)")
-      .single();
-
-    if (error) {
-      console.error("Create lease error:", error);
-      return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
-    }
-
-    return NextResponse.json(camelKeys(row), { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError)
-      return NextResponse.json({ error: "Validation failed", details: error.flatten() }, { status: 400 });
-    return NextResponse.json({ error: "Failed to create lease" }, { status: 500 });
-  }
+  if (error) return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
+  return NextResponse.json({ success: true });
 }
