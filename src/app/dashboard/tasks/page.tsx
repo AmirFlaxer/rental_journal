@@ -528,6 +528,7 @@ export default function TasksPage() {
           {/* Delete */}
           {!t.isVirtual && (
             <button
+              type="button"
               onClick={() => remove(t)}
               className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-opacity hover:opacity-80"
               style={isDone ? { background: "#f3f4f6", color: "#9ca3af" } : { background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.9)" }}
@@ -537,72 +538,68 @@ export default function TasksPage() {
           )}
         </div>
 
-        {/* שורה תחתונה: קטגוריה + נכס + עדיפות + בוצע */}
-        <div className="flex items-center gap-2 px-3 pb-3 flex-wrap">
-          {/* Category badge */}
-          <span
-            className="text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0"
-            style={isDone ? { background: catBg, color: catFg } : { background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.95)" }}
-          >
-            {CAT_HE[t.category]}
-          </span>
-
-          {/* Property name — truncated */}
-          {propertyName && (
+        {/* שורה תחתונה: קטגוריה+נכס משמאל, עדיפות+בוצע מימין */}
+        <div className="flex items-center justify-between gap-2 px-3 pb-3">
+          {/* שמאל: badges */}
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
             <span
-              className="text-xs font-semibold truncate max-w-[130px]"
-              style={{ color: isDone ? "#94a3b8" : "rgba(255,255,255,0.9)", textShadow: isDone ? "none" : shadow }}
+              className="text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0"
+              style={isDone ? { background: catBg, color: catFg } : { background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.95)" }}
             >
-              {propertyName}
+              {CAT_HE[t.category]}
             </span>
-          )}
+            {propertyName && (
+              <span
+                className="text-xs font-semibold truncate"
+                style={{ color: isDone ? "#94a3b8" : "rgba(255,255,255,0.9)", textShadow: isDone ? "none" : shadow }}
+              >
+                {propertyName}
+              </span>
+            )}
+            {t.description && (
+              <span className="text-xs truncate" style={{ color: isDone ? "#9ca3af" : "rgba(255,255,255,0.75)" }}>
+                {t.description}
+              </span>
+            )}
+            {t.isVirtual && (
+              <span className="text-xs flex-shrink-0" style={{ color: isDone ? "#9ca3af" : "rgba(255,255,255,0.65)" }}>
+                אוטומטי
+              </span>
+            )}
+          </div>
 
-          {/* Description */}
-          {t.description && (
-            <span className="text-xs truncate max-w-[100px]" style={{ color: isDone ? "#9ca3af" : "rgba(255,255,255,0.75)" }}>
-              {t.description}
-            </span>
-          )}
-
-          {/* Auto badge */}
-          {t.isVirtual && (
-            <span className="text-xs flex-shrink-0" style={{ color: isDone ? "#9ca3af" : "rgba(255,255,255,0.65)" }}>
-              אוטומטי
-            </span>
-          )}
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Priority */}
-          <span
-            className="text-xs px-2 py-0.5 rounded-lg font-bold flex-shrink-0"
-            style={isDone
-              ? { background: PRIORITY_BG[t.priority] ?? "#f1f5f9", color: PRIORITY_FG[t.priority] ?? "#475569" }
-              : { background: livePriBg, color: livePriFg }
-            }
-          >
-            {PRIORITY_HE[t.priority]}
-          </span>
-
-          {/* Complete / Undo */}
-          {!isDone ? (
-            <button
-              onClick={() => complete(t)}
-              className="flex-shrink-0 px-3 py-1 rounded-lg font-bold text-xs text-white"
-              style={{ background: "#16a34a", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }}
+          {/* ימין: עדיפות + כפתור פעולה */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span
+              className="text-xs px-2 py-0.5 rounded-lg font-bold"
+              style={isDone
+                ? { background: PRIORITY_BG[t.priority] ?? "#f1f5f9", color: PRIORITY_FG[t.priority] ?? "#475569" }
+                : { background: livePriBg, color: livePriFg }
+              }
             >
-              בוצע ✓
-            </button>
-          ) : (
-            <button
-              onClick={() => reopen(t.id)}
-              className="flex-shrink-0 px-3 py-1 rounded-lg font-semibold text-xs border"
-              style={{ background: "#f0fdf4", color: "#166534", borderColor: "#86efac" }}
-            >
-              בטל
-            </button>
-          )}
+              {PRIORITY_HE[t.priority]}
+            </span>
+            {/* Complete / Undo */}
+            {!isDone ? (
+              <button
+                type="button"
+                onClick={() => complete(t)}
+                className="px-3 py-1 rounded-lg font-bold text-xs text-white"
+                style={{ background: "#16a34a", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }}
+              >
+                בוצע ✓
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => reopen(t.id)}
+                className="px-3 py-1 rounded-lg font-semibold text-xs border"
+                style={{ background: "#f0fdf4", color: "#166534", borderColor: "#86efac" }}
+              >
+                בטל
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
