@@ -141,14 +141,16 @@ export default function LinkageComparisonPage() {
       fetch("/api/index-rates").then((r) => r.json()),
     ]).then(([leasesData, ratesData]) => {
       const all: Lease[] = Array.isArray(leasesData) ? leasesData : [];
-      // מציג רק חוזים פעילים; אם אין — מציג הכל ללא כפולים לפי נכס+שוכר
-      const active = all.filter((l) => l.status === "active");
-      const list = active.length > 0 ? active : all.filter((l, i, arr) =>
-        arr.findIndex((x) => x.properties?.title === l.properties?.title &&
-          x.tenant?.firstName === l.tenant?.firstName) === i
-      );
-      setLeases(list);
-      if (list.length > 0) setSelectedId(list[0].id);
+      // מציג את כל החוזים — פעילים קודם, אחר כך שאר הסטטוסים
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const sorted = [...all].sort((a, b) => {
+        const aActive = new Date(a.startDate) <= today && new Date(a.endDate) >= today ? 0 : 1;
+        const bActive = new Date(b.startDate) <= today && new Date(b.endDate) >= today ? 0 : 1;
+        if (aActive !== bActive) return aActive - bActive;
+        return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+      });
+      setLeases(sorted);
+      if (sorted.length > 0) setSelectedId(sorted[0].id);
       if (Array.isArray(ratesData)) setRates(ratesData);
     }).finally(() => setLoading(false));
   }, []);
