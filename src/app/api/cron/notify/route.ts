@@ -21,14 +21,17 @@ async function sendToUser(subs: PushSubscription[], title: string, body: string,
 }
 
 export async function GET(req: Request) {
-  webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT ?? "mailto:admin@example.com",
-    process.env.VAPID_PUBLIC_KEY ?? "",
-    process.env.VAPID_PRIVATE_KEY ?? ""
-  );
+  const vapidSubject = process.env.VAPID_SUBJECT;
+  const vapidPublic = process.env.VAPID_PUBLIC_KEY;
+  const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
+  if (!vapidSubject || !vapidPublic || !vapidPrivate) {
+    return NextResponse.json({ error: "VAPID keys not configured" }, { status: 503 });
+  }
+  webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
 
+  const secret = process.env.CRON_SECRET;
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!secret || authHeader !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { camelKeys } from "@/lib/supabase/case";
@@ -14,6 +14,6 @@ export async function GET() {
     .order("period_date", { ascending: false })
     .limit(240); // ~10 שנים של נתונים חודשיים
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
   return NextResponse.json(camelKeys(data));
 }

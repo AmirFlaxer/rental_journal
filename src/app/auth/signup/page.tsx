@@ -38,7 +38,7 @@ export default function SignUp() {
     });
 
     if (error) {
-      setError(error.message);
+      setError("שגיאה בהרשמה - בדוק שהמייל תקין והסיסמה עומדת בדרישות");
       setIsLoading(false);
     } else {
       router.push("/dashboard");
@@ -47,68 +47,73 @@ export default function SignUp() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">יצירת חשבון</h1>
+    <div className="flex items-center justify-center min-h-screen" style={{ background: "var(--bg-base)" }}>
+      <div className="p-8 rounded-2xl w-full max-w-md" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "0 4px 24px rgba(0,0,0,0.5)" }}>
+        <h1 className="text-2xl font-bold mb-6 text-center" style={{ color: "var(--text-1)" }}>יצירת חשבון</h1>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <div className="mb-4 p-3 rounded-lg text-sm" role="alert" style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", color: "#f87171" }}>
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label htmlFor="name" className="block text-gray-700 font-semibold mb-2">שם מלא</label>
+            <label htmlFor="name" className="block font-semibold mb-2 text-sm" style={{ color: "var(--text-2)" }}>שם מלא</label>
             <input
               id="name" type="text" value={name}
               onChange={(e) => setName(e.target.value)} required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2"
+              style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-1)" }}
               placeholder="ישראל ישראלי"
             />
           </div>
 
           <div className="mb-4">
-            <label htmlFor="email" className="block text-gray-700 font-semibold mb-2">אימייל</label>
+            <label htmlFor="email" className="block font-semibold mb-2 text-sm" style={{ color: "var(--text-2)" }}>אימייל</label>
             <input
               id="email" type="email" value={email}
               onChange={(e) => setEmail(e.target.value)} required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2"
+              style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-1)" }}
               placeholder="your@email.com"
             />
           </div>
 
           <div className="mb-4">
-            <label htmlFor="password" className="block text-gray-700 font-semibold mb-2">סיסמה</label>
+            <label htmlFor="password" className="block font-semibold mb-2 text-sm" style={{ color: "var(--text-2)" }}>סיסמה</label>
             <input
               id="password" type="password" value={password}
               onChange={(e) => setPassword(e.target.value)} required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2"
+              style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-1)" }}
               placeholder="••••••••"
             />
           </div>
 
           <div className="mb-6">
-            <label htmlFor="confirmPassword" className="block text-gray-700 font-semibold mb-2">אימות סיסמה</label>
+            <label htmlFor="confirmPassword" className="block font-semibold mb-2 text-sm" style={{ color: "var(--text-2)" }}>אימות סיסמה</label>
             <input
               id="confirmPassword" type="password" value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)} required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2"
+              style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-1)" }}
               placeholder="••••••••"
             />
           </div>
 
           <button
             type="submit" disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition"
+            className="w-full py-2.5 rounded-xl font-semibold transition disabled:opacity-50"
+            style={{ background: "var(--accent)", color: "#fff" }}
           >
             {isLoading ? "יוצר חשבון..." : "הרשמה"}
           </button>
         </form>
 
-        <p className="text-center text-gray-600 mt-4">
+        <p className="text-center mt-4 text-sm" style={{ color: "var(--text-2)" }}>
           כבר יש לך חשבון?{" "}
-          <Link href="/auth/signin" className="text-blue-600 hover:underline font-semibold">התחברות</Link>
+          <Link href="/auth/signin" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>התחברות</Link>
         </p>
       </div>
     </div>

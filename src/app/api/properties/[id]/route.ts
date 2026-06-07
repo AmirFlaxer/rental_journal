@@ -1,25 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { camelKeys, snakeKeys } from "@/lib/supabase/case";
-import { propertySchema } from "@/lib/validations";
+import { leaseSchema } from "@/lib/validations";
 import { z } from "zod";
 
-interface RouteParams { params: Promise<{ id: string }> }
-
-async function getOwnedProperty(id: string, userId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("properties")
-    .select("*")
-    .eq("id", id)
-    .eq("user_id", userId)
-    .single();
-  return { data, error };
-}
-
-export async function GET(_req: NextRequest, { params }: RouteParams) {
-  const { id } = await params;
+export async function GET() {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -27,62 +13,86 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   // Auto-expire leases whose end date has passed
   await supabase
     .from("leases")
-    .update({ status: "ended" })
+    .update({ status: "expired" })
     .eq("user_id", session.user.id)
-    .eq("property_id", id)
     .in("status", ["active", "paused"])
     .lt("end_date", new Date().toISOString().slice(0, 10));
 
   const { data, error } = await supabase
-    .from("properties")
-    .select(`*, leases(*, tenant:tenants(*), payments(*), lease_documents(*)), expenses(*), payments(*)`)
-    .eq("id", id)
+    .from("leases")
+    .select("*, properties(*), tenant:tenants(*), payments(*)")
     .eq("user_id", session.user.id)
-    .single();
+    .order("created_at", { ascending: false });
 
-  if (error || !data) return NextResponse.json({ error: "Property not found" }, { status: 404 });
+  if (error) return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
   return NextResponse.json(camelKeys(data));
 }
 
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export async function POST(request: NextRequest) {
   try {
-    const { id } = await params;
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { error: notFound } = await getOwnedProperty(id, session.user.id);
-    if (notFound) return NextResponse.json({ error: "Property not found" }, { status: 404 });
-
     const body = await request.json();
-    const data = propertySchema.parse(body);
+    const data = leaseSchema.parse(body);
 
     const supabase = await createClient();
-    const { data: row, error } = await supabase
+
+    // Verify property belongs to user
+    const { data: property } = await supabase
       .from("properties")
-      .update(snakeKeys(data) as object)
-      .eq("id", id)
-      .select()
+      .select("id")
+      .eq("id", data.propertyId)
+      .eq("user_id", session.user.id)
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(camelKeys(row));
+    if (!property) return NextResponse.json({ error: "Property not found or unauthorized" }, { status: 404 });
+
+    // Block overlapping active leases on same property
+    const { data: overlap } = await supabase
+      .from("leases")
+      .select("id")
+      .eq("property_id", data.propertyId)
+      .eq("user_id", session.user.id)
+      .neq("status", "ended")
+      .lte("start_date", data.endDate)
+      .gte("end_date", data.startDate)
+      .limit(1)
+      .maybeSingle();
+
+    if (overlap) return NextResponse.json({ error: "לנכס זה כבר קיים חוזה פעיל בתקופה זו" }, { status: 409 });
+
+    // Verify tenant belongs to user
+    const { data: tenant } = await supabase
+      .from("tenants")
+      .select("id")
+      .eq("id", data.tenantId)
+      .eq("user_id", session.user.id)
+      .single();
+
+    if (!tenant) return NextResponse.json({ error: "Tenant not found or unauthorized" }, { status: 404 });
+
+    // כאשר יש הצמדה ולא סופקו ערכי בסיס, נגדיר ברירות מחדל
+    if (data.linkageType !== "none") {
+      if (!data.baseAmount) data.baseAmount = data.monthlyRent;
+      if (!data.baseDate) data.baseDate = data.startDate;
+    }
+
+    const { data: row, error } = await supabase
+      .from("leases")
+      .insert({ ...(snakeKeys(data) as object), user_id: session.user.id })
+      .select("*, properties(*), tenant:tenants(*), payments(*)")
+      .single();
+
+    if (error) {
+      console.error("Create lease error:", error);
+      return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
+    }
+
+    return NextResponse.json(camelKeys(row), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError)
       return NextResponse.json({ error: "Validation failed", details: error.flatten() }, { status: 400 });
-    return NextResponse.json({ error: "Failed to update property" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create lease" }, { status: 500 });
   }
-}
-
-export async function DELETE(_req: NextRequest, { params }: RouteParams) {
-  const { id } = await params;
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { error: notFound } = await getOwnedProperty(id, session.user.id);
-  if (notFound) return NextResponse.json({ error: "Property not found" }, { status: 404 });
-
-  const supabase = await createClient();
-  const { error } = await supabase.from("properties").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ message: "Property deleted successfully" });
 }

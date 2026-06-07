@@ -9,8 +9,8 @@
   --text-1:     #f0f0f0;
   --text-2:     #c0c0c0;
   --text-3:     #888888;
-  --accent:     #e91e8c;
-  --accent-dim: rgba(233,30,140,0.18);
+  --accent:     #f53892; /* הוגבה מ-#e91e8c לעמוד ב-WCAG AA 4.5:1 על bg-surface */
+  --accent-dim: rgba(245,56,146,0.18);
 }
 
 /* ── Base ───────────────────────────────────────────── */
@@ -66,7 +66,6 @@ h1, h2 {
 .border-gray-100,
 .border-gray-200,
 .border-gray-300   { border-color: var(--border) !important; }
-.overflow-hidden   { border-color: transparent !important; }
 
 /* ── Inputs / selects ───────────────────────────────── */
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
@@ -81,7 +80,7 @@ select option { background: var(--bg-elevated); color: var(--text-1); }
 
 /* ── Accent: replace indigo with pink ───────────────── */
 .bg-indigo-600             { background-color: var(--accent) !important; }
-.hover\:bg-indigo-700:hover{ background-color: #c4176f     !important; }
+.hover\:bg-indigo-700:hover{ background-color: #d1287a     !important; }
 .text-indigo-600,
 .text-indigo-700,
 .text-indigo-400           { color: var(--accent)           !important; }
@@ -96,7 +95,7 @@ select option { background: var(--bg-elevated); color: var(--text-1); }
 
 /* Blue → accent */
 .bg-blue-600               { background-color: var(--accent) !important; }
-.hover\:bg-blue-700:hover  { background-color: #c4176f     !important; }
+.hover\:bg-blue-700:hover  { background-color: #d1287a     !important; }
 .text-blue-600,
 .text-blue-700             { color: var(--accent)           !important; }
 .bg-blue-50,

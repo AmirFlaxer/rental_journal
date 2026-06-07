@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ error: "שגיאה בהרשמה - בדוק שהמייל תקין והסיסמה עומדת בדרישות" }, { status: 400 });
     }
 
     return NextResponse.json({ ok: true }, { status: 201 });

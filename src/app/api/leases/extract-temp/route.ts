@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { cookies } from "next/headers";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 // Allow up to 5 minutes for large model cold-starts
 export const maxDuration = 300;
@@ -119,8 +119,8 @@ export async function POST(request: NextRequest) {
         return;
       }
 
-      const cookieStore = await cookies();
-      const provider = cookieStore.get("llm_provider")?.value || process.env.LLM_PROVIDER || "gemini";
+      const { data: { user: dbUser } } = await supabaseAdmin.auth.admin.getUserById(session.user.id);
+      const provider = (dbUser?.user_metadata?.llm_provider as string | undefined) || process.env.LLM_PROVIDER || "gemini";
       if (provider === "anthropic" && !process.env.ANTHROPIC_API_KEY) {
         await send({ type: "error", text: "מפתח ANTHROPIC_API_KEY חסר ב-.env" });
         return;

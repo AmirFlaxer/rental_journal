@@ -147,19 +147,19 @@ export default function Dashboard() {
       <div className="flex flex-wrap gap-3">
         <Link href="/dashboard/leases/import"
           className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 shadow-sm shadow-indigo-200 transition-all">
-          <span>📥</span> ייבוא חוזה
+          <span aria-hidden="true">📥</span> ייבוא חוזה
         </Link>
         <Link href="/dashboard/properties/new"
           className="flex items-center gap-2 px-5 py-2.5 bg-white text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-50 border border-gray-200 transition-all">
-          <span>🏢</span> נכס חדש
+          <span aria-hidden="true">🏢</span> נכס חדש
         </Link>
         <Link href="/dashboard/reports"
           className="flex items-center gap-2 px-5 py-2.5 bg-white text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-50 border border-gray-200 transition-all">
-          <span>📊</span> דוחות
+          <span aria-hidden="true">📊</span> דוחות
         </Link>
         <Link href="/dashboard/reports/tax"
           className="flex items-center gap-2 px-5 py-2.5 bg-orange-50 text-orange-700 rounded-xl font-semibold text-sm hover:bg-orange-100 border border-orange-200 transition-all">
-          <span>📋</span> דוח מס שנתי
+          <span aria-hidden="true">📋</span> דוח מס שנתי
         </Link>
       </div>
 
@@ -167,7 +167,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
         {stats.map((s) => (
           <Link key={s.label} href={s.href} className={`relative overflow-hidden bg-gradient-to-br ${s.gradient} text-white rounded-2xl p-4 flex flex-col gap-1.5 hover:brightness-110 transition-all`}>
-            <span className="absolute -top-2 -left-2 text-5xl opacity-15 select-none">{s.icon}</span>
+            <span className="absolute -top-2 -left-2 text-5xl opacity-15 select-none" aria-hidden="true">{s.icon}</span>
             <div className="text-xl font-extrabold relative drop-shadow-sm">{s.value}</div>
             {"subValue" in s && s.subValue && (
               <div className="text-xs font-semibold text-white/80 relative">{s.subValue}</div>
@@ -180,7 +180,7 @@ export default function Dashboard() {
       {/* Expiring leases warning */}
       {expiringLeases.length > 0 && (
         <div className="rounded-2xl p-4 space-y-2 border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-amber-700/5">
-          <p className="text-sm font-bold text-amber-300">⚠️ חוזים שעומדים לפוג בקרוב</p>
+          <p className="text-sm font-bold text-amber-300"><span aria-hidden="true">⚠️</span> חוזים שעומדים לפוג בקרוב</p>
           {expiringLeases.map((l) => (
             <Link key={l.id} href="/dashboard/leases"
               className="flex items-center justify-between bg-white rounded-xl px-4 py-2.5 border border-amber-500/20 hover:border-amber-400/50 transition-colors">
@@ -210,17 +210,17 @@ export default function Dashboard() {
 
         {properties.length === 0 ? (
           <div className="bg-white rounded-2xl px-6 py-14 text-center space-y-4">
-            <div className="text-5xl">🏠</div>
+            <div className="text-5xl" aria-hidden="true">🏠</div>
             <p className="text-gray-500 font-medium">עדיין אין נכסים</p>
             <p className="text-gray-400 text-sm">התחל בהוספת נכס או בייבוא חוזה</p>
             <div className="flex gap-3 justify-center pt-2">
               <Link href="/dashboard/leases/import"
                 className="px-5 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700">
-                📥 ייבוא חוזה
+                <span aria-hidden="true">📥</span> ייבוא חוזה
               </Link>
               <Link href="/dashboard/properties/new"
                 className="px-5 py-2 bg-white text-gray-700 rounded-xl font-semibold text-sm border border-gray-200 hover:bg-gray-50">
-                🏢 הוסף נכס
+                <span aria-hidden="true">🏢</span> הוסף נכס
               </Link>
             </div>
           </div>

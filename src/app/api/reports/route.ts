@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { camelKeys } from "@/lib/supabase/case";
@@ -17,7 +17,7 @@ export async function GET() {
       .eq("user_id", session.user.id)
       .order("created_at", { ascending: false });
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
 
     const propertyStats = (properties as PropertyRow[] ?? []).map((p) => {
       // מסנן לפי תאריכים ולא רק status — חוזים ישנים שנשארו "active" לא נספרים

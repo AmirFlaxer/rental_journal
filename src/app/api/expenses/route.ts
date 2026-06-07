@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { camelKeys, snakeKeys } from "@/lib/supabase/case";
@@ -16,7 +16,7 @@ export async function GET() {
     .eq("user_id", session.user.id)
     .order("date", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
   return NextResponse.json(camelKeys(data));
 }
 
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       .select("*, properties(*)")
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
     return NextResponse.json(camelKeys(row), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError)

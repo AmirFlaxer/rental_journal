@@ -104,8 +104,8 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const cookieStore = await cookies();
-    const provider = cookieStore.get("llm_provider")?.value || process.env.LLM_PROVIDER || "gemini";
+    const { data: { user: dbUser } } = await supabaseAdmin.auth.admin.getUserById(session.user.id);
+    const provider = (dbUser?.user_metadata?.llm_provider as string | undefined) || process.env.LLM_PROVIDER || "gemini";
     if (provider === "anthropic" && !process.env.ANTHROPIC_API_KEY)
       return NextResponse.json({ error: "מפתח API של Anthropic לא מוגדר. הוסף ANTHROPIC_API_KEY ל-.env" }, { status: 503 });
 
