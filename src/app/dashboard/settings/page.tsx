@@ -208,7 +208,7 @@ export default function SettingsPage() {
       ]);
       if (!Array.isArray(tasksRes) || !Array.isArray(leasesRes)) throw new Error("שגיאה בטעינת נתונים");
 
-      const leaseIds = new Set((leasesRes as { id: string }[]).map((l) => l.id));
+      const leaseMap = new Map((leasesRes as { id: string; startDate: string }[]).map((l) => [l.id, l]));
       const toDelete: string[] = [];
       const seen = new Map<string, string>();
 
@@ -216,7 +216,16 @@ export default function SettingsPage() {
         if (task.category !== "Rent Collection" || task.relatedEntityType !== "lease" || !task.relatedEntityId) continue;
 
         // יתומים — חוזה לא קיים
-        if (!leaseIds.has(task.relatedEntityId)) {
+        if (!leaseMap.has(task.relatedEntityId)) {
+          toDelete.push(task.id);
+          continue;
+        }
+
+        // תאריך שגוי — יום שלא תואם את יום ההתחלה של החוזה (נוצר לפני תיקון באג)
+        const lease = leaseMap.get(task.relatedEntityId)!;
+        const expectedDay = new Date(lease.startDate).getDate();
+        const taskDay = new Date(task.dueDate).getDate();
+        if (!task.completedAt && taskDay !== expectedDay) {
           toDelete.push(task.id);
           continue;
         }
