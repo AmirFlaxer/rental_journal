@@ -247,7 +247,21 @@ export default function TasksPage() {
           }
         }
       }
-      // מחק כפילויות ברקע
+      // מחק גם Rent Collection tasks שהחוזה שלהם לא קיים (יתומים מריצות ישנות)
+      const leaseIds = new Set((Array.isArray(l) ? l as { id: string }[] : []).map((x) => x.id));
+      for (const task of t as Task[]) {
+        if (
+          task.category === "Rent Collection" &&
+          task.relatedEntityType === "lease" &&
+          task.relatedEntityId &&
+          !leaseIds.has(task.relatedEntityId) &&
+          !toDelete.includes(task.id)
+        ) {
+          toDelete.push(task.id);
+        }
+      }
+
+      // מחק כפילויות ויתומים ברקע
       toDelete.forEach((id) => fetch(`/api/tasks/${id}`, { method: "DELETE" }));
       const cleanedTasks = (t as Task[]).filter((task) => !toDelete.includes(task.id));
       setDbTasks(cleanedTasks);
