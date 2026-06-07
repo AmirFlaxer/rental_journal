@@ -197,13 +197,21 @@ export default function LinkageComparisonPage() {
                   onChange={(e) => { setSelectedId(e.target.value); setSelectedType(null); }}
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  {leases.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.properties?.title ?? "נכס"} —{" "}
-                      {l.tenant ? `${l.tenant.firstName} ${l.tenant.lastName}` : "שוכר"} —{" "}
-                      ₪{l.monthlyRent.toLocaleString()} לחודש
-                    </option>
-                  ))}
+                  {leases.map((l) => {
+                    const today = new Date(); today.setHours(0,0,0,0);
+                    const isActive = new Date(l.startDate) <= today && new Date(l.endDate) >= today;
+                    const tenantName = l.tenant?.firstName || l.tenant?.lastName
+                      ? `${l.tenant.firstName ?? ""} ${l.tenant.lastName ?? ""}`.trim()
+                      : "ללא שוכר";
+                    const startY = new Date(l.startDate).getFullYear();
+                    const endY = new Date(l.endDate).getFullYear();
+                    return (
+                      <option key={l.id} value={l.id}>
+                        {isActive ? "● " : "○ "}
+                        {l.properties?.title ?? "נכס"} — {tenantName} — ₪{l.monthlyRent.toLocaleString()} ({startY}-{endY})
+                      </option>
+                    );
+                  })}
                 </select>
                 {lease && (
                   <p className="text-xs text-gray-400 mt-2">
@@ -216,21 +224,37 @@ export default function LinkageComparisonPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">תדירות עדכון</label>
-                <div className="flex gap-2">
-                  {(["monthly", "quarterly", "semiannual"] as const).map((f) => (
+                <div className="flex gap-2 flex-wrap items-center justify-between">
+                  <div className="flex gap-2">
+                    {(["monthly", "quarterly", "semiannual"] as const).map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => { setFrequency(f); setSelectedType(null); }}
+                        className={`px-4 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                          frequency === f
+                            ? "bg-indigo-600 text-white border-indigo-600"
+                            : "bg-white text-indigo-600 border-indigo-300 hover:bg-indigo-50"
+                        }`}
+                      >
+                        {FREQ_LABELS[f]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {rates.length === 0 && (
+                      <span className="text-xs text-amber-600 italic">אין נתוני שערים</span>
+                    )}
                     <button
-                      key={f}
                       type="button"
-                      onClick={() => { setFrequency(f); setSelectedType(null); }}
-                      className={`px-4 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
-                        frequency === f
-                          ? "bg-indigo-600 text-white border-indigo-600"
-                          : "bg-white text-indigo-600 border-indigo-300 hover:bg-indigo-50"
-                      }`}
+                      onClick={handleRefreshRates}
+                      disabled={refreshing}
+                      className="px-3 py-1.5 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 disabled:opacity-50 transition-colors"
                     >
-                      {FREQ_LABELS[f]}
+                      {refreshing ? "מעדכן..." : "↻ עדכן מדדים"}
                     </button>
-                  ))}
+                    {refreshMsg && <span className={`text-xs font-semibold ${refreshMsg.includes("שגיאה") ? "text-red-500" : "text-green-600"}`}>{refreshMsg}</span>}
+                  </div>
                 </div>
               </div>
             </div>
@@ -241,20 +265,6 @@ export default function LinkageComparisonPage() {
                 <p className="text-sm font-semibold text-gray-700 mb-3">
                   בחר מסלול לפירוט חישוב ←
                 </p>
-                {rates.length === 0 && (
-                  <div className="flex items-center gap-3 mb-2">
-                    <p className="text-xs text-amber-600 italic">אין נתוני שערים</p>
-                    <button
-                      type="button"
-                      onClick={handleRefreshRates}
-                      disabled={refreshing}
-                      className="px-3 py-1 text-xs font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                    >
-                      {refreshing ? "מעדכן..." : "רענן מדדים"}
-                    </button>
-                    {refreshMsg && <span className={`text-xs font-semibold ${refreshMsg.includes("שגיאה") ? "text-red-500" : "text-green-600"}`}>{refreshMsg}</span>}
-                  </div>
-                )}
                 {(["none", "usd", "cpi"] as const).map((type) => {
                   const effective = calcEffectiveRent(
                     { linkageType: type, linkageFrequency: frequency, baseAmount: lease.monthlyRent, baseDate: lease.startDate, monthlyRent: lease.monthlyRent },
