@@ -193,6 +193,7 @@ export default function LinkageComparisonPage() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">בחר חוזה</label>
                 <select
+                  dir="rtl"
                   value={selectedId}
                   onChange={(e) => { setSelectedId(e.target.value); setSelectedType(null); }}
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -200,15 +201,17 @@ export default function LinkageComparisonPage() {
                   {leases.map((l) => {
                     const today = new Date(); today.setHours(0,0,0,0);
                     const isActive = new Date(l.startDate) <= today && new Date(l.endDate) >= today;
-                    const tenantName = l.tenant?.firstName || l.tenant?.lastName
+                    const tenantName = (l.tenant?.firstName || l.tenant?.lastName)
                       ? `${l.tenant.firstName ?? ""} ${l.tenant.lastName ?? ""}`.trim()
                       : "ללא שוכר";
+                    const prop = l.properties?.title ?? "נכס לא ידוע";
+                    const rent = l.monthlyRent ? `${l.monthlyRent.toLocaleString("he-IL")} ש"ח` : "?";
                     const startY = new Date(l.startDate).getFullYear();
                     const endY = new Date(l.endDate).getFullYear();
+                    const status = isActive ? "[פעיל]" : "[סגור]";
                     return (
                       <option key={l.id} value={l.id}>
-                        {isActive ? "● " : "○ "}
-                        {l.properties?.title ?? "נכס"} — {tenantName} — ₪{l.monthlyRent.toLocaleString()} ({startY}-{endY})
+                        {status} {prop} | {tenantName} | {rent} | {startY}-{endY}
                       </option>
                     );
                   })}
