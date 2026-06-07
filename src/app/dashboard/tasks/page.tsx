@@ -467,12 +467,12 @@ export default function TasksPage() {
     const propColors = t.relatedEntityId ? propColorsByLeaseId.get(t.relatedEntityId) : undefined;
     const propColor = propColors?.base ?? "#94a3b8";
     const propDark  = propColors?.dark ?? "#64748b";
-    const propLite  = propColors?.lite ?? "#f1f5f9";
     const catBg = CAT_BG[t.category] ?? "#f3f4f6";
     const catFg = CAT_FG[t.category] ?? "#374151";
+    const shadow = "0 1px 3px rgba(0,0,0,0.4)";
     return (
       <div
-        className={`rounded-xl flex items-center gap-3 px-4 py-3.5 shadow-sm border border-gray-100 transition-opacity ${isDone ? "opacity-50" : ""}`}
+        className={`rounded-xl flex items-center gap-3 px-4 py-3.5 shadow-sm border transition-opacity ${isDone ? "opacity-60 border-gray-100" : "border-transparent"}`}
         style={{
           background: isDone
             ? "#f9fafb"
@@ -484,7 +484,7 @@ export default function TasksPage() {
           <button
             onClick={() => complete(t)}
             className="flex-shrink-0 px-3 py-1.5 rounded-lg font-bold text-sm text-white whitespace-nowrap"
-            style={{ background: "#16a34a" }}
+            style={{ background: "#16a34a", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }}
           >
             בוצע
           </button>
@@ -498,17 +498,20 @@ export default function TasksPage() {
           </button>
         )}
 
-        {/* Category icon — larger, colored bg */}
+        {/* Category icon */}
         <div
-          className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 shadow-sm"
-          style={{ background: catBg }}
+          className="w-11 h-11 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
+          style={{ background: isDone ? catBg : "rgba(255,255,255,0.18)", boxShadow: isDone ? "none" : "inset 0 1px 0 rgba(255,255,255,0.3)" }}
         >
           {CAT_ICON[t.category] || "📌"}
         </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <p className={`font-bold text-base leading-tight ${isDone ? "line-through text-gray-400" : "text-white"}`}>
+          <p
+            className={`font-bold text-base leading-tight truncate ${isDone ? "line-through text-gray-400" : "text-white"}`}
+            style={isDone ? {} : { textShadow: shadow }}
+          >
             {t.title}
           </p>
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -516,7 +519,7 @@ export default function TasksPage() {
               className="text-xs px-2 py-0.5 rounded-full font-semibold"
               style={isDone
                 ? { background: catBg, color: catFg }
-                : { background: "rgba(255,255,255,0.25)", color: "white" }
+                : { background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.95)" }
               }
             >
               {CAT_HE[t.category]}
@@ -524,18 +527,18 @@ export default function TasksPage() {
             {propertyName && (
               <span
                 className="text-xs font-bold"
-                style={{ color: isDone ? "#94a3b8" : "rgba(255,255,255,0.9)" }}
+                style={{ color: isDone ? "#94a3b8" : "white", textShadow: isDone ? "none" : shadow }}
               >
                 {propertyName}
               </span>
             )}
             {t.description && (
-              <span className="text-xs" style={{ color: isDone ? "#9ca3af" : "rgba(255,255,255,0.7)" }}>
+              <span className="text-xs" style={{ color: isDone ? "#9ca3af" : "rgba(255,255,255,0.85)", textShadow: isDone ? "none" : shadow }}>
                 {t.description}
               </span>
             )}
             {t.isVirtual && (
-              <span className="text-xs" style={{ color: isDone ? "#9ca3af" : "rgba(255,255,255,0.6)" }}>
+              <span className="text-xs" style={{ color: isDone ? "#9ca3af" : "rgba(255,255,255,0.7)" }}>
                 אוטומטי
               </span>
             )}
@@ -544,7 +547,15 @@ export default function TasksPage() {
 
         {/* Due date */}
         <div className="text-left shrink-0">
-          <p className={`font-bold text-sm ${isOverdue ? "text-red-200" : isDone ? "text-gray-400" : "text-white"}`}>
+          <p
+            className={`font-bold text-sm ${isDone ? "text-gray-400" : ""}`}
+            style={isDone
+              ? {}
+              : isOverdue
+                ? { color: "#fde047", textShadow: shadow }
+                : { color: "white", textShadow: shadow }
+            }
+          >
             {isOverdue && "⚠ "}{dueLabel}
           </p>
         </div>
@@ -552,13 +563,13 @@ export default function TasksPage() {
         {/* Priority badge */}
         {(() => {
           const liveBg =
-            t.priority === "high"   ? "#ef4444" :
-            t.priority === "normal" ? "rgba(255,255,255,0.22)" :
-                                      "rgba(255,255,255,0.1)";
+            t.priority === "high"   ? "#dc2626" :
+            t.priority === "normal" ? "rgba(0,0,0,0.3)" :
+                                      "rgba(0,0,0,0.18)";
           const liveFg =
             t.priority === "high"   ? "white" :
-            t.priority === "normal" ? "white" :
-                                      "rgba(255,255,255,0.65)";
+            t.priority === "normal" ? "rgba(255,255,255,0.95)" :
+                                      "rgba(255,255,255,0.75)";
           return (
             <span
               className="text-xs px-2.5 py-1 rounded-lg font-bold flex-shrink-0"
@@ -576,10 +587,10 @@ export default function TasksPage() {
         {!t.isVirtual && (
           <button
             onClick={() => remove(t)}
-            className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-base transition-colors"
+            className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-base transition-opacity hover:opacity-80"
             style={isDone
               ? { background: "#f3f4f6", color: "#9ca3af" }
-              : { background: "rgba(0,0,0,0.25)", color: "white" }
+              : { background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.9)" }
             }
           >
             🗑
