@@ -5,26 +5,24 @@ import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { leaseSchema } from "@/lib/validations";
 import { z } from "zod";
 
-export async function GET() {
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { id } = await params;
   const supabase = await createClient();
-  // Auto-expire leases whose end date has passed
-  await supabase
-    .from("leases")
-    .update({ status: "expired" })
-    .eq("user_id", session.user.id)
-    .in("status", ["active", "paused"])
-    .lt("end_date", new Date().toISOString().slice(0, 10));
 
   const { data, error } = await supabase
     .from("leases")
-    .select("*, properties(*), tenant:tenants(*), payments(*)")
+    .select("*, properties(*), tenant:tenants(*), lease_documents(*), payments(*)")
+    .eq("id", id)
     .eq("user_id", session.user.id)
-    .order("created_at", { ascending: false });
+    .single();
 
-  if (error) return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
+  if (error || !data) return NextResponse.json({ error: "חוזה לא נמצא" }, { status: 404 });
   return NextResponse.json(camelKeys(data));
 }
 
