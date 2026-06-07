@@ -106,11 +106,13 @@ function generateCheckReminders(leases: Lease[], dbTasks: Task[]): Task[] {
 
   // חודשים שכבר מכוסים ע"י משימת DB שאינה פגת-תוקף (לפי נכס+חודש)
   // משימה פגת-תוקף לא חוסמת — ייתכן שנוצרה עם תאריך שגוי (באג UTC)
+  const todayMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const coveredPropertyMonths = new Set<string>();
   for (const t of dbTasks) {
     if (t.category === "Rent Collection" && t.relatedEntityType === "lease" && t.relatedEntityId) {
       const propId = leaseToProperty.get(t.relatedEntityId);
-      if (propId && new Date(t.dueDate) >= today) {
+      // מכסה חודש נוכחי או עתידי — גם אם dueDate הוא אתמול (תזכורת יום לפני התשלום)
+      if (propId && t.dueDate.slice(0, 7) >= todayMonth) {
         coveredPropertyMonths.add(`${propId}-${t.dueDate.slice(0, 7)}`);
       }
     }
