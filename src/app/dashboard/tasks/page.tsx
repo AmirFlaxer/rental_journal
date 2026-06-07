@@ -199,6 +199,7 @@ export default function TasksPage() {
   const [dbTasks, setDbTasks] = useState<Task[]>([]);
   const [leases, setLeases] = useState<Lease[]>([]);
   const [loading, setLoading] = useState(true);
+  const [completingId, setCompletingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showDone, setShowDone] = useState(true);
   const [showFuture, setShowFuture] = useState(true);
@@ -392,42 +393,46 @@ export default function TasksPage() {
   };
 
   const complete = async (t: Task) => {
-    if (t.isVirtual) {
-      // צור רשומת DB תחילה (ללא completedAt — schema לא מכיל שדה זה)
-      const createRes = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: t.title,
-          category: t.category,
-          dueDate: t.dueDate,
-          priority: t.priority,
-          relatedEntityType: t.relatedEntityType,
-          relatedEntityId: t.relatedEntityId,
-        }),
-      });
-      if (!createRes.ok) return;
-      const created = await createRes.json();
-      // סמן כהושלם
-      const completeRes = await fetch(`/api/tasks/${created.id}`, {
+    const key = t.isVirtual ? `virtual-${t.dueDate}-${t.relatedEntityId}` : t.id;
+    setCompletingId(key);
+    try {
+      if (t.isVirtual) {
+        const createRes = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: t.title,
+            category: t.category,
+            dueDate: t.dueDate,
+            priority: t.priority,
+            relatedEntityType: t.relatedEntityType,
+            relatedEntityId: t.relatedEntityId,
+          }),
+        });
+        if (!createRes.ok) { alert("שגיאה ביצירת משימה"); return; }
+        const created = await createRes.json();
+        const completeRes = await fetch(`/api/tasks/${created.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ completedAt: new Date().toISOString() }),
+        });
+        if (completeRes.ok) {
+          const completed = await completeRes.json();
+          setDbTasks((prev) => [completed, ...prev]);
+        } else { alert("שגיאה בסימון כבוצע"); }
+        return;
+      }
+      const res = await fetch(`/api/tasks/${t.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ completedAt: new Date().toISOString() }),
       });
-      if (completeRes.ok) {
-        const completed = await completeRes.json();
-        setDbTasks((prev) => [completed, ...prev]);
-      }
-      return;
-    }
-    const res = await fetch(`/api/tasks/${t.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completedAt: new Date().toISOString() }),
-    });
-    if (res.ok) {
-      const updated = await res.json();
-      setDbTasks((prev) => prev.map((x) => (x.id === t.id ? updated : x)));
+      if (res.ok) {
+        const updated = await res.json();
+        setDbTasks((prev) => prev.map((x) => (x.id === t.id ? updated : x)));
+      } else { alert("שגיאה בסימון כבוצע"); }
+    } finally {
+      setCompletingId(null);
     }
   };
 
@@ -584,10 +589,11 @@ export default function TasksPage() {
               <button
                 type="button"
                 onClick={() => complete(t)}
-                className="px-3 py-1 rounded-lg font-bold text-xs text-white"
+                disabled={completingId !== null}
+                className="px-3 py-1 rounded-lg font-bold text-xs text-white disabled:opacity-60"
                 style={{ background: "#16a34a", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }}
               >
-                בוצע ✓
+                {completingId !== null ? "..." : "בוצע ✓"}
               </button>
             ) : (
               <button
