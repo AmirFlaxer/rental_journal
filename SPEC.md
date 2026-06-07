@@ -62,10 +62,14 @@
 ## בעיות ידועות / TODO פתוח
 - ~~**ספק LLM נשמר ב-cookie בלבד**~~ — **נפתר**: נשמר ב-Supabase user_metadata + cookie כ-cache
 - ~~**~50 שגיאות TypeScript `any`**~~ — **נפתר חלקית**: `src/types/database.ts` נוצר; 3 שורות שוליות נותרו
-- ~~**חוזים ישנים ב-status=active משפיעים על תצוגות**~~ — **נפתר**: `isLeaseCurrentlyActive` מוחל על כל הדשבורד (payments, properties, add-payment, property detail, leases import)
+- ~~**חוזים ישנים ב-status=active משפיעים על תצוגות**~~ — **נפתר**: `isLeaseCurrentlyActive` מוחל על כל הדשבורד
+- ~~**CRON_SECRET**~~ — **מוגדר ב-Vercel** ✅
+- ~~**SQL migrations**~~ — **כל הטבלאות/עמודות קיימות ב-DB** ✅ (index_rates, linkage_type, is_auto_tax)
+- ~~**error.message דולף מ-API**~~ — **נפתר** (2026-06-07): כל routes מחזירים שגיאות גנריות
+- ~~**LLM provider מ-cookie**~~ — **נפתר** (2026-06-07): extract routes קוראים מ-user_metadata
+- ~~**VAPID fallback לכתובת דמה**~~ — **נפתר** (2026-06-07): מחזיר 503 אם חסר
 - **PWA לא נבדקה על מכשיר אמיתי** — לבדוק התקנה ב-Chrome Android / Safari iOS
-- **CRON_SECRET** — צריך להגדיר כ-env var ב-Vercel לפני שה-cron יעבוד
-- **📨 טופס "אודות" → שמירת פניות ב-DB** — כיום טופס הדיווח (`/dashboard/about`) שולח דרך `mailto` בלבד. הצעה: טבלת `feedback` (id, user_id, type ['bug'|'feature'], title, details, created_at) + `POST /api/feedback` לשמירה, ומסך לצפייה בפניות מרוכזות בתוך האפליקציה. דורש הוספת טבלה ידנית ב-Supabase (אין מיגרציות).
+- **📨 טופס "אודות" → שמירת פניות ב-DB** — כיום טופס הדיווח (`/dashboard/about`) שולח דרך `mailto` בלבד. הצעה: טבלת `feedback` + `POST /api/feedback`.
 - **📚 חוברת הסברים למשתמש** — ראה פירוט בסעיף למטה
 
 ## לפני פריסה / שינוי DB
