@@ -136,7 +136,10 @@ function generateCheckReminders(leases: Lease[], dbTasks: Task[]): Task[] {
       if (paymentDue >= today) {
         const reminderDate = new Date(paymentDue);
         reminderDate.setDate(reminderDate.getDate() - 1);
-        const dueDateStr = reminderDate.toISOString().split("T")[0];
+        const ry = reminderDate.getFullYear();
+        const rm = String(reminderDate.getMonth() + 1).padStart(2, "0");
+        const rd = String(reminderDate.getDate()).padStart(2, "0");
+        const dueDateStr = `${ry}-${rm}-${rd}`;
         const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
         const propertyMonthKey = `${propId}-${monthKey}`;
 
