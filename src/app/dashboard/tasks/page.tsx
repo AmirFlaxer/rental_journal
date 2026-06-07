@@ -476,7 +476,7 @@ export default function TasksPage() {
         style={{
           background: isDone
             ? "#f9fafb"
-            : `linear-gradient(to left, ${propDark}, ${propColor} 45%, ${propLite})`,
+            : `linear-gradient(135deg, ${propDark} 0%, ${propColor} 100%)`,
         }}
       >
         {/* Complete / Undo button */}
