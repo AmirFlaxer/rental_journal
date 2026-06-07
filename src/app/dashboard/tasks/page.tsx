@@ -104,12 +104,15 @@ function generateCheckReminders(leases: Lease[], dbTasks: Task[]): Task[] {
   // בנה מפה leaseId → propertyId לצורך dedup בין חוזים של אותו נכס
   const leaseToProperty = new Map(leases.map((l) => [l.id, l.properties?.id ?? l.id]));
 
-  // חודשים שכבר מכוסים ע"י משימת DB (לפי נכס+חודש)
+  // חודשים שכבר מכוסים ע"י משימת DB שאינה פגת-תוקף (לפי נכס+חודש)
+  // משימה פגת-תוקף לא חוסמת — ייתכן שנוצרה עם תאריך שגוי (באג UTC)
   const coveredPropertyMonths = new Set<string>();
   for (const t of dbTasks) {
     if (t.category === "Rent Collection" && t.relatedEntityType === "lease" && t.relatedEntityId) {
       const propId = leaseToProperty.get(t.relatedEntityId);
-      if (propId) coveredPropertyMonths.add(`${propId}-${t.dueDate.slice(0, 7)}`);
+      if (propId && new Date(t.dueDate) >= today) {
+        coveredPropertyMonths.add(`${propId}-${t.dueDate.slice(0, 7)}`);
+      }
     }
   }
 
@@ -260,7 +263,13 @@ export default function TasksPage() {
   const leaseToPropertyId = new Map(leases.map((l) => [l.id, l.properties?.id ?? l.id]));
   const dedupedPending: Task[] = [];
   const seenPropertyMonth = new Set<string>();
-  for (const t of [...pendingDb, ...virtualCheck].sort((a, b) => a.dueDate.localeCompare(b.dueDate))) {
+  for (const t of [...pendingDb, ...virtualCheck].sort((a, b) => {
+    // משימה לא-פגת-תוקף קודמת לפגת-תוקף באותו חודש (לתיקון באג UTC שיצר תאריכים שגויים ב-DB)
+    const aOver = new Date(a.dueDate) < today;
+    const bOver = new Date(b.dueDate) < today;
+    if (aOver !== bOver) return aOver ? 1 : -1;
+    return a.dueDate.localeCompare(b.dueDate);
+  })) {
     if (t.category === "Rent Collection" && t.relatedEntityType === "lease" && t.relatedEntityId) {
       const propId = leaseToPropertyId.get(t.relatedEntityId) ?? t.relatedEntityId;
       const key = `${propId}-${t.dueDate.slice(0, 7)}`;
