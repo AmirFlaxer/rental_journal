@@ -223,9 +223,10 @@ export default function SettingsPage() {
 
         // תאריך שגוי — יום שלא תואם את יום ההתחלה של החוזה (נוצר לפני תיקון באג)
         const lease = leaseMap.get(task.relatedEntityId)!;
-        const expectedDay = new Date(lease.startDate).getDate();
-        const taskDay = new Date(task.dueDate).getDate();
-        if (!task.completedAt && taskDay !== expectedDay) {
+        // slice ישיר על string — בטוח מ-timezone (YYYY-MM-DD → chars 8-9)
+        const expectedDay = parseInt((lease.startDate ?? "").slice(8, 10));
+        const taskDay = parseInt((task.dueDate ?? "").slice(8, 10));
+        if (!task.completedAt && expectedDay > 0 && taskDay !== expectedDay) {
           toDelete.push(task.id);
           continue;
         }
