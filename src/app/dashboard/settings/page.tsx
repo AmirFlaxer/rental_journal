@@ -35,6 +35,12 @@ export default function SettingsPage() {
   const [cleanupRunning, setCleanupRunning] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<{ deleted: number; label: string } | null>(null);
 
+  const [leaseCleanupRunning, setLeaseCleanupRunning] = useState(false);
+  const [leaseCleanupResult, setLeaseCleanupResult] = useState<{ deleted: number; label: string } | null>(null);
+
+  const [leaseAuditRunning, setLeaseAuditRunning] = useState(false);
+  const [leaseAuditResult, setLeaseAuditResult] = useState<{ issues: string[] } | null>(null);
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -237,6 +243,72 @@ export default function SettingsPage() {
       setCleanupResult({ deleted: -1, label: "שגיאה בניקוי" });
     } finally {
       setCleanupRunning(false);
+    }
+  };
+
+  const handleCleanupOrphanLeases = async () => {
+    setLeaseCleanupRunning(true);
+    setLeaseCleanupResult(null);
+    try {
+      const [leasesRes, propsRes] = await Promise.all([
+        fetch("/api/leases").then((r) => r.json()),
+        fetch("/api/properties").then((r) => r.json()),
+      ]);
+      if (!Array.isArray(leasesRes) || !Array.isArray(propsRes)) throw new Error("שגיאה");
+      const propIds = new Set((propsRes as { id: string }[]).map((p) => p.id));
+      const orphans = (leasesRes as { id: string; properties?: { id: string } }[])
+        .filter((l) => !l.properties?.id || !propIds.has(l.properties.id));
+      await Promise.all(orphans.map((l) => fetch(`/api/leases/${l.id}`, { method: "DELETE" })));
+      setLeaseCleanupResult({ deleted: orphans.length, label: "חוזים יתומים (ללא נכס)" });
+    } catch {
+      setLeaseCleanupResult({ deleted: -1, label: "שגיאה בניקוי" });
+    } finally {
+      setLeaseCleanupRunning(false);
+    }
+  };
+
+  const handleLeaseAudit = async () => {
+    setLeaseAuditRunning(true);
+    setLeaseAuditResult(null);
+    try {
+      const [leasesRes, propsRes] = await Promise.all([
+        fetch("/api/leases").then((r) => r.json()),
+        fetch("/api/properties").then((r) => r.json()),
+      ]);
+      if (!Array.isArray(leasesRes) || !Array.isArray(propsRes)) throw new Error("שגיאה");
+
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const isActive = (l: { startDate: string; endDate: string; status?: string | null }) => {
+        if (l.status === "ended" || l.status === "paused") return false;
+        return new Date(l.startDate) <= today && new Date(l.endDate) >= today;
+      };
+
+      type Lease = { id: string; startDate: string; endDate: string; status?: string | null; properties?: { id: string; title: string } };
+      const activeByProp = new Map<string, Lease[]>();
+      for (const l of leasesRes as Lease[]) {
+        if (!isActive(l) || !l.properties?.id) continue;
+        const arr = activeByProp.get(l.properties.id) ?? [];
+        arr.push(l);
+        activeByProp.set(l.properties.id, arr);
+      }
+
+      const issues: string[] = [];
+      for (const [, leases] of activeByProp) {
+        if (leases.length > 1) {
+          const title = leases[0].properties?.title ?? "נכס";
+          issues.push(`${title}: ${leases.length} חוזים פעילים במקביל`);
+        }
+      }
+
+      const propIds = new Set((propsRes as { id: string }[]).map((p) => p.id));
+      const orphanCount = (leasesRes as Lease[]).filter((l) => !l.properties?.id || !propIds.has(l.properties.id)).length;
+      if (orphanCount > 0) issues.push(`${orphanCount} חוזים ללא נכס (יתומים)`);
+
+      setLeaseAuditResult({ issues: issues.length ? issues : ["לא נמצאו בעיות"] });
+    } catch {
+      setLeaseAuditResult({ issues: ["שגיאה בבדיקה"] });
+    } finally {
+      setLeaseAuditRunning(false);
     }
   };
 
@@ -460,12 +532,52 @@ export default function SettingsPage() {
           </div>
           {cleanupResult && (
             <p className={`text-sm font-medium ${cleanupResult.deleted < 0 ? "text-red-600" : "text-green-700"}`}>
-              {cleanupResult.deleted < 0
-                ? cleanupResult.label
-                : cleanupResult.deleted === 0
-                  ? "לא נמצאו פריטים לניקוי"
-                  : `נמחקו ${cleanupResult.deleted} ${cleanupResult.label}`}
+              {cleanupResult.deleted < 0 ? cleanupResult.label : cleanupResult.deleted === 0 ? "לא נמצאו פריטים לניקוי" : `נמחקו ${cleanupResult.deleted} ${cleanupResult.label}`}
             </p>
+          )}
+
+          {/* Orphan leases */}
+          <div className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-gray-50">
+            <div>
+              <p className="text-sm font-semibold text-gray-800">ניקוי חוזים יתומים</p>
+              <p className="text-xs text-gray-500 mt-0.5">מוחק חוזים שהנכס שלהם נמחק ואין להם עוד שייכות</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleCleanupOrphanLeases}
+              disabled={leaseCleanupRunning}
+              className="flex-shrink-0 mr-4 px-4 py-2 rounded-xl text-sm font-semibold border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 disabled:opacity-50 transition-colors"
+            >
+              {leaseCleanupRunning ? "מנקה..." : "נקה"}
+            </button>
+          </div>
+          {leaseCleanupResult && (
+            <p className={`text-sm font-medium ${leaseCleanupResult.deleted < 0 ? "text-red-600" : "text-green-700"}`}>
+              {leaseCleanupResult.deleted < 0 ? leaseCleanupResult.label : leaseCleanupResult.deleted === 0 ? "לא נמצאו חוזים יתומים" : `נמחקו ${leaseCleanupResult.deleted} ${leaseCleanupResult.label}`}
+            </p>
+          )}
+
+          {/* Lease integrity audit */}
+          <div className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-gray-50">
+            <div>
+              <p className="text-sm font-semibold text-gray-800">בדיקת תקינות חוזים</p>
+              <p className="text-xs text-gray-500 mt-0.5">מאתר נכסים עם יותר מחוזה פעיל אחד במקביל וחוזים ללא נכס</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleLeaseAudit}
+              disabled={leaseAuditRunning}
+              className="flex-shrink-0 mr-4 px-4 py-2 rounded-xl text-sm font-semibold border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+            >
+              {leaseAuditRunning ? "בודק..." : "בדוק"}
+            </button>
+          </div>
+          {leaseAuditResult && (
+            <div className={`text-sm rounded-xl p-3 space-y-1 ${leaseAuditResult.issues[0] === "לא נמצאו בעיות" ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-800"}`}>
+              {leaseAuditResult.issues.map((issue, i) => (
+                <p key={i} className="font-medium">{leaseAuditResult.issues[0] === "לא נמצאו בעיות" ? "✓ " : "⚠ "}{issue}</p>
+              ))}
+            </div>
           )}
         </div>
       </div>
