@@ -116,6 +116,7 @@ export default function LinkageComparisonPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const handleRefreshRates = async () => {
     setRefreshing(true);
@@ -192,30 +193,71 @@ export default function LinkageComparisonPage() {
             <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">בחר חוזה</label>
-                <select
-                  dir="rtl"
-                  value={selectedId}
-                  onChange={(e) => { setSelectedId(e.target.value); setSelectedType(null); }}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {leases.map((l) => {
-                    const today = new Date(); today.setHours(0,0,0,0);
-                    const isActive = new Date(l.startDate) <= today && new Date(l.endDate) >= today;
-                    const tenantName = (l.tenant?.firstName || l.tenant?.lastName)
-                      ? `${l.tenant.firstName ?? ""} ${l.tenant.lastName ?? ""}`.trim()
-                      : "ללא שוכר";
-                    const prop = l.properties?.title ?? "נכס לא ידוע";
-                    const rent = l.monthlyRent ? `${l.monthlyRent.toLocaleString("he-IL")} ש"ח` : "?";
-                    const startY = new Date(l.startDate).getFullYear();
-                    const endY = new Date(l.endDate).getFullYear();
-                    const status = isActive ? "[פעיל]" : "[סגור]";
-                    return (
-                      <option key={l.id} value={l.id}>
-                        {status} {prop} | {tenantName} | {rent} | {startY}-{endY}
-                      </option>
-                    );
-                  })}
-                </select>
+                <div className="relative">
+                  {/* trigger */}
+                  <button
+                    type="button"
+                    onClick={() => setDropdownOpen((o) => !o)}
+                    className="w-full flex items-center justify-between px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right"
+                  >
+                    {(() => {
+                      const l = leases.find((x) => x.id === selectedId);
+                      if (!l) return <span className="text-gray-400">בחר חוזה...</span>;
+                      const today = new Date(); today.setHours(0,0,0,0);
+                      const isActive = new Date(l.startDate) <= today && new Date(l.endDate) >= today;
+                      const tenantName = (l.tenant?.firstName || l.tenant?.lastName)
+                        ? `${l.tenant.firstName ?? ""} ${l.tenant.lastName ?? ""}`.trim()
+                        : "ללא שוכר";
+                      return (
+                        <span className="flex items-center gap-2">
+                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                            {isActive ? "פעיל" : "סגור"}
+                          </span>
+                          <span className="font-medium text-gray-900">{l.properties?.title ?? "נכס"}</span>
+                          <span className="text-gray-400">·</span>
+                          <span className="text-gray-700">{tenantName}</span>
+                          <span className="text-gray-400">·</span>
+                          <span className="text-indigo-700 font-semibold">₪{(l.monthlyRent ?? 0).toLocaleString()}</span>
+                        </span>
+                      );
+                    })()}
+                    <span className="text-gray-400 mr-2">{dropdownOpen ? "▲" : "▼"}</span>
+                  </button>
+
+                  {/* options list */}
+                  {dropdownOpen && (
+                    <div className="absolute z-20 top-full mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                      {leases.map((l) => {
+                        const today = new Date(); today.setHours(0,0,0,0);
+                        const isActive = new Date(l.startDate) <= today && new Date(l.endDate) >= today;
+                        const tenantName = (l.tenant?.firstName || l.tenant?.lastName)
+                          ? `${l.tenant.firstName ?? ""} ${l.tenant.lastName ?? ""}`.trim()
+                          : "ללא שוכר";
+                        const startY = new Date(l.startDate).getFullYear();
+                        const endY = new Date(l.endDate).getFullYear();
+                        const isSelected = l.id === selectedId;
+                        return (
+                          <button
+                            key={l.id}
+                            type="button"
+                            onClick={() => { setSelectedId(l.id); setSelectedType(null); setDropdownOpen(false); }}
+                            className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm text-right hover:bg-indigo-50 transition-colors ${isSelected ? "bg-indigo-50" : ""}`}
+                          >
+                            <span className={`flex-shrink-0 text-xs font-bold px-1.5 py-0.5 rounded ${isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                              {isActive ? "פעיל" : "סגור"}
+                            </span>
+                            <span className="font-medium text-gray-900 flex-shrink-0">{l.properties?.title ?? "נכס"}</span>
+                            <span className="text-gray-400 flex-shrink-0">·</span>
+                            <span className="text-gray-700 truncate">{tenantName}</span>
+                            <span className="text-gray-400 flex-shrink-0 mr-auto">·</span>
+                            <span className="text-indigo-700 font-semibold flex-shrink-0">₪{(l.monthlyRent ?? 0).toLocaleString()}</span>
+                            <span className="text-gray-400 text-xs flex-shrink-0">{startY}-{endY}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
                 {lease && (
                   <p className="text-xs text-gray-400 mt-2">
                     {new Date(lease.startDate).toLocaleDateString("he-IL")} –{" "}
