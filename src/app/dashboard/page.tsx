@@ -38,8 +38,9 @@ interface Expense {
 const TYPE_HE: Record<string, string> = { Apartment: "דירה", House: "בית", Commercial: "מסחרי" };
 
 function pendingPaymentsSummary(leases: Lease[], dbPayments: Payment[]): { count: number; amount: number } {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
+  // מחרוזת "היום" מקומית — השוואה למחרוזת dueDate חסינה לאזור-זמן (new Date("YYYY-MM-DD") = UTC).
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   let count = 0;
   let amount = 0;
 
@@ -63,7 +64,7 @@ function pendingPaymentsSummary(leases: Lease[], dbPayments: Payment[]): { count
       const day = Math.min(startDay, lastDay);
       const dueDate = `${monthKey}-${String(day).padStart(2, "0")}`;
 
-      if (new Date(dueDate) <= today) {
+      if (dueDate <= todayStr) {
         const exists = dbPayments.some(
           (p) => p.lease?.id === lease.id && p.dueDate.slice(0, 7) === monthKey
         );

@@ -67,7 +67,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <aside
         className={`fixed inset-y-0 right-0 z-40 w-60 flex flex-col transition-transform duration-300
           ${mobileOpen ? "translate-x-0" : "translate-x-full"}
-          lg:translate-x-0 lg:static`}
+          lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen`}
         style={{ background: "var(--bg-surface)", borderLeft: "1px solid var(--border)" }}
       >
         {/* Logo */}
@@ -75,7 +75,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm"
               style={{ background: "var(--accent)" }}>נ</div>
-            <span className="font-semibold text-sm" style={{ color: "var(--text-1)", fontFamily: "var(--font-outfit), var(--font-heebo), sans-serif", letterSpacing: "0.01em" }}>
+            <span className="font-semibold text-sm" style={{ color: "var(--text-1)", fontFamily: "var(--font-rubik), sans-serif", letterSpacing: "0.01em" }}>
               ניהול נכסים
             </span>
           </div>

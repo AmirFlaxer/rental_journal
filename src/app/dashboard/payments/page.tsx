@@ -74,8 +74,10 @@ interface Property {
 }
 
 function generateVirtualSlots(leases: Lease[], existingPayments: Payment[]): Payment[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
+  // מחרוזת "היום" מקומית (YYYY-MM-DD) — השוואה למחרוזת dueDate חסינה לאזור-זמן.
+  // new Date("YYYY-MM-DD") מתפרש כ-UTC ולכן תקבול שמועדו היום נחשב בטעות עתידי.
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const slots: Payment[] = [];
 
   const coveredPropertyMonths = new Set<string>();
@@ -107,7 +109,7 @@ function generateVirtualSlots(leases: Lease[], existingPayments: Payment[]): Pay
         const lastDay = new Date(year, month, 0).getDate();
         const day = Math.min(startDay, lastDay);
         const dueDate = `${monthKey}-${String(day).padStart(2, "0")}`;
-        const isPast = new Date(dueDate) <= today;
+        const isPast = dueDate <= todayStr;
         slots.push({
           id: `virtual-${lease.id}-${monthKey}`,
           isVirtual: true,

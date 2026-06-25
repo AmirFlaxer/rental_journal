@@ -102,7 +102,8 @@ export const paymentSchema = z.object({
   method: z.string().optional(),
   referenceNum: z.string().optional(),
   notes: z.string().optional(),
-  status: z.enum(["paid", "pending", "overdue"]).optional(),
+  // מיושר עם PaymentStatus ב-types/database.ts
+  status: z.enum(["paid", "pending", "overdue", "partial"]).optional(),
 });
 
 // Task Validations

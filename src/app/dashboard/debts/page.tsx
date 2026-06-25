@@ -52,12 +52,14 @@ interface DebtItem {
 function buildDebtList(payments: Payment[], leases: Lease[]): DebtItem[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  // מחרוזת "היום" מקומית — השוואה למחרוזת dueDate חסינה לאזור-זמן (new Date("YYYY-MM-DD") = UTC).
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   const items: DebtItem[] = [];
 
   // Existing payments with debt (only past-due)
   for (const p of payments) {
     if (p.status === "paid") continue;
-    if (new Date(p.dueDate) > today) continue;
+    if (p.dueDate.slice(0, 10) > todayStr) continue;
     const partialPaid = parsePartialPaid(p.notes);
     const debtAmount = p.status === "partial" && partialPaid != null
       ? p.amount - partialPaid
@@ -105,7 +107,7 @@ function buildDebtList(payments: Payment[], leases: Lease[]): DebtItem[] {
       const dueDate = `${monthKey}-${String(day).padStart(2, "0")}`;
       const key = `${propId}-${monthKey}`;
 
-      if (new Date(dueDate) <= today && !coveredPropertyMonths.has(key)) {
+      if (dueDate <= todayStr && !coveredPropertyMonths.has(key)) {
         items.push({
           id: `virtual-${lease.id}-${monthKey}`,
           dueDate,
