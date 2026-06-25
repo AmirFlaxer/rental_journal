@@ -74,8 +74,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="h-16 flex items-center px-5" style={{ borderBottom: "1px solid var(--border)" }}>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-              style={{ background: "var(--accent)" }}>נ</div>
-            <span className="font-semibold text-sm" style={{ color: "var(--text-1)", fontFamily: "var(--font-rubik), sans-serif", letterSpacing: "0.01em" }}>
+              style={{ background: "var(--accent)", boxShadow: "0 0 0 1px var(--gilt), 0 6px 18px rgba(124,131,255,0.3)" }}>נ</div>
+            <span className="font-display font-bold text-base" style={{ color: "var(--text-1)", letterSpacing: "0.01em" }}>
               ניהול נכסים
             </span>
           </div>
@@ -140,7 +140,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="p-2 rounded-lg text-sm" style={{ color: "var(--text-2)" }} aria-expanded={mobileOpen}>
             <span aria-hidden="true">☰</span>
           </button>
-          <span className="font-bold" style={{ color: "var(--text-1)" }}>ניהול נכסים</span>
+          <span className="font-display font-bold text-base" style={{ color: "var(--text-1)" }}>ניהול נכסים</span>
         </header>
 
         {/* pb מפצה על bottom nav + safe-area-bottom (home indicator ב-iPhone) */}

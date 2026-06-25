@@ -1,16 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --bg-base:    #0d0d0d;
-  --bg-surface: #1a1a1e;
-  --bg-elevated:#252529;
-  --border:     rgba(255,255,255,0.18);
-  --divider:    rgba(255,255,255,0.12);
-  --text-1:     #f0f0f0;
-  --text-2:     #c0c0c0;
-  --text-3:     #888888;
-  --accent:     #f53892; /* הוגבה מ-#e91e8c לעמוד ב-WCAG AA 4.5:1 על bg-surface */
-  --accent-dim: rgba(245,56,146,0.18);
+  /* "יומן הספר" — רקע דיו כהה ומחומם, מותג אינדיגו-סגול, חתימת סריף עברי */
+  --bg-base:    #0b0c0e;
+  --bg-surface: #15171b;
+  --bg-elevated:#1e2128;
+  --border:     rgba(255,255,255,0.12);
+  --divider:    rgba(255,255,255,0.07);
+  --text-1:     #f2f1ee; /* "נייר" — לבן מעט מחומם */
+  --text-2:     #b9bbc2;
+  --text-3:     #7e828c;
+  --accent:     #7c83ff; /* דיו אינדיגו-סגול — AA על bg-surface */
+  --accent-hover:#5b62e6;
+  --accent-dim: rgba(124,131,255,0.16);
+  --gilt:       #d8b25a; /* זהב מאופק — לסימן המותג בלבד */
 }
 
 /* ── Base ───────────────────────────────────────────── */
@@ -37,10 +40,30 @@ button, a, [role="button"] {
 }
 
 h1, h2 {
-  font-family: var(--font-rubik), sans-serif;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display), var(--font-rubik), serif;
+  font-weight: 700;
+  letter-spacing: -0.005em;
 }
+
+/* ── חתימה: "קו היומן" — קו בסיס דק עם סימן דיו בתחילתו ─── */
+.ledger-rule {
+  position: relative;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--divider);
+}
+.ledger-rule::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  inset-inline-start: 0;
+  width: 2.25rem;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* עזר: פונט החתימה לשימוש מפורש (מספרים-גיבור, כותרות הירו) */
+.font-display { font-family: var(--font-display), var(--font-rubik), serif; }
 
 /* ── Tailwind overrides — backgrounds ───────────────── */
 .bg-white          { background-color: var(--bg-surface)  !important; }
@@ -80,7 +103,7 @@ select option { background: var(--bg-elevated); color: var(--text-1); }
 
 /* ── Accent: replace indigo with pink ───────────────── */
 .bg-indigo-600             { background-color: var(--accent) !important; }
-.hover\:bg-indigo-700:hover{ background-color: #d1287a     !important; }
+.hover\:bg-indigo-700:hover{ background-color: var(--accent-hover) !important; }
 .text-indigo-600,
 .text-indigo-700,
 .text-indigo-400           { color: var(--accent)           !important; }
@@ -95,12 +118,23 @@ select option { background: var(--bg-elevated); color: var(--text-1); }
 
 /* Blue → accent */
 .bg-blue-600               { background-color: var(--accent) !important; }
-.hover\:bg-blue-700:hover  { background-color: #d1287a     !important; }
+.hover\:bg-blue-700:hover  { background-color: var(--accent-hover) !important; }
 .text-blue-600,
 .text-blue-700             { color: var(--accent)           !important; }
 .bg-blue-50,
 .bg-blue-100               { background-color: var(--accent-dim) !important; }
-.border-blue-200           { border-color: rgba(233,30,140,0.3) !important; }
+.border-blue-200           { border-color: rgba(124,131,255,0.3) !important; }
+
+/* ── Brand pink → "ink" accent (gradients, ticks, logos) ─ */
+/* ממפה את צבע המותג הישן (ורוד) לאינדיגו-סגול בלי לגעת בצבעים הסמנטיים */
+.from-pink-400,
+.from-pink-500             { --tw-gradient-from: var(--accent) !important; }
+.to-pink-600,
+.to-pink-700               { --tw-gradient-to:   var(--accent-hover) !important; }
+.from-pink-500\/10         { --tw-gradient-from: rgba(124,131,255,0.10) !important; }
+.accent-pink-600           { accent-color: var(--accent) !important; }
+.text-pink-600,
+.text-pink-700             { color: var(--accent) !important; }
 
 /* ── Cards / surfaces ───────────────────────────────── */
 .rounded-2xl,

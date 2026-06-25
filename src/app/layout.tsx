@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Rubik } from "next/font/google";
+import { Rubik, Frank_Ruhl_Libre } from "next/font/google";
 import { AuthProvider } from "@/components/auth-provider";
 import { HebrewValidation } from "@/components/hebrew-validation";
 import "./globals.css";
@@ -8,6 +8,13 @@ const rubik = Rubik({
   variable: "--font-rubik",
   subsets: ["hebrew", "latin"],
   weight: ["300", "400", "500", "600", "700", "800", "900"],
+});
+
+// פונט החתימה — סריף עברי קלאסי לכותרות, מעניק תחושת מסמך/יומן רשמי
+const frankRuhl = Frank_Ruhl_Libre({
+  variable: "--font-display",
+  subsets: ["hebrew", "latin"],
+  weight: ["500", "700", "900"],
 });
 
 export const viewport: Viewport = {
@@ -48,7 +55,7 @@ export default function RootLayout({
     <html
       lang="he"
       dir="rtl"
-      className={`${rubik.variable} h-full antialiased`}
+      className={`${rubik.variable} ${frankRuhl.variable} h-full antialiased`}
     >
       <head>
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
