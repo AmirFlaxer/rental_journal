@@ -13,4 +13,4 @@
 | קובץ | הורץ בפרודקשן |
 |------|---------------|
 | 20260708_tasks_source_payment_id.sql | ✅ 2026-07-08 |
-| 20260708_push_subscriptions_rls.sql | ⬜ טרם |
+| 20260708_push_subscriptions_rls.sql | ✅ 2026-07-08 |

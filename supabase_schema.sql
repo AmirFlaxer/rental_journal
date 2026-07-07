@@ -238,9 +238,10 @@ create table if not exists property_assets (
 -- ----------------------------------------------------------------
 -- PUSH SUBSCRIPTIONS (מנויי Web Push)
 -- ----------------------------------------------------------------
+-- הערה: user_id כאן הוא text (הטבלה נוצרה ידנית), ולכן ה-policy משתמש ב-auth.uid()::text
 create table if not exists push_subscriptions (
   id          serial      primary key,
-  user_id     uuid        not null references auth.users(id) on delete cascade,
+  user_id     text        not null,
   endpoint    text        not null unique,
   p256dh      text        not null,
   auth        text        not null,
@@ -249,7 +250,7 @@ create table if not exists push_subscriptions (
 
 alter table push_subscriptions enable row level security;
 create policy "push_subscriptions_owner" on push_subscriptions
-  for all using (user_id = auth.uid());
+  for all using (user_id = auth.uid()::text);
 
 -- ----------------------------------------------------------------
 -- INDEX RATES (שערי מדד והצמדה)
