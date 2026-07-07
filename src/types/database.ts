@@ -187,6 +187,7 @@ export interface Task {
   status: TaskStatus;
   relatedEntityType?: string | null;
   relatedEntityId?: string | null;
+  sourcePaymentId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

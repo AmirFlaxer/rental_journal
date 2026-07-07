@@ -203,9 +203,17 @@ create table if not exists tasks (
   status              text        not null default 'pending',
   related_entity_type text,
   related_entity_id   text,
+  source_payment_id   text        references payments(id) on delete set null,
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now()
 );
+
+-- ----------------------------------------------------------------
+-- TASKS (המשך — קישור לתקבול מקור, לסגירת תזכורת שק אוטומטית)
+-- הרץ ALTER אם הטבלה כבר קיימת:
+--   ALTER TABLE tasks
+--     ADD COLUMN IF NOT EXISTS source_payment_id text references payments(id) on delete set null;
+-- ----------------------------------------------------------------
 
 -- ----------------------------------------------------------------
 -- PROPERTY ASSETS

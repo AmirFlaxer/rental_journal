@@ -9,6 +9,11 @@ import {
   deleteAutoTaxExpense,
   updateAutoTaxExpense,
 } from "@/lib/auto-tax";
+import {
+  isCheckPaymentMethod,
+  closeCheckReminderForPayment,
+  reopenCheckReminderForPayment,
+} from "@/lib/check-reminders";
 import { z } from "zod";
 
 interface RouteParams { params: Promise<{ id: string }> }
@@ -41,7 +46,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // שמירת מצב התשלום לפני העדכון
     const { data: existing } = await supabase
       .from("payments")
-      .select("paid_date, amount, payment_type, property_id")
+      .select("paid_date, amount, payment_type, property_id, lease_id, due_date, lease:leases(payment_method)")
       .eq("id", id)
       .eq("user_id", session.user.id)
       .single();
@@ -85,6 +90,27 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       } else if (wasRent && wasPaid && isNowPaid && newAmount !== oldAmount) {
         // סכום השתנה → מעדכן הוצאת מס
         await updateAutoTaxExpense(supabase, session.user.id, id, newAmount);
+      }
+
+      // ניהול תזכורת "הפקדת שק" — סנכרון אוטומטי מול תקבולים
+      const leaseId = data.leaseId ?? existing.lease_id;
+      const leaseRelation = existing.lease as
+        | { payment_method: string | null }
+        | { payment_method: string | null }[]
+        | null;
+      const leasePaymentMethod = Array.isArray(leaseRelation)
+        ? leaseRelation[0]?.payment_method
+        : leaseRelation?.payment_method;
+      if (isNowRent && isNowPaid && !wasPaid) {
+        if (leaseId && isCheckPaymentMethod(leasePaymentMethod)) {
+          const paidDate = data.paidDate
+            ? new Date(data.paidDate).toISOString()
+            : new Date().toISOString();
+          const dueDate = data.dueDate ? new Date(data.dueDate).toISOString() : existing.due_date;
+          await closeCheckReminderForPayment(supabase, session.user.id, id, leaseId, dueDate, paidDate);
+        }
+      } else if (wasRent && wasPaid && !isNowPaid) {
+        await reopenCheckReminderForPayment(supabase, session.user.id, id);
       }
     }
 

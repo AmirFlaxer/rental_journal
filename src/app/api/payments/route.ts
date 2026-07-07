@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { paymentSchema } from "@/lib/validations";
 import { isAutoTaxEnabled, createAutoTaxExpense } from "@/lib/auto-tax";
+import { isCheckPaymentMethod, closeCheckReminderForPayment } from "@/lib/check-reminders";
 import { z } from "zod";
 
 export async function GET() {
@@ -40,14 +41,16 @@ export async function POST(request: NextRequest) {
 
     if (!property) return NextResponse.json({ error: "Property not found or unauthorized" }, { status: 404 });
 
+    let lease: { id: string; payment_method: string | null } | null = null;
     if (data.leaseId) {
-      const { data: lease } = await supabase
+      const { data: leaseRow } = await supabase
         .from("leases")
-        .select("id")
+        .select("id, payment_method")
         .eq("id", data.leaseId)
         .eq("user_id", session.user.id)
         .single();
-      if (!lease) return NextResponse.json({ error: "Lease not found or unauthorized" }, { status: 404 });
+      if (!leaseRow) return NextResponse.json({ error: "Lease not found or unauthorized" }, { status: 404 });
+      lease = leaseRow;
     }
 
     const { data: row, error } = await supabase
@@ -68,6 +71,18 @@ export async function POST(request: NextRequest) {
           row.id,
           data.propertyId,
           data.amount,
+          new Date(data.paidDate).toISOString()
+        );
+      }
+
+      // סגירת תזכורת "הפקדת שק" אם החוזה משולם בשיקים
+      if (data.leaseId && lease && isCheckPaymentMethod(lease.payment_method)) {
+        await closeCheckReminderForPayment(
+          supabase,
+          session.user.id,
+          row.id,
+          data.leaseId,
+          new Date(data.dueDate).toISOString(),
           new Date(data.paidDate).toISOString()
         );
       }
