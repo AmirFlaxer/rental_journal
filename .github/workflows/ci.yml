@@ -1,6 +1,7 @@
 # CI: בדיקות טיפוסים, לינט וטסטים על כל push/PR ל-main,
 # ופריסה אוטומטית ל-Vercel אחרי שהבדיקות עוברות (מחליף את vercel deploy --prod הידני).
 # דורש secrets ברפו: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+# הופעל לראשונה 2026-07-08.
 name: CI
 
 on:
