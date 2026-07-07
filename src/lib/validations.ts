@@ -117,6 +117,12 @@ export const taskSchema = z.object({
   relatedEntityId: z.string().optional(),
 });
 
+// עדכון משימה - partial מ-taskSchema (עדכון חלקי, למשל רק priority) + completedAt
+// (סימון "בוצע" / ביטול השלמה). zod מסנן שדות לא מוכרים (כמו userId) אוטומטית.
+export const taskUpdateSchema = taskSchema.partial().extend({
+  completedAt: z.coerce.date().nullish(),
+});
+
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 export type PropertyInput = z.infer<typeof propertySchema>;
@@ -125,3 +131,4 @@ export type LeaseInput = z.infer<typeof leaseSchema>;
 export type ExpenseInput = z.infer<typeof expenseSchema>;
 export type PaymentInput = z.infer<typeof paymentSchema>;
 export type TaskInput = z.infer<typeof taskSchema>;
+export type TaskUpdateInput = z.infer<typeof taskUpdateSchema>;

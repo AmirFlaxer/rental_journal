@@ -38,6 +38,15 @@ export async function GET(req: Request) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // ── 0. פקיעת חוזים אוטומטית - חוזים שתאריך הסיום שלהם עבר ──────────
+  // הועבר לכאן מ-GET /api/leases ו-GET /api/properties (כתיבה בתוך נתיב קריאה
+  // שרצה בכל טעינת דף - שגוי ומיותר; ה-UI ממילא תאריך-מודע דרך effectiveLeaseStatus).
+  await supabaseAdmin
+    .from("leases")
+    .update({ status: "ended" })
+    .in("status", ["active", "paused"])
+    .lt("end_date", today.toISOString().slice(0, 10));
+
   // ── 1. חוזים שפוגים בעוד 30 או 7 ימים ──────────────────────────────
   const { data: leases } = await supabaseAdmin
     .from("leases")
@@ -66,10 +75,11 @@ export async function GET(req: Request) {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = tomorrow.toISOString().slice(0, 10);
 
+  // status לעולם לא מתעדכן באפליקציה - completed_at הוא מקור האמת למשימה פתוחה/סגורה
   const { data: tasks } = await supabaseAdmin
     .from("tasks")
     .select("id, title, user_id, due_date")
-    .eq("status", "pending")
+    .is("completed_at", null)
     .eq("due_date", tomorrowStr)
     .ilike("title", "%שק%");
 
@@ -88,12 +98,23 @@ export async function GET(req: Request) {
     ...Object.keys(taskNotifications),
   ]);
 
-  for (const userId of allUserIds) {
-    const { data: subs } = await supabaseAdmin
+  // שאילתה אחת לכל המנויים הרלוונטיים במקום לולאה שמבצעת שאילתה per-user (N+1)
+  const subsByUser = new Map<string, PushSubscription[]>();
+  if (allUserIds.size > 0) {
+    const { data: allSubs } = await supabaseAdmin
       .from("push_subscriptions")
-      .select("endpoint, p256dh, auth")
-      .eq("user_id", userId);
+      .select("user_id, endpoint, p256dh, auth")
+      .in("user_id", Array.from(allUserIds));
 
+    for (const s of allSubs ?? []) {
+      const arr = subsByUser.get(s.user_id) ?? [];
+      arr.push({ endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth });
+      subsByUser.set(s.user_id, arr);
+    }
+  }
+
+  for (const userId of allUserIds) {
+    const subs = subsByUser.get(userId);
     if (!subs?.length) continue;
 
     for (const n of leaseNotifications[userId] ?? []) {

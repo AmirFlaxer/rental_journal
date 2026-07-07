@@ -1,0 +1,45 @@
+# CI: בדיקות טיפוסים, לינט וטסטים על כל push/PR ל-main,
+# ופריסה אוטומטית ל-Vercel אחרי שהבדיקות עוברות (מחליף את vercel deploy --prod הידני).
+# דורש secrets ברפו: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint
+        # לא חוסם בינתיים - יש שגיאות לינט ותיקות (unescaped entities וכו') שינוקו בהדרגה
+        continue-on-error: true
+        run: npm run lint
+      - name: Tests
+        run: npx vitest run
+
+  deploy:
+    needs: checks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Deploy to Vercel (production)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: npx vercel deploy --prod --token "$VERCEL_TOKEN" --yes

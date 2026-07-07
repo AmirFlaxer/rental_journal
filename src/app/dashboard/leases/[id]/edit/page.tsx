@@ -95,6 +95,8 @@ export default function EditLeasePage() {
   const [extractingDocId, setExtractingDocId] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
   const [extractDocName, setExtractDocName] = useState("");
+  const [extractError, setExtractError] = useState("");
+  const [applySuccessMsg, setApplySuccessMsg] = useState("");
   const [propertyId, setPropertyId] = useState("");
   const [tenantId, setTenantId] = useState("");
   const [tenantName, setTenantName] = useState("");
@@ -252,6 +254,7 @@ export default function EditLeasePage() {
     setExtractingDocId(doc.id);
     setExtractDocName(doc.fileName);
     setExtractedData(null);
+    setExtractError("");
     try {
       const res = await fetch(`/api/documents/${doc.id}/extract`, { method: "POST" });
       if (!res.ok) {
@@ -261,7 +264,7 @@ export default function EditLeasePage() {
       const data: ExtractedData = await res.json();
       setExtractedData(data);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "שגיאה בחילוץ הנתונים");
+      setExtractError(err instanceof Error ? err.message : "שגיאה בחילוץ הנתונים");
       setExtractingDocId(null);
     }
   };
@@ -280,7 +283,7 @@ export default function EditLeasePage() {
     // Show extracted tenant info as a note if present
     if (tenant.firstName || tenant.lastName) {
       const name = [tenant.firstName, tenant.lastName].filter(Boolean).join(" ");
-      alert(`נתוני השכירות הוחלו בהצלחה.\n\nשם השוכר בחוזה: ${name}${tenant.idNumber ? `\nת.ז.: ${tenant.idNumber}` : ""}${tenant.phone ? `\nטלפון: ${formatPhone(tenant.phone)}` : ""}`);
+      setApplySuccessMsg(`נתוני השכירות הוחלו בהצלחה — שם השוכר בחוזה: ${name}${tenant.idNumber ? ` · ת.ז.: ${tenant.idNumber}` : ""}${tenant.phone ? ` · טלפון: ${formatPhone(tenant.phone)}` : ""}`);
     }
   };
 
@@ -403,6 +406,12 @@ export default function EditLeasePage() {
 
       <div className="max-w-3xl mx-auto px-4 py-8 sm:px-6 space-y-6">
         {error && <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl">{error}</div>}
+        {applySuccessMsg && (
+          <div className="p-3 bg-green-50 border border-green-300 text-green-700 rounded-xl text-sm flex items-center justify-between gap-3">
+            <span>✅ {applySuccessMsg}</span>
+            <button type="button" onClick={() => setApplySuccessMsg("")} className="text-green-600 hover:text-green-800 font-bold">✕</button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
 
@@ -697,6 +706,9 @@ export default function EditLeasePage() {
 
             {uploadError && (
               <div className="mb-3 p-3 bg-red-50 border border-red-300 text-red-700 rounded-lg text-sm">{uploadError}</div>
+            )}
+            {extractError && (
+              <div className="mb-3 p-3 bg-red-50 border border-red-300 text-red-700 rounded-lg text-sm">{extractError}</div>
             )}
 
             <div className="flex items-center gap-3 mb-4">

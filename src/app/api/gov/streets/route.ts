@@ -14,11 +14,14 @@ async function fetchStreets(q: string, limit: number, signal: AbortSignal): Prom
   return j?.success ? (j.result?.records ?? []) : [];
 }
 
+// רשימת רחובות משתנה לעיתים נדירות מאוד - קאשינג ציבורי ליום שלם
+const CACHE_HEADERS = { headers: { "Cache-Control": "public, max-age=86400" } };
+
 export async function GET(req: NextRequest) {
   const q    = req.nextUrl.searchParams.get("q")?.trim() ?? "";
   const city = req.nextUrl.searchParams.get("city")?.trim() ?? "";
 
-  if (q.length < 2 && !city) return NextResponse.json([]);
+  if (q.length < 2 && !city) return NextResponse.json([], CACHE_HEADERS);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
@@ -60,9 +63,9 @@ export async function GET(req: NextRequest) {
       if (streets.length >= 10) break;
     }
 
-    return NextResponse.json(streets);
+    return NextResponse.json(streets, CACHE_HEADERS);
   } catch {
     clearTimeout(timer);
-    return NextResponse.json([]);
+    return NextResponse.json([], CACHE_HEADERS);
   }
 }

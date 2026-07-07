@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { effectiveLeaseStatus } from "@/lib/lease-status";
+import { localMonthKey } from "@/lib/domain/dates";
 import Link from "next/link";
 import type { Lease, Expense, Payment } from "@/types/database";
 
@@ -24,6 +25,7 @@ const PAYMENT_TYPE_HE: Record<string, string> = {
 
 const LEASE_STATUS_HE: Record<string, string> = {
   active: "פעיל",
+  future: "עתידי",
   ended: "הסתיים",
   terminated: "הסתיים",
   expired: "פג תוקף",
@@ -241,11 +243,11 @@ export default function PropertyReportPage() {
                         {lease.tenant?.firstName} {lease.tenant?.lastName}
                       </span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
-                        lease.status === "active" ? "bg-green-100 text-green-700" :
-                        (lease.status === "terminated" || lease.status === "expired") ? "bg-gray-100 text-gray-600" :
+                        effectiveLeaseStatus(lease) === "active" ? "bg-green-100 text-green-700" :
+                        (effectiveLeaseStatus(lease) === "expired" || effectiveLeaseStatus(lease) === "ended") ? "bg-gray-100 text-gray-600" :
                         "bg-yellow-100 text-yellow-700"
                       }`}>
-                        {LEASE_STATUS_HE[lease.status] ?? lease.status}
+                        {LEASE_STATUS_HE[effectiveLeaseStatus(lease)] ?? lease.status}
                       </span>
                     </div>
                     <div className="text-xs text-gray-500">
@@ -271,7 +273,9 @@ export default function PropertyReportPage() {
           while (cur <= end) {
             const due = new Date(cur.getFullYear(), cur.getMonth(), start.getDate());
             months.push({
-              key: cur.toISOString().slice(0, 7),
+              // localMonthKey ולא toISOString - toISOString על תאריך מקומי מסיט
+              // חצות לישראל אחורה ליום הקודם, ובתחילת חודש זה מציג את החודש הקודם
+              key: localMonthKey(cur),
               label: cur.toLocaleDateString("he-IL", { month: "short", year: "numeric" }),
               due,
             });
@@ -296,30 +300,34 @@ export default function PropertyReportPage() {
                   </p>
                 </div>
                 <span className={`text-xs px-3 py-1 rounded-full font-bold ${
-                  lease.status === "active" ? "bg-green-100 text-green-700" :
-                  (lease.status === "terminated" || lease.status === "expired") ? "bg-gray-100 text-gray-600" :
+                  effectiveLeaseStatus(lease) === "active" ? "bg-green-100 text-green-700" :
+                  (effectiveLeaseStatus(lease) === "expired" || effectiveLeaseStatus(lease) === "ended") ? "bg-gray-100 text-gray-600" :
                   "bg-yellow-100 text-yellow-700"
                 }`}>
-                  {LEASE_STATUS_HE[lease.status] ?? lease.status}
+                  {LEASE_STATUS_HE[effectiveLeaseStatus(lease)] ?? lease.status}
                 </span>
               </div>
               <div className="p-4 flex flex-wrap gap-2">
                 {months.map(({ key, label, due }) => {
                   const match = rentPayments.find((p) => (p.dueDate || "").slice(0, 7) === key);
-                  const isPaid = match?.status === "paid" || !!match?.paidDate;
+                  // תשלום חלקי הוא מצב שלישי - לא "שולם" (isPaid דורש status==="paid" בדיוק,
+                  // לא רק paidDate שקיים גם על תקבולים חלקיים)
+                  const isPaid = match?.status === "paid";
+                  const isPartial = match?.status === "partial";
                   const isFuture = due > today;
-                  const isOverdue = !isPaid && !isFuture;
+                  const isOverdue = !isPaid && !isPartial && !isFuture;
                   return (
                     <div key={key} className={`flex flex-col items-center px-3 py-2 rounded-lg border text-xs font-semibold min-w-[68px] ${
                       isPaid ? "bg-green-50 border-green-300 text-green-700" :
+                      isPartial ? "bg-amber-50 border-amber-300 text-amber-700" :
                       isFuture ? "bg-gray-50 border-gray-200 text-gray-500" :
                       "bg-red-50 border-red-300 text-red-700"
                     }`}>
                       <span>{label}</span>
                       <span className="mt-0.5">
-                        {isPaid ? "✅" : isFuture ? "🔲" : "❌"}
+                        {isPaid ? "✅" : isPartial ? "🔶" : isFuture ? "🔲" : "❌"}
                       </span>
-                      {isPaid && match?.paidDate && (
+                      {(isPaid || isPartial) && match?.paidDate && (
                         <span className="text-[10px] text-gray-400">
                           {new Date(match.paidDate).toLocaleDateString("he-IL", { day: "numeric", month: "numeric" })}
                         </span>

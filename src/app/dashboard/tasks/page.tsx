@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DateInput } from "@/components/date-input";
+import { listRentMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
+import { apiGet, queryKeys } from "@/lib/api-client";
 
 const CAT_HE: Record<string, string> = {
   Insurance: "ביטוח",
@@ -95,10 +98,16 @@ interface Lease {
   tenant?: { firstName: string; lastName: string };
 }
 
-/** יוצר תזכורות שק וירטואליות מחוזים פעילים */
-function generateCheckReminders(leases: Lease[], dbTasks: Task[]): Task[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+/**
+ * יוצר תזכורות שק וירטואליות (לתצוגה בלבד, לא נשמרות ב-DB) מחוזים פעילים בשיטת שיקים.
+ * השם כולל "Virtual" בכוונה כדי לא להתבלבל עם src/lib/check-reminders.ts השרתי -
+ * שם עוסק בסגירה/פתיחה מחדש של תזכורות DB אמיתיות מול תשלומים בפועל
+ * (closeCheckReminderForPayment / reopenCheckReminderForPayment).
+ * הפונקציה כאן היא רק תחזית UI לחודשים שעדיין אין להם תזכורת ב-DB,
+ * כדי שהמסך יציג אותם גם לפני שנוצרת התזכורת "האמיתית".
+ */
+function generateVirtualCheckTasks(leases: Lease[], dbTasks: Task[]): Task[] {
+  const today = todayStr();
   const virtual: Task[] = [];
 
   // בנה מפה leaseId → propertyId לצורך dedup בין חוזים של אותו נכס
@@ -106,14 +115,14 @@ function generateCheckReminders(leases: Lease[], dbTasks: Task[]): Task[] {
 
   // חודשים שכבר מכוסים ע"י משימת DB שאינה פגת-תוקף (לפי נכס+חודש)
   // משימה פגת-תוקף לא חוסמת — ייתכן שנוצרה עם תאריך שגוי (באג UTC)
-  const todayMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const todayMonth = today.slice(0, 7);
   const coveredPropertyMonths = new Set<string>();
   for (const t of dbTasks) {
     if (t.category === "Rent Collection" && t.relatedEntityType === "lease" && t.relatedEntityId) {
       const propId = leaseToProperty.get(t.relatedEntityId);
       // מכסה חודש נוכחי או עתידי — גם אם dueDate הוא אתמול (תזכורת יום לפני התשלום)
       if (propId && t.dueDate.slice(0, 7) >= todayMonth) {
-        coveredPropertyMonths.add(`${propId}-${t.dueDate.slice(0, 7)}`);
+        coveredPropertyMonths.add(propertyMonthKey(propId, t.dueDate.slice(0, 7)));
       }
     }
   }
@@ -125,44 +134,24 @@ function generateCheckReminders(leases: Lease[], dbTasks: Task[]): Task[] {
     const propId = lease.properties?.id;
     if (!propId) continue;
 
-    const start = new Date(lease.startDate);
-    const end = new Date(lease.endDate);
-    const startDay = start.getDate();
-    const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+    for (const slot of listRentMonths(lease)) {
+      if (slot.dueDate < today) continue;
+      const key = propertyMonthKey(propId, slot.monthKey);
+      if (coveredPropertyMonths.has(key)) continue;
 
-    while (true) {
-      if (cur > new Date(end.getFullYear(), end.getMonth(), 1)) break;
-      const year = cur.getFullYear();
-      const month = cur.getMonth();
-      const lastDay = new Date(year, month + 1, 0).getDate();
-      const day = Math.min(startDay, lastDay);
-      const paymentDue = new Date(year, month, day);
-
-      if (paymentDue >= today) {
-        const ry = paymentDue.getFullYear();
-        const rm = String(paymentDue.getMonth() + 1).padStart(2, "0");
-        const rd = String(paymentDue.getDate()).padStart(2, "0");
-        const dueDateStr = `${ry}-${rm}-${rd}`;
-        const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
-        const propertyMonthKey = `${propId}-${monthKey}`;
-
-        if (!coveredPropertyMonths.has(propertyMonthKey)) {
-          const monthLabel = paymentDue.toLocaleDateString("he-IL", { month: "long", year: "numeric" });
-          const propertyLabel = lease.properties?.title ?? "נכס";
-          virtual.push({
-            id: `virtual-check-${lease.id}-${monthKey}`,
-            title: `הפקדת שק שכ"ד — ${propertyLabel} — ${monthLabel}`,
-            category: "Rent Collection",
-            dueDate: dueDateStr,
-            priority: "normal",
-            relatedEntityType: "lease",
-            relatedEntityId: lease.id,
-            isVirtual: true,
-          });
-          coveredPropertyMonths.add(propertyMonthKey);
-        }
-      }
-      cur.setMonth(cur.getMonth() + 1);
+      const monthLabel = new Date(`${slot.dueDate}T00:00:00`).toLocaleDateString("he-IL", { month: "long", year: "numeric" });
+      const propertyLabel = lease.properties?.title ?? "נכס";
+      virtual.push({
+        id: `virtual-check-${lease.id}-${slot.monthKey}`,
+        title: `הפקדת שק שכ"ד — ${propertyLabel} — ${monthLabel}`,
+        category: "Rent Collection",
+        dueDate: slot.dueDate,
+        priority: "normal",
+        relatedEntityType: "lease",
+        relatedEntityId: lease.id,
+        isVirtual: true,
+      });
+      coveredPropertyMonths.add(key);
     }
   }
 
@@ -196,9 +185,13 @@ function formatDue(dateStr: string, isOverdue: boolean) {
 }
 
 export default function TasksPage() {
-  const [dbTasks, setDbTasks] = useState<Task[]>([]);
-  const [leases, setLeases] = useState<Lease[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const tasksQuery = useQuery({ queryKey: queryKeys.tasks, queryFn: () => apiGet<Task[]>("/api/tasks") });
+  const leasesQuery = useQuery({ queryKey: queryKeys.leases, queryFn: () => apiGet<Lease[]>("/api/leases") });
+  const dbTasks = tasksQuery.data ?? [];
+  const leases = leasesQuery.data ?? [];
+  const isPending = tasksQuery.isPending || leasesQuery.isPending;
+  const failedQuery = [tasksQuery, leasesQuery].find((q) => q.isError);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showDone, setShowDone] = useState(true);
@@ -220,59 +213,57 @@ export default function TasksPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // באנר שגיאה inline לרשימה (במקום alert) — נעלם אוטומטית או בסגירה ידנית
+  const [listError, setListError] = useState("");
+  const listErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showListError = (msg: string) => {
+    if (listErrorTimer.current) clearTimeout(listErrorTimer.current);
+    setListError(msg);
+    listErrorTimer.current = setTimeout(() => setListError(""), 4000);
+  };
+
+  // אישור מחיקה דו-שלבי: לחיצה ראשונה הופכת את הכפתור ל"בטוח?", מתאפס אחרי 3 שניות
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const confirmDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestDelete = (id: string) => {
+    if (confirmDeleteTimer.current) clearTimeout(confirmDeleteTimer.current);
+    setConfirmDeleteId(id);
+    confirmDeleteTimer.current = setTimeout(() => setConfirmDeleteId(null), 3000);
+  };
+  useEffect(() => () => {
+    if (listErrorTimer.current) clearTimeout(listErrorTimer.current);
+    if (confirmDeleteTimer.current) clearTimeout(confirmDeleteTimer.current);
+  }, []);
+
+  // ניקוי כפילויות/יתומות של תזכורות שק — מתבצע בשרת (POST /api/tasks/cleanup),
+  // לא בצד לקוח: אם /api/leases נכשל רגעית, אין סכנה שכל תזכורות ה-Rent Collection
+  // ייחשבו יתומות וימחקו בטעות (באג שהיה בגרסה הקודמת של הניקוי כאן).
+  // רץ פעם אחת ב-mount; ה-ref מונע הרצה כפולה ב-Strict Mode של פיתוח.
+  const cleanupMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/tasks/cleanup", { method: "POST" });
+      if (!res.ok) return null;
+      return res.json() as Promise<{ deleted: number }>;
+    },
+    onSuccess: (res) => {
+      if (res && res.deleted > 0) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+      }
+    },
+  });
+  const cleanupRan = useRef(false);
   useEffect(() => {
-    Promise.all([
-      fetch("/api/tasks").then((r) => r.json()),
-      fetch("/api/leases").then((r) => r.json()),
-    ]).then(([t, l]) => {
-      if (!Array.isArray(t)) { setLoading(false); return; }
-      if (Array.isArray(l)) setLeases(l);
-
-      // מחק כפילויות חוזה+חודש מה-DB (שנוצרו בבאג הקודם)
-      const seen = new Map<string, Task>();
-      const toDelete: string[] = [];
-      for (const task of t as Task[]) {
-        if (task.category === "Rent Collection" && task.relatedEntityType === "lease" && task.relatedEntityId) {
-          const key = `${task.relatedEntityId}-${task.dueDate.slice(0, 7)}`;
-          if (seen.has(key)) {
-            // שמור את זה שהושלם, מחק את האחר
-            const prev = seen.get(key)!;
-            if (task.completedAt && !prev.completedAt) {
-              toDelete.push(prev.id);
-              seen.set(key, task);
-            } else {
-              toDelete.push(task.id);
-            }
-          } else {
-            seen.set(key, task);
-          }
-        }
-      }
-      // מחק גם Rent Collection tasks שהחוזה שלהם לא קיים (יתומים מריצות ישנות)
-      const leaseIds = new Set((Array.isArray(l) ? l as { id: string }[] : []).map((x) => x.id));
-      for (const task of t as Task[]) {
-        if (
-          task.category === "Rent Collection" &&
-          task.relatedEntityType === "lease" &&
-          task.relatedEntityId &&
-          !leaseIds.has(task.relatedEntityId) &&
-          !toDelete.includes(task.id)
-        ) {
-          toDelete.push(task.id);
-        }
-      }
-
-      // מחק כפילויות ויתומים ברקע
-      toDelete.forEach((id) => fetch(`/api/tasks/${id}`, { method: "DELETE" }));
-      const cleanedTasks = (t as Task[]).filter((task) => !toDelete.includes(task.id));
-      setDbTasks(cleanedTasks);
-    }).finally(() => setLoading(false));
+    if (cleanupRan.current) return;
+    cleanupRan.current = true;
+    cleanupMutation.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const pendingDb = dbTasks.filter((t) => !t.completedAt);
   const done = dbTasks.filter((t) => t.completedAt);
 
-  const virtualCheck = generateCheckReminders(leases, dbTasks);
+  // ממוין ב-useMemo כי לולאת השרשור-חוזים רצה בכל render, וללא זה גם בכל הקלדה בטופס
+  const virtualCheck = useMemo(() => generateVirtualCheckTasks(leases, dbTasks), [leases, dbTasks]);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -337,7 +328,7 @@ export default function TasksPage() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "שגיאה");
-        setDbTasks((prev) => [data, ...prev]);
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
       } else {
         // Recurring — calculate all dates
         const occurrences: string[] = [];
@@ -380,7 +371,7 @@ export default function TasksPage() {
           )
         );
         const created = results.filter((r) => r.id);
-        setDbTasks((prev) => [...created, ...prev]);
+        if (created.length > 0) queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
       }
 
       setShowForm(false);
@@ -409,7 +400,7 @@ export default function TasksPage() {
             relatedEntityId: t.relatedEntityId,
           }),
         });
-        if (!createRes.ok) { alert("שגיאה ביצירת משימה"); return; }
+        if (!createRes.ok) { showListError("שגיאה ביצירת משימה"); return; }
         const created = await createRes.json();
         const completeRes = await fetch(`/api/tasks/${created.id}`, {
           method: "PUT",
@@ -417,9 +408,8 @@ export default function TasksPage() {
           body: JSON.stringify({ completedAt: new Date().toISOString() }),
         });
         if (completeRes.ok) {
-          const completed = await completeRes.json();
-          setDbTasks((prev) => [completed, ...prev]);
-        } else { alert("שגיאה בסימון כבוצע"); }
+          queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+        } else { showListError("שגיאה בסימון כבוצע"); }
         return;
       }
       const res = await fetch(`/api/tasks/${t.id}`, {
@@ -428,9 +418,8 @@ export default function TasksPage() {
         body: JSON.stringify({ completedAt: new Date().toISOString() }),
       });
       if (res.ok) {
-        const updated = await res.json();
-        setDbTasks((prev) => prev.map((x) => (x.id === t.id ? updated : x)));
-      } else { alert("שגיאה בסימון כבוצע"); }
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+      } else { showListError("שגיאה בסימון כבוצע"); }
     } finally {
       setCompletingId(null);
     }
@@ -443,21 +432,32 @@ export default function TasksPage() {
       body: JSON.stringify({ completedAt: null }),
     });
     if (res.ok) {
-      const updated = await res.json();
-      setDbTasks((prev) => prev.map((x) => (x.id === id ? updated : x)));
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
     }
   };
 
   const remove = async (t: Task) => {
     if (t.isVirtual) return; // וירטואלי — אין מה למחוק
     await fetch(`/api/tasks/${t.id}`, { method: "DELETE" });
-    setDbTasks((prev) => prev.filter((x) => x.id !== t.id));
+    queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
   };
 
-  if (loading) {
+  if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (failedQuery) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-3">
+        <p className="text-red-600 text-sm">{(failedQuery.error as Error).message}</p>
+        <button onClick={() => failedQuery.refetch()}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700">
+          נסה שוב
+        </button>
       </div>
     );
   }
@@ -493,16 +493,19 @@ export default function TasksPage() {
     const propColors = t.relatedEntityId ? propColorsByLeaseId.get(t.relatedEntityId) : undefined;
     const propColor = propColors?.base ?? "#94a3b8";
     const propDark  = propColors?.dark ?? "#64748b";
-    const catBg = CAT_BG[t.category] ?? "#f3f4f6";
-    const catFg = CAT_FG[t.category] ?? "#374151";
+    // צבעי הקטגוריה עצמם (CAT_BG/CAT_FG) נשארים כפי שהם - קידוד צבע לפי קטגוריה, כמו PROP_PALETTE.
+    // רק ה-fallback (למקרה קטגוריה לא ממופה) עבר ממשתני-CSS קשיחים למשתני עיצוב, כדי שלא "יברח" לבן על רקע כהה
+    const catBg = CAT_BG[t.category] ?? "var(--bg-elevated)";
+    const catFg = CAT_FG[t.category] ?? "var(--text-2)";
     const shadow = "0 1px 3px rgba(0,0,0,0.4)";
     const livePriBg = t.priority === "high" ? "#dc2626" : t.priority === "normal" ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.18)";
     const livePriFg = t.priority === "high" ? "white" : t.priority === "normal" ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.75)";
+    const isConfirmingDelete = confirmDeleteId === t.id;
 
     return (
       <div
         className={`rounded-xl shadow-sm border transition-opacity ${isDone ? "opacity-60 border-gray-100" : "border-transparent"}`}
-        style={{ background: isDone ? "#f9fafb" : `linear-gradient(135deg, ${propDark} 0%, ${propColor} 100%)` }}
+        style={{ background: isDone ? "var(--bg-elevated)" : `linear-gradient(135deg, ${propDark} 0%, ${propColor} 100%)` }}
       >
         {/* שורה עליונה: אייקון + כותרת + תאריך + מחיקה */}
         <div className="flex items-center gap-2.5 px-3 pt-3 pb-1">
@@ -525,21 +528,32 @@ export default function TasksPage() {
           {/* Due date */}
           <p
             className="flex-shrink-0 font-bold text-xs text-right"
-            style={isDone ? { color: "#9ca3af" } : isOverdue ? { color: "#fde047", textShadow: shadow } : { color: "white", textShadow: shadow }}
+            style={isDone ? { color: "var(--text-3)" } : isOverdue ? { color: "#fde047", textShadow: shadow } : { color: "white", textShadow: shadow }}
           >
             {isOverdue && "⚠ "}{dueLabel}
           </p>
 
-          {/* Delete */}
+          {/* Delete — אישור דו-שלבי: לחיצה ראשונה הופכת ל"בטוח?", מתאפס אחרי 3 שניות */}
           {!t.isVirtual && (
-            <button
-              type="button"
-              onClick={() => remove(t)}
-              className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-opacity hover:opacity-80"
-              style={isDone ? { background: "#f3f4f6", color: "#9ca3af" } : { background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.9)" }}
-            >
-              🗑
-            </button>
+            isConfirmingDelete ? (
+              <button
+                type="button"
+                onClick={() => { setConfirmDeleteId(null); remove(t); }}
+                className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold text-white"
+                style={{ background: "#dc2626" }}
+              >
+                בטוח?
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => requestDelete(t.id)}
+                className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-sm transition-opacity hover:opacity-80"
+                style={isDone ? { background: "var(--bg-surface)", color: "var(--text-3)" } : { background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.9)" }}
+              >
+                🗑
+              </button>
+            )
           )}
         </div>
 
@@ -556,18 +570,18 @@ export default function TasksPage() {
             {propertyName && (
               <span
                 className="text-xs font-semibold truncate"
-                style={{ color: isDone ? "#94a3b8" : "rgba(255,255,255,0.9)", textShadow: isDone ? "none" : shadow }}
+                style={{ color: isDone ? "var(--text-3)" : "rgba(255,255,255,0.9)", textShadow: isDone ? "none" : shadow }}
               >
                 {propertyName}
               </span>
             )}
             {t.description && (
-              <span className="text-xs truncate" style={{ color: isDone ? "#9ca3af" : "rgba(255,255,255,0.75)" }}>
+              <span className="text-xs truncate" style={{ color: isDone ? "var(--text-3)" : "rgba(255,255,255,0.75)" }}>
                 {t.description}
               </span>
             )}
             {t.isVirtual && (
-              <span className="text-xs flex-shrink-0" style={{ color: isDone ? "#9ca3af" : "rgba(255,255,255,0.65)" }}>
+              <span className="text-xs flex-shrink-0" style={{ color: isDone ? "var(--text-3)" : "rgba(255,255,255,0.65)" }}>
                 אוטומטי
               </span>
             )}
@@ -578,7 +592,7 @@ export default function TasksPage() {
             <span
               className="text-xs px-2 py-0.5 rounded-lg font-bold"
               style={isDone
-                ? { background: PRIORITY_BG[t.priority] ?? "#f1f5f9", color: PRIORITY_FG[t.priority] ?? "#475569" }
+                ? { background: PRIORITY_BG[t.priority] ?? "var(--bg-elevated)", color: PRIORITY_FG[t.priority] ?? "var(--text-2)" }
                 : { background: livePriBg, color: livePriFg }
               }
             >
@@ -599,8 +613,7 @@ export default function TasksPage() {
               <button
                 type="button"
                 onClick={() => reopen(t.id)}
-                className="px-3 py-1 rounded-lg font-semibold text-xs border"
-                style={{ background: "#f0fdf4", color: "#166534", borderColor: "#86efac" }}
+                className="px-3 py-1 rounded-lg font-semibold text-xs border border-emerald-500/30 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 transition-colors"
               >
                 בטל
               </button>
@@ -631,6 +644,20 @@ export default function TasksPage() {
           + תזכורת חדשה
         </button>
       </div>
+
+      {/* באנר שגיאה — inline במקום alert, נעלם אוטומטית אחרי כמה שניות או בסגירה ידנית */}
+      {listError && (
+        <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm flex items-center justify-between gap-3">
+          <span>{listError}</span>
+          <button
+            type="button"
+            onClick={() => setListError("")}
+            className="flex-shrink-0 text-xs font-bold opacity-70 hover:opacity-100"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Add form modal */}
       {showForm && (

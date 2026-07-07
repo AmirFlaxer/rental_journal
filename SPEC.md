@@ -2,6 +2,34 @@
 
 > מצב נוכחי, החלטות, והצעד הבא. מתעדכן בכל session.
 
+## שדרוג רוחבי (2026-07-08) - ביקורת עומק + גל שיפורים
+
+ביקורת רב-סוכנית (אבטחה/נכונות/איכות/UX/ביצועים + רוויזיה ארכיטקטונית) ויישום מלא של גל 1+2:
+
+**ארכיטקטורה חדשה:**
+- **src/lib/domain/** - ספריית לוגיקה עסקית מאוחדת: `rent-schedule.ts` (לוח שכ"ד וירטואלי אחד במקום 4 עותקים שסטו), `partial-payment.ts` (getReceivedAmount - מקור אמת לסכום שהתקבל), `dates.ts` (עזרי תאריכים מקומיים בלי UTC)
+- **TanStack Query** בכל דפי הדשבורד (QueryProvider ב-layout, apiGet+queryKeys ב-src/lib/api-client.ts) - ניווט בין מסכים לא טוען מחדש נתונים; מוטציות עושות invalidation צולב (תקבול משפיע גם על tasks+expenses)
+- **בדיקות**: vitest, 47 בדיקות על הלוגיקה הפיננסית (rent-schedule, partial-payment, dates, linkage, lease-status). `npx vitest run`
+- **CI**: .github/workflows/ci.yml - typecheck+lint+tests על כל push + פריסה אוטומטית ל-Vercel (דורש secrets: VERCEL_TOKEN/ORG_ID/PROJECT_ID)
+- **מיגרציות**: supabase/migrations/ - קבצי SQL ממוספרים כמקור אמת (עדיין הרצה ידנית ב-Dashboard)
+
+**באגים קריטיים שתוקנו:**
+- עריכת חוזה הייתה שבורה לגמרי (הדף שלח PUT, ה-route לא ייצא PUT - 405) - נוסף PUT מלא עם ולידציה
+- תשלום חלקי נספר כמלא במס האוטומטי, בדוח המס ובדוחות - עכשיו הכל דרך getReceivedAmount; תשלום חלקי לא סוגר תזכורת שק (החלטת אמיר)
+- הפעלת אופציה מאפסת בסיס הצמדה (base_amount/base_date לשכ"ד האופציה)
+- משפחת באגי UTC: linkage.pickRate (בחר מדד תקופה קודמת), ווידג'ט שקים בדף נכס, לוח חודשי בדוח נכס, effectiveLeaseStatus (חוזה שמתחיל היום הוצג future), ימי איחור בחובות
+- מחיקת תקבול פותחת מחדש תזכורת שק; DELETE חוזים קיים עכשיו (מוגבל ליתומים בלבד)
+- דוח ראשי לא סופר יותר פיקדונות/החזרים כהכנסה (רק Rent)
+- ניקוי תזכורות עבר לשרת (POST /api/tasks/cleanup) - בוטל הסיכון של מחיקת תזכורות תקינות בכשל רשת רגעי
+- mass-assignment נסגר (ולידציה ב-PUT tasks/payments), user_id ב-UPDATE של terminate/activate-option, סיומת קובץ מ-MIME
+- auto-expire של חוזים הוסר מ-GET (כתיבה בנתיב קריאה) ועבר ל-cron היומי
+- reconcileAutoTax - פונקציה אחת שמיישרת הוצאת מס למצב תקבול (מחליפה create/update/delete נפרדים); backfill לכל השנים
+- select ממוקד ב-GET leases/payments (הוסרו payments מקונן ו-lease מלא - החיסכון הגדול ברשת)
+
+**עדיין ידני (פעולות משתמש):**
+1. להריץ ב-Supabase Dashboard את `supabase/migrations/20260708_push_subscriptions_rls.sql` (RLS חסר על מנויי Push - ממצא אבטחה)
+2. להוסיף secrets ב-GitHub (VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID) כדי שהפריסה האוטומטית תעבוד
+
 ## מצב נוכחי (2026-06-01)
 
 ### מה עובד

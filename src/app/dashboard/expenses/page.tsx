@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiGet, queryKeys } from "@/lib/api-client";
 import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
 
@@ -65,9 +67,7 @@ const emptyForm = () => ({
 });
 
 export default function ExpensesPage() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState("");
@@ -75,20 +75,57 @@ export default function ExpensesPage() {
   const [filterYear, setFilterYear] = useState("");
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyForm());
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/expenses").then((r) => r.json()),
-      fetch("/api/properties").then((r) => r.json()),
-    ]).then(([exp, props]) => {
-      if (Array.isArray(exp)) setExpenses(exp);
-      if (Array.isArray(props)) setProperties(props);
-    }).finally(() => setLoading(false));
-  }, []);
+  const {
+    data: expenses = [],
+    isLoading: expensesLoading,
+    isError: expensesError,
+    refetch: refetchExpenses,
+  } = useQuery({
+    queryKey: queryKeys.expenses,
+    queryFn: () => apiGet<Expense[]>("/api/expenses"),
+  });
+
+  const {
+    data: properties = [],
+    isLoading: propertiesLoading,
+    isError: propertiesError,
+    refetch: refetchProperties,
+  } = useQuery({
+    queryKey: queryKeys.properties,
+    queryFn: () => apiGet<Property[]>("/api/properties"),
+  });
+
+  const loading = expensesLoading || propertiesLoading;
+  const loadError = expensesError || propertiesError;
+
+  const saveMutation = useMutation({
+    mutationFn: async ({ id, body }: { id: string | null; body: Record<string, unknown> }) => {
+      const res = await fetch(id ? `/api/expenses/${id}` : "/api/expenses", {
+        method: id ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await fetch(`/api/expenses/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses });
+    },
+    onSettled: () => setConfirmDeleteId(null),
+  });
 
   const availableYears = Array.from(
     new Set(expenses.map((e) => new Date(e.date).getFullYear()))
@@ -143,7 +180,6 @@ export default function ExpensesPage() {
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     setError("");
-    setSaving(true);
     try {
       const body = {
         propertyId: form.propertyId,
@@ -157,49 +193,35 @@ export default function ExpensesPage() {
         recurringFreq: form.recurring ? form.recurringFreq : undefined,
         paidBy: form.paidBy,
       };
-
-      if (editingId) {
-        const res = await fetch(`/api/expenses/${editingId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "שגיאה");
-        setExpenses((prev) => prev.map((e) => (e.id === editingId ? data : e)));
-      } else {
-        const res = await fetch("/api/expenses", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "שגיאה");
-        setExpenses((prev) => [data, ...prev]);
-      }
+      await saveMutation.mutateAsync({ id: editingId, body });
       closeForm();
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה");
-    } finally {
-      setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    setDeleting(true);
-    try {
-      await fetch(`/api/expenses/${id}`, { method: "DELETE" });
-      setExpenses((prev) => prev.filter((e) => e.id !== id));
-    } finally {
-      setDeleting(false);
-      setConfirmDeleteId(null);
-    }
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id);
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-3">
+        <p className="text-gray-500 font-medium">שגיאה בטעינת הנתונים</p>
+        <button
+          onClick={() => { refetchExpenses(); refetchProperties(); }}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700"
+        >
+          נסה שוב
+        </button>
       </div>
     );
   }
@@ -350,9 +372,9 @@ export default function ExpensesPage() {
                   placeholder="למשל: אחריות 12 חודשים, לפנות לאבי 050-0000000" />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={saving}
+                <button type="submit" disabled={saveMutation.isPending}
                   className="flex-1 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 disabled:opacity-50">
-                  {saving ? "שומר..." : editingId ? "עדכן הוצאה" : "שמור הוצאה"}
+                  {saveMutation.isPending ? "שומר..." : editingId ? "עדכן הוצאה" : "שמור הוצאה"}
                 </button>
                 <button type="button" onClick={closeForm}
                   className="px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-50">
@@ -376,52 +398,55 @@ export default function ExpensesPage() {
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {filtered.map((e) => (
-              <div key={e.id} className="px-5 py-4 hover:bg-slate-50">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-rose-500/25 to-rose-700/15 ring-1 ring-rose-500/30 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
-                    {CAT_ICON[e.category] || "📦"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{e.description}</p>
-                    <p className="text-xs text-gray-400">
-                      {e.properties?.title} · {CAT_HE[e.category]}
-                      {e.vendorName && ` · ${e.vendorName}`}
-                      {e.paidBy === "tenant" && " · שוכר"}
-                      {e.recurring && ` · חוזרת ${e.recurringFreq ? FREQ_HE[e.recurringFreq] || e.recurringFreq : ""}`}
-                    </p>
-                    {e.notes && <p className="text-xs text-gray-500 mt-0.5 truncate">📝 {e.notes}</p>}
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-rose-700">₪{e.amount.toLocaleString()}</p>
-                    <p className="text-xs text-gray-400">{new Date(e.date).toLocaleDateString("he-IL")}</p>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <button onClick={() => openEdit(e)}
-                      className="px-2.5 py-1.5 text-xs font-medium text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-                      ✏️
-                    </button>
-                    {confirmDeleteId === e.id ? (
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => handleDelete(e.id)} disabled={deleting}
-                          className="px-2 py-1 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50">
-                          {deleting ? "..." : "מחק"}
-                        </button>
-                        <button onClick={() => setConfirmDeleteId(null)}
-                          className="px-2 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold">
-                          ביטול
-                        </button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setConfirmDeleteId(e.id)}
-                        className="px-2.5 py-1.5 text-xs font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                        🗑
+            {filtered.map((e) => {
+              const isDeleting = deleteMutation.isPending && deleteMutation.variables === e.id;
+              return (
+                <div key={e.id} className="px-5 py-4 hover:bg-slate-50">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-rose-500/25 to-rose-700/15 ring-1 ring-rose-500/30 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
+                      {CAT_ICON[e.category] || "📦"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 truncate">{e.description}</p>
+                      <p className="text-xs text-gray-400">
+                        {e.properties?.title} · {CAT_HE[e.category]}
+                        {e.vendorName && ` · ${e.vendorName}`}
+                        {e.paidBy === "tenant" && " · שוכר"}
+                        {e.recurring && ` · חוזרת ${e.recurringFreq ? FREQ_HE[e.recurringFreq] || e.recurringFreq : ""}`}
+                      </p>
+                      {e.notes && <p className="text-xs text-gray-500 mt-0.5 truncate">📝 {e.notes}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-rose-700">₪{e.amount.toLocaleString()}</p>
+                      <p className="text-xs text-gray-400">{new Date(e.date).toLocaleDateString("he-IL")}</p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => openEdit(e)}
+                        className="px-2.5 py-1.5 text-xs font-medium text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                        ✏️
                       </button>
-                    )}
+                      {confirmDeleteId === e.id ? (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleDelete(e.id)} disabled={isDeleting}
+                            className="px-2 py-1 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50">
+                            {isDeleting ? "..." : "מחק"}
+                          </button>
+                          <button onClick={() => setConfirmDeleteId(null)}
+                            className="px-2 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold">
+                            ביטול
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setConfirmDeleteId(e.id)}
+                          className="px-2.5 py-1.5 text-xs font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                          🗑
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

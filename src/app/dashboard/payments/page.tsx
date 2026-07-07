@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { NumberInput } from "@/components/number-input";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
+import { listRentMonths, coveredPropertyMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
+import { encodePartial, parsePartialPaid, parsePartialReason, getDebtAmount } from "@/lib/domain/partial-payment";
+import { apiGet, queryKeys } from "@/lib/api-client";
 
 const TYPE_HE: Record<string, string> = {
   Rent: "שכ״ד",
@@ -15,6 +19,7 @@ const STATUS_COLOR: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
   paid: "bg-emerald-100 text-emerald-700",
   late: "bg-red-100 text-red-700",
+  overdue: "bg-red-100 text-red-700",
   partial: "bg-blue-100 text-blue-700",
   due: "bg-red-100 text-red-700",
   future: "bg-gray-100 text-gray-500",
@@ -24,23 +29,11 @@ const STATUS_HE: Record<string, string> = {
   pending: "ממתין",
   paid: "שולם",
   late: "באיחור",
+  overdue: "באיחור",
   partial: "חלקי",
   due: "לתשלום",
   future: "ממתין",
 };
-
-function encodePartial(amount: number, reason: string) {
-  return `__partial__:${amount}\n${reason}`.trim();
-}
-function parsePartialPaid(notes?: string): number | null {
-  if (!notes) return null;
-  const m = notes.match(/^__partial__:(\d+(?:\.\d+)?)/);
-  return m ? parseFloat(m[1]) : null;
-}
-function parsePartialReason(notes?: string): string {
-  if (!notes) return "";
-  return notes.replace(/^__partial__:\d+(?:\.\d+)?\n?/, "").trim();
-}
 
 interface Payment {
   id: string;
@@ -74,68 +67,50 @@ interface Property {
 }
 
 function generateVirtualSlots(leases: Lease[], existingPayments: Payment[]): Payment[] {
-  const now = new Date();
-  // מחרוזת "היום" מקומית (YYYY-MM-DD) — השוואה למחרוזת dueDate חסינה לאזור-זמן.
-  // new Date("YYYY-MM-DD") מתפרש כ-UTC ולכן תקבול שמועדו היום נחשב בטעות עתידי.
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const today = todayStr();
   const slots: Payment[] = [];
-
-  const coveredPropertyMonths = new Set<string>();
-  for (const p of existingPayments) {
-    if (p.paymentType === "Rent") {
-      const propId = p.property?.id ?? p.propertyId;
-      if (propId && p.dueDate) coveredPropertyMonths.add(`${propId}-${p.dueDate.slice(0, 7)}`);
-    }
-  }
+  const covered = coveredPropertyMonths(existingPayments);
 
   for (const lease of leases) {
     if (!isLeaseCurrentlyActive(lease)) continue;
     const propId = lease.properties?.id;
     if (!propId) continue;
 
-    const start = new Date(lease.startDate);
-    const end = new Date(lease.endDate);
-    const cur = new Date(start.getFullYear(), start.getMonth(), 1);
-    const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
-    const startDay = start.getDate();
-
-    while (cur <= endMonth) {
-      const year = cur.getFullYear();
-      const month = cur.getMonth() + 1;
-      const monthKey = `${year}-${String(month).padStart(2, "0")}`;
-      const key = `${propId}-${monthKey}`;
-
-      if (!coveredPropertyMonths.has(key)) {
-        const lastDay = new Date(year, month, 0).getDate();
-        const day = Math.min(startDay, lastDay);
-        const dueDate = `${monthKey}-${String(day).padStart(2, "0")}`;
-        const isPast = dueDate <= todayStr;
-        slots.push({
-          id: `virtual-${lease.id}-${monthKey}`,
-          isVirtual: true,
-          leaseId: lease.id,
-          propertyId: propId,
-          propertyTitle: lease.properties?.title,
-          paymentType: "Rent",
-          amount: lease.monthlyRent,
-          dueDate,
-          status: isPast ? "due" : "future",
-        });
-        coveredPropertyMonths.add(key);
-      }
-      cur.setMonth(cur.getMonth() + 1);
+    for (const { monthKey, dueDate } of listRentMonths(lease)) {
+      const key = propertyMonthKey(propId, monthKey);
+      if (covered.has(key)) continue;
+      slots.push({
+        id: `virtual-${lease.id}-${monthKey}`,
+        isVirtual: true,
+        leaseId: lease.id,
+        propertyId: propId,
+        propertyTitle: lease.properties?.title,
+        paymentType: "Rent",
+        amount: lease.monthlyRent,
+        dueDate,
+        status: dueDate <= today ? "due" : "future",
+      });
+      covered.add(key);
     }
   }
   return slots;
 }
 
-const ACTION_PRIORITY: Record<string, number> = { late: 0, due: 1, partial: 2, pending: 3 };
+const ACTION_PRIORITY: Record<string, number> = { late: 0, overdue: 0, due: 1, partial: 2, pending: 3 };
 
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [leases, setLeases] = useState<Lease[]>([]);
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const paymentsQuery = useQuery({ queryKey: queryKeys.payments, queryFn: () => apiGet<Payment[]>("/api/payments") });
+  const leasesQuery = useQuery({ queryKey: queryKeys.leases, queryFn: () => apiGet<Lease[]>("/api/leases") });
+  const propertiesQuery = useQuery({ queryKey: queryKeys.properties, queryFn: () => apiGet<Property[]>("/api/properties") });
+
+  const payments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
+  const leases = useMemo(() => leasesQuery.data ?? [], [leasesQuery.data]);
+  const properties = useMemo(() => propertiesQuery.data ?? [], [propertiesQuery.data]);
+
+  const isPending = paymentsQuery.isPending || leasesQuery.isPending || propertiesQuery.isPending;
+  const failedQuery = [paymentsQuery, leasesQuery, propertiesQuery].find((q) => q.isError);
+
   const [filterProp, setFilterProp] = useState("");
   const [showPaid, setShowPaid] = useState(false);
   const [creatingPayment, setCreatingPayment] = useState<string | null>(null);
@@ -145,51 +120,58 @@ export default function PaymentsPage() {
   const [partialReason, setPartialReason] = useState("");
   const [savingPartial, setSavingPartial] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/payments").then((r) => r.json()),
-      fetch("/api/leases").then((r) => r.json()),
-      fetch("/api/properties").then((r) => r.json()),
-    ]).then(([pay, leas, props]) => {
-      if (Array.isArray(pay)) setPayments(pay);
-      if (Array.isArray(leas)) setLeases(leas);
-      if (Array.isArray(props)) setProperties(props);
-    }).finally(() => setLoading(false));
-  }, []);
+  // תקבול שהתקבל/עודכן משפיע גם על סגירת תזכורת "שק" (tasks) וגם על הוצאת מס אוטומטית (expenses) - השרת מטפל בזה
+  const invalidateAfterPaymentChange = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.payments });
+    queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+    queryClient.invalidateQueries({ queryKey: queryKeys.expenses });
+  };
 
-  const virtualSlots = generateVirtualSlots(leases, payments);
-  const allItems = [...payments, ...virtualSlots].filter((p) => {
-    const propId = p.property?.id ?? p.propertyId;
-    return !filterProp || propId === filterProp;
-  });
+  const virtualSlots = useMemo(() => generateVirtualSlots(leases, payments), [leases, payments]);
+  const allItems = useMemo(
+    () =>
+      [...payments, ...virtualSlots].filter((p) => {
+        const propId = p.property?.id ?? p.propertyId;
+        return !filterProp || propId === filterProp;
+      }),
+    [payments, virtualSlots, filterProp]
+  );
 
-  const actionItems = allItems
-    .filter((p) => ["due", "late", "pending", "partial"].includes(p.status))
-    .sort((a, b) => {
-      const pa = ACTION_PRIORITY[a.status] ?? 4;
-      const pb = ACTION_PRIORITY[b.status] ?? 4;
-      if (pa !== pb) return pa - pb;
-      return a.dueDate.localeCompare(b.dueDate);
-    });
+  const actionItems = useMemo(
+    () =>
+      allItems
+        .filter((p) => ["due", "late", "overdue", "pending", "partial"].includes(p.status))
+        .sort((a, b) => {
+          const pa = ACTION_PRIORITY[a.status] ?? 4;
+          const pb = ACTION_PRIORITY[b.status] ?? 4;
+          if (pa !== pb) return pa - pb;
+          return a.dueDate.localeCompare(b.dueDate);
+        }),
+    [allItems]
+  );
 
-  const futureItems = allItems
-    .filter((p) => p.status === "future")
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const futureItems = useMemo(
+    () => allItems.filter((p) => p.status === "future").sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    [allItems]
+  );
 
-  const paidItems = allItems
-    .filter((p) => p.status === "paid")
-    .sort((a, b) => b.dueDate.localeCompare(a.dueDate));
+  const paidItems = useMemo(
+    () => allItems.filter((p) => p.status === "paid").sort((a, b) => b.dueDate.localeCompare(a.dueDate)),
+    [allItems]
+  );
 
-  const totalDue = actionItems
-    .filter((p) => p.status === "due" || p.status === "late")
-    .reduce((s, p) => s + p.amount, 0);
-  const totalDebt = actionItems
-    .filter((p) => p.status === "partial")
-    .reduce((s, p) => {
-      const paid = parsePartialPaid(p.notes) ?? 0;
-      return s + (p.amount - paid);
-    }, 0);
-  const totalPaidAmt = paidItems.reduce((s, p) => s + p.amount, 0);
+  const totalDue = useMemo(
+    () =>
+      actionItems
+        .filter((p) => p.status === "due" || p.status === "late" || p.status === "overdue")
+        .reduce((s, p) => s + p.amount, 0),
+    [actionItems]
+  );
+  const totalDebt = useMemo(
+    () => actionItems.filter((p) => p.status === "partial").reduce((s, p) => s + getDebtAmount(p), 0),
+    [actionItems]
+  );
+  const totalPaidAmt = useMemo(() => paidItems.reduce((s, p) => s + p.amount, 0), [paidItems]);
 
   const togglePaid = async (payment: Payment) => {
     const nowPaid = payment.status !== "paid";
@@ -202,8 +184,7 @@ export default function PaymentsPage() {
       body: JSON.stringify(body),
     });
     if (res.ok) {
-      const updated = await res.json();
-      setPayments((prev) => prev.map((p) => (p.id === payment.id ? updated : p)));
+      invalidateAfterPaymentChange();
     }
   };
 
@@ -235,8 +216,7 @@ export default function PaymentsPage() {
           }),
         });
         if (res.ok) {
-          const created = await res.json();
-          setPayments((prev) => [...prev, created]);
+          invalidateAfterPaymentChange();
         }
       } else {
         const res = await fetch(`/api/payments/${payment.id}`, {
@@ -245,8 +225,7 @@ export default function PaymentsPage() {
           body: JSON.stringify({ status: "partial", paidDate: new Date().toISOString(), notes }),
         });
         if (res.ok) {
-          const updated = await res.json();
-          setPayments((prev) => prev.map((p) => (p.id === payment.id ? updated : p)));
+          invalidateAfterPaymentChange();
         }
       }
     } finally {
@@ -274,8 +253,7 @@ export default function PaymentsPage() {
         }),
       });
       if (res.ok) {
-        const created = await res.json();
-        setPayments((prev) => [...prev, created]);
+        invalidateAfterPaymentChange();
       }
     } finally {
       setCreatingPayment(null);
@@ -298,7 +276,7 @@ export default function PaymentsPage() {
           {/* Status dot */}
           <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
             p.status === "paid" ? "bg-emerald-400" :
-            p.status === "due" || p.status === "late" ? "bg-red-500" :
+            p.status === "due" || p.status === "late" || p.status === "overdue" ? "bg-red-500" :
             p.status === "partial" ? "bg-blue-400" :
             p.status === "future" ? "bg-gray-300" : "bg-amber-400"
           }`} />
@@ -414,10 +392,22 @@ export default function PaymentsPage() {
     );
   };
 
-  if (loading) {
+  if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (failedQuery) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-3">
+        <p className="text-red-600 text-sm">{(failedQuery.error as Error).message}</p>
+        <button onClick={() => failedQuery.refetch()}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700">
+          נסה שוב
+        </button>
       </div>
     );
   }

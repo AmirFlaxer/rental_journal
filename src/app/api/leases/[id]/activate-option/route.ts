@@ -32,17 +32,26 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
     const end = new Date(newEndDate);
     const months = (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth();
 
+    const updatePayload: Record<string, unknown> = {
+      start_date: newStartDate,
+      end_date: newEndDate,
+      monthly_rent: newRent,
+      lease_term: Math.max(months, 1),
+      option_activated: true,
+      status: "active",
+    };
+
+    // לחוזה עם הצמדה - איפוס בסיס ההצמדה לתחילת תקופת האופציה (שכ"ד ותאריך חדשים)
+    if (lease.linkage_type && lease.linkage_type !== "none") {
+      updatePayload.base_amount = newRent;
+      updatePayload.base_date = newStartDate;
+    }
+
     const { data: updated, error: updateErr } = await supabase
       .from("leases")
-      .update({
-        start_date: newStartDate,
-        end_date: newEndDate,
-        monthly_rent: newRent,
-        lease_term: Math.max(months, 1),
-        option_activated: true,
-        status: "active",
-      })
+      .update(updatePayload)
       .eq("id", id)
+      .eq("user_id", session.user.id)
       .select("*, tenant:tenants(*), property:properties(*)")
       .single();
 

@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
-
-function parsePartialPaid(notes?: string): number | null {
-  if (!notes) return null;
-  const m = notes.match(/^__partial__:(\d+(?:\.\d+)?)/);
-  return m ? parseFloat(m[1]) : null;
-}
-function parsePartialReason(notes?: string): string {
-  if (!notes) return "";
-  return notes.replace(/^__partial__:\d+(?:\.\d+)?\n?/, "").trim();
-}
+import { listRentMonths, coveredPropertyMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
+import { parsePartialPaid, parsePartialReason, getDebtAmount } from "@/lib/domain/partial-payment";
+import { diffDays } from "@/lib/domain/dates";
+import { apiGet, queryKeys } from "@/lib/api-client";
 
 interface Payment {
   id: string;
@@ -50,25 +45,18 @@ interface DebtItem {
 }
 
 function buildDebtList(payments: Payment[], leases: Lease[]): DebtItem[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  // מחרוזת "היום" מקומית — השוואה למחרוזת dueDate חסינה לאזור-זמן (new Date("YYYY-MM-DD") = UTC).
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const today = todayStr();
   const items: DebtItem[] = [];
 
   // Existing payments with debt (only past-due)
   for (const p of payments) {
     if (p.status === "paid") continue;
-    if (p.dueDate.slice(0, 10) > todayStr) continue;
-    const partialPaid = parsePartialPaid(p.notes);
-    const debtAmount = p.status === "partial" && partialPaid != null
-      ? p.amount - partialPaid
-      : p.amount;
+    if (p.dueDate.slice(0, 10) > today) continue;
     items.push({
       id: p.id,
       dueDate: p.dueDate,
       amount: p.amount,
-      debtAmount,
+      debtAmount: getDebtAmount(p),
       status: p.status,
       notes: p.notes,
       propertyTitle: p.property?.title ?? "",
@@ -79,90 +67,77 @@ function buildDebtList(payments: Payment[], leases: Lease[]): DebtItem[] {
 
   // Virtual overdue slots (past due, no payment record)
   // dedup לפי נכס+חודש — מונע כפילות כשיש שני חוזים פעילים לאותו נכס
-  const coveredPropertyMonths = new Set<string>();
-  for (const p of payments) {
-    if (p.paymentType === "Rent") {
-      const propId = p.property?.id;
-      if (propId && p.dueDate) coveredPropertyMonths.add(`${propId}-${p.dueDate.slice(0, 7)}`);
-    }
-  }
+  const covered = coveredPropertyMonths(payments);
 
   for (const lease of leases) {
     if (!isLeaseCurrentlyActive(lease)) continue;
     const propId = lease.properties?.id;
     if (!propId) continue;
 
-    const start = new Date(lease.startDate);
-    const end = new Date(lease.endDate);
-    const cur = new Date(start.getFullYear(), start.getMonth(), 1);
-    const startDay = start.getDate();
-
-    while (cur <= today) {
-      if (cur > new Date(end.getFullYear(), end.getMonth(), 1)) break;
-      const year = cur.getFullYear();
-      const month = cur.getMonth() + 1;
-      const monthKey = `${year}-${String(month).padStart(2, "0")}`;
-      const lastDay = new Date(year, month, 0).getDate();
-      const day = Math.min(startDay, lastDay);
-      const dueDate = `${monthKey}-${String(day).padStart(2, "0")}`;
-      const key = `${propId}-${monthKey}`;
-
-      if (dueDate <= todayStr && !coveredPropertyMonths.has(key)) {
-        items.push({
-          id: `virtual-${lease.id}-${monthKey}`,
-          dueDate,
-          amount: lease.monthlyRent,
-          debtAmount: lease.monthlyRent,
-          status: "due",
-          propertyTitle: lease.properties?.title ?? "",
-          propertyId: propId,
-          isVirtual: true,
-          leaseId: lease.id,
-          propertyIdForCreate: propId,
-        });
-        coveredPropertyMonths.add(key);
-      }
-      cur.setMonth(cur.getMonth() + 1);
+    for (const { monthKey, dueDate } of listRentMonths(lease)) {
+      if (dueDate > today) continue;
+      const key = propertyMonthKey(propId, monthKey);
+      if (covered.has(key)) continue;
+      items.push({
+        id: `virtual-${lease.id}-${monthKey}`,
+        dueDate,
+        amount: lease.monthlyRent,
+        debtAmount: lease.monthlyRent,
+        status: "due",
+        propertyTitle: lease.properties?.title ?? "",
+        propertyId: propId,
+        isVirtual: true,
+        leaseId: lease.id,
+        propertyIdForCreate: propId,
+      });
+      covered.add(key);
     }
   }
 
   return items.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 
-function daysOverdue(dueDateStr: string): number {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return Math.floor((today.getTime() - new Date(dueDateStr).getTime()) / 86400000);
-}
-
 const STATUS_HE: Record<string, string> = {
   pending: "ממתין",
   partial: "חלקי",
   late: "באיחור",
+  overdue: "באיחור",
   due: "לתשלום",
 };
 const STATUS_COLOR: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
   partial: "bg-blue-100 text-blue-700",
   late: "bg-red-100 text-red-700",
+  overdue: "bg-red-100 text-red-700",
   due: "bg-red-100 text-red-700",
 };
 
 export default function DebtsPage() {
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [leases, setLeases] = useState<Lease[]>([]);
-  const [loading, setLoading] = useState(true);
+  const paymentsQuery = useQuery({ queryKey: queryKeys.payments, queryFn: () => apiGet<Payment[]>("/api/payments") });
+  const leasesQuery = useQuery({ queryKey: queryKeys.leases, queryFn: () => apiGet<Lease[]>("/api/leases") });
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/payments").then((r) => r.json()),
-      fetch("/api/leases").then((r) => r.json()),
-    ]).then(([pay, leas]) => {
-      if (Array.isArray(pay)) setPayments(pay);
-      if (Array.isArray(leas)) setLeases(leas);
-    }).finally(() => setLoading(false));
-  }, []);
+  const payments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
+  const leases = useMemo(() => leasesQuery.data ?? [], [leasesQuery.data]);
 
-  if (loading) {
+  const isPending = paymentsQuery.isPending || leasesQuery.isPending;
+  const failedQuery = [paymentsQuery, leasesQuery].find((q) => q.isError);
+
+  const debts = useMemo(() => buildDebtList(payments, leases), [payments, leases]);
+  const totalDebt = useMemo(() => debts.reduce((s, d) => s + d.debtAmount, 0), [debts]);
+
+  // Group by property
+  const byProperty = useMemo(() => {
+    const grouped: Record<string, { title: string; items: DebtItem[]; total: number }> = {};
+    for (const d of debts) {
+      const key = d.propertyId ?? d.propertyTitle;
+      if (!grouped[key]) grouped[key] = { title: d.propertyTitle, items: [], total: 0 };
+      grouped[key].items.push(d);
+      grouped[key].total += d.debtAmount;
+    }
+    return grouped;
+  }, [debts]);
+
+  if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
@@ -170,16 +145,16 @@ export default function DebtsPage() {
     );
   }
 
-  const debts = buildDebtList(payments, leases);
-  const totalDebt = debts.reduce((s, d) => s + d.debtAmount, 0);
-
-  // Group by property
-  const byProperty: Record<string, { title: string; items: DebtItem[]; total: number }> = {};
-  for (const d of debts) {
-    const key = d.propertyId ?? d.propertyTitle;
-    if (!byProperty[key]) byProperty[key] = { title: d.propertyTitle, items: [], total: 0 };
-    byProperty[key].items.push(d);
-    byProperty[key].total += d.debtAmount;
+  if (failedQuery) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-3">
+        <p className="text-red-600 text-sm">{(failedQuery.error as Error).message}</p>
+        <button onClick={() => failedQuery.refetch()}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700">
+          נסה שוב
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -240,7 +215,7 @@ export default function DebtsPage() {
                         <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-2">
                           <span>מועד: {new Date(d.dueDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</span>
                           {(() => {
-                            const days = daysOverdue(d.dueDate);
+                            const days = diffDays(todayStr(), d.dueDate);
                             if (days <= 0) return null;
                             return (
                               <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${days > 60 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>

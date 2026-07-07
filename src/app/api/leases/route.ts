@@ -10,17 +10,18 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = await createClient();
-  // Auto-expire leases whose end date has passed
-  await supabase
-    .from("leases")
-    .update({ status: "expired" })
-    .eq("user_id", session.user.id)
-    .in("status", ["active", "paused"])
-    .lt("end_date", new Date().toISOString().slice(0, 10));
+  // הערה: פקיעת חוזים אוטומטית (status=ended כש-end_date עבר) עברה ל-cron היומי
+  // (/api/cron/notify) - כתיבה בתוך נתיב קריאה שרצה בכל טעינת דף הייתה שגויה.
+  // ה-UI ממילא תאריך-מודע (effectiveLeaseStatus) ולא תלוי בעדכון הזה בזמן אמת.
 
+  // צמצום over-fetching: כל צרכני הרשימה (leases/debts/tasks/dashboard/payments/reports-linkage)
+  // קוראים רק properties.id/title/city ו-tenant.firstName/lastName/phone. אף צרכן לא משתמש
+  // ב-payments המקונן - כל הדפים מושכים תשלומים בנפרד דרך /api/payments, אז הוסר לגמרי
+  // (זה החיסכון הגדול ביותר - כל התשלומים של כל חוזה בכל טעינת רשימה). מסך עריכת חוזה בודד
+  // ממשיך למשוך את האובייקט המלא דרך /api/leases/[id] הנפרד, שלא השתנה.
   const { data, error } = await supabase
     .from("leases")
-    .select("*, properties(*), tenant:tenants(*), payments(*)")
+    .select("*, properties(id, title, city), tenant:tenants(first_name, last_name, phone)")
     .eq("user_id", session.user.id)
     .order("created_at", { ascending: false });
 

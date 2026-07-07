@@ -202,53 +202,12 @@ export default function SettingsPage() {
     setCleanupRunning(true);
     setCleanupResult(null);
     try {
-      const [tasksRes, leasesRes] = await Promise.all([
-        fetch("/api/tasks").then((r) => r.json()),
-        fetch("/api/leases").then((r) => r.json()),
-      ]);
-      if (!Array.isArray(tasksRes) || !Array.isArray(leasesRes)) throw new Error("שגיאה בטעינת נתונים");
-
-      const leaseMap = new Map((leasesRes as { id: string; startDate: string }[]).map((l) => [l.id, l]));
-      const toDelete: string[] = [];
-      const seen = new Map<string, string>();
-
-      for (const task of tasksRes as { id: string; category: string; relatedEntityType?: string; relatedEntityId?: string; dueDate: string; completedAt?: string }[]) {
-        if (task.category !== "Rent Collection" || task.relatedEntityType !== "lease" || !task.relatedEntityId) continue;
-
-        // יתומים — חוזה לא קיים
-        if (!leaseMap.has(task.relatedEntityId)) {
-          toDelete.push(task.id);
-          continue;
-        }
-
-        // תאריך שגוי — יום שלא תואם את יום ההתחלה של החוזה (נוצר לפני תיקון באג)
-        const lease = leaseMap.get(task.relatedEntityId)!;
-        // slice ישיר על string — בטוח מ-timezone (YYYY-MM-DD → chars 8-9)
-        const expectedDay = parseInt((lease.startDate ?? "").slice(8, 10));
-        const taskDay = parseInt((task.dueDate ?? "").slice(8, 10));
-        if (!task.completedAt && expectedDay > 0 && taskDay !== expectedDay) {
-          toDelete.push(task.id);
-          continue;
-        }
-
-        // כפילויות — אותו חוזה+חודש
-        const key = `${task.relatedEntityId}-${task.dueDate.slice(0, 7)}`;
-        if (seen.has(key)) {
-          const prevId = seen.get(key)!;
-          const prevTask = (tasksRes as { id: string; completedAt?: string }[]).find((t) => t.id === prevId);
-          if (task.completedAt && !prevTask?.completedAt) {
-            toDelete.push(prevId);
-            seen.set(key, task.id);
-          } else {
-            toDelete.push(task.id);
-          }
-        } else {
-          seen.set(key, task.id);
-        }
-      }
-
-      await Promise.all(toDelete.map((id) => fetch(`/api/tasks/${id}`, { method: "DELETE" })));
-      setCleanupResult({ deleted: toDelete.length, label: "משימות תזכורת שק יתומות/כפולות" });
+      // הניקוי עצמו רץ בשרת (POST /api/tasks/cleanup) - לא בצד לקוח,
+      // כדי שכשל רגעי בטעינת /api/leases לא ימחק תזכורות אמיתיות בטעות
+      const res = await fetch("/api/tasks/cleanup", { method: "POST" });
+      if (!res.ok) throw new Error("שגיאה בניקוי");
+      const data: { deleted: number } = await res.json();
+      setCleanupResult({ deleted: data.deleted ?? 0, label: "משימות תזכורת שק יתומות/כפולות" });
     } catch {
       setCleanupResult({ deleted: -1, label: "שגיאה בניקוי" });
     } finally {

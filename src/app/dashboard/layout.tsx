@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { QueryProvider } from "@/components/query-provider";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "לוח בקרה", icon: "🏠", exact: true },
@@ -62,6 +63,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
+    <QueryProvider>
     <div className="min-h-screen flex" style={{ background: "var(--bg-base)" }}>
       {/* Sidebar */}
       <aside
@@ -168,6 +170,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
       </div>
     </div>
+    </QueryProvider>
   );
 }
 

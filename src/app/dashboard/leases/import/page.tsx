@@ -496,7 +496,7 @@ export default function ImportLeasePage() {
             <p className="font-semibold" style={{ color: "var(--accent)" }}>📋 הנחיות לקובץ</p>
             <ul className="space-y-1 text-xs" style={{ color: "var(--text-2)" }}>
               <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>PDF:</span> נתמך. אם הקובץ סרוק (תמונה), יחולץ אוטומטית באמצעות Gemini</li>
-              <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>DOCX:</span> נתמך — <span className="font-semibold" style={{ color: "var(--text-1)" }}>חובה שהקובץ יהיה בפורמט Word החדש (.docx)</span>. אם יש לך קובץ DOC ישן, פתח אותו ב-Word ← שמור בשם ← בחר &quot;Word Document (*.docx)&quot;</li>
+              <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>DOCX:</span> נתמך — <span className="font-semibold" style={{ color: "var(--text-1)" }}>חובה שהקובץ יהיה בפורמט Word החדש (.docx)</span>. אם יש לך קובץ DOC ישן, פתח אותו ב-Word, ואז שמור בשם, ובחר &quot;Word Document (*.docx)&quot;</li>
               <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>DOC:</span> לא נתמך — יש להמיר ל-DOCX או PDF</li>
             </ul>
           </div>

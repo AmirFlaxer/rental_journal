@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiGet, queryKeys } from "@/lib/api-client";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 
 const TYPE_HE: Record<string, string> = { Apartment: "דירה", House: "בית", Commercial: "מסחרי" };
@@ -19,33 +21,47 @@ interface Property {
 }
 
 export default function PropertiesPage() {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/properties")
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setProperties(data); })
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: properties = [], isLoading, isError, refetch } = useQuery({
+    queryKey: queryKeys.properties,
+    queryFn: () => apiGet<Property[]>("/api/properties"),
+  });
 
-  const handleDelete = async (id: string) => {
-    setDeleting(id);
-    try {
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
       const res = await fetch(`/api/properties/${id}`, { method: "DELETE" });
-      if (res.ok) setProperties((prev) => prev.filter((p) => p.id !== id));
-    } finally {
-      setDeleting(null);
-      setConfirmId(null);
-    }
+      if (!res.ok) throw new Error("מחיקה נכשלה");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.properties });
+    },
+    onSettled: () => setConfirmId(null),
+  });
+
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-3">
+        <p className="text-gray-500 font-medium">שגיאה בטעינת הנכסים</p>
+        <button
+          onClick={() => refetch()}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700"
+        >
+          נסה שוב
+        </button>
       </div>
     );
   }
@@ -95,6 +111,7 @@ export default function PropertiesPage() {
           {properties.map((p) => {
             const active = (p.leases || []).filter((l) => isLeaseCurrentlyActive(l));
             const rent = active.reduce((s, l) => s + l.monthlyRent, 0);
+            const isDeleting = deleteMutation.isPending && deleteMutation.variables === p.id;
             return (
               <div key={p.id} className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-md hover:border-indigo-200 transition-all">
                 <Link href={`/dashboard/properties/${p.id}`} className="block">
@@ -137,10 +154,10 @@ export default function PropertiesPage() {
                       <span className="text-xs text-gray-500">למחוק את הנכס?</span>
                       <button
                         onClick={() => handleDelete(p.id)}
-                        disabled={deleting === p.id}
+                        disabled={isDeleting}
                         className="px-2.5 py-1 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50"
                       >
-                        {deleting === p.id ? "מוחק..." : "כן, מחק"}
+                        {isDeleting ? "מוחק..." : "כן, מחק"}
                       </button>
                       <button
                         onClick={() => setConfirmId(null)}

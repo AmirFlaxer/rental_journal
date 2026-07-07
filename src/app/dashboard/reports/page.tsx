@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { apiGet, queryKeys } from "@/lib/api-client";
 
 const PROPERTY_TYPE_HE: Record<string, string> = {
   Apartment: "דירה",
@@ -62,6 +64,10 @@ interface Totals {
 }
 
 interface MonthlyEntry { month: string; income: number; expenses: number; net: number; }
+
+interface ReportsResponse { propertyStats: PropertyRaw[]; }
+
+const EMPTY_PROPERTIES: PropertyRaw[] = [];
 
 function fmt(n: number) {
   return `₪${Math.round(n).toLocaleString("he-IL")}`;
@@ -175,21 +181,15 @@ function computeStats(properties: PropertyRaw[], year: number | null): {
 }
 
 export default function ReportsPage() {
-  const [rawProperties, setRawProperties] = useState<PropertyRaw[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [selectedYear, setSelectedYear] = useState<number | null>(null); // null = סה"כ
   const [showTax, setShowTax] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/reports")
-      .then((r) => r.json())
-      .then((d) => {
-        setRawProperties(d.propertyStats || []);
-      })
-      .catch(() => setError("שגיאה בטעינת הדוחות"))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: queryKeys.reports,
+    queryFn: () => apiGet<ReportsResponse>("/api/reports"),
+  });
+
+  const rawProperties = data?.propertyStats ?? EMPTY_PROPERTIES;
 
   const availableYears = useMemo(() => deriveYears(rawProperties), [rawProperties]);
 
@@ -198,7 +198,7 @@ export default function ReportsPage() {
     [rawProperties, selectedYear]
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <div className="text-xl text-gray-500">מייצר דוחות...</div>
@@ -241,7 +241,17 @@ export default function ReportsPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 space-y-6">
-        {error && <div className="p-4 bg-red-100 border border-red-300 text-red-700 rounded-xl">{error}</div>}
+        {isError && (
+          <div className="p-4 bg-red-100 border border-red-300 text-red-700 rounded-xl flex items-center justify-between gap-3">
+            <span>שגיאה בטעינת הדוחות</span>
+            <button
+              onClick={() => refetch()}
+              className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 flex-shrink-0"
+            >
+              נסה שוב
+            </button>
+          </div>
+        )}
 
         {/* Year filter + tax toggle */}
         <div className="flex flex-wrap items-center gap-3">

@@ -51,6 +51,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         end_date: finalEffective.toISOString(),
       })
       .eq("id", id)
+      .eq("user_id", session.user.id)
       .select("*, tenant:tenants(*), property:properties(*)")
       .single();
 

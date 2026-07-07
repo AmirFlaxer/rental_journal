@@ -5,6 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import type { Lease, Expense, Payment, LeaseDocument } from "@/types/database";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
+import { listRentMonths } from "@/lib/domain/rent-schedule";
+import { isoMonthKey, isoDateParts, localMonthKey } from "@/lib/domain/dates";
 
 const EXPENSE_CAT_HE: Record<string, string> = {
   Maintenance: "תחזוקה",
@@ -631,24 +633,31 @@ export default function PropertyDetailPage() {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
 
-          const reminders: { lease: typeof checkLeases[0]; month: string; dueDate: Date; paid: boolean }[] = [];
+          // חלון תזכורות: החודש הנוכחי + שני החודשים הבאים
+          const windowKeys = new Set(
+            [0, 1, 2].map((offset) => localMonthKey(new Date(today.getFullYear(), today.getMonth() + offset, 1)))
+          );
+
+          const reminders: { lease: typeof checkLeases[0]; month: string; dueDate: Date; status: "paid" | "partial" | "unpaid" }[] = [];
           checkLeases.forEach((lease) => {
-            const startDay = new Date(lease.startDate).getDate();
-            // Generate current month + next 2 months
-            for (let offset = 0; offset < 3; offset++) {
-              const due = new Date(today.getFullYear(), today.getMonth() + offset, startDay);
-              // Skip if before lease start or after lease end
-              if (due < new Date(lease.startDate) || due > new Date(lease.endDate)) continue;
+            // listRentMonths מחשב את לוח החיובים הנכון (מוצמד לתאריך תחילת החוזה,
+            // בלי הסטת יום/חודש מ-toISOString) - במקום לבנות ידנית מ-Date מקומי
+            listRentMonths(lease).forEach((slot) => {
+              if (!windowKeys.has(slot.monthKey)) return;
+              const { year, month, day } = isoDateParts(slot.dueDate);
+              const due = new Date(year, month - 1, day);
               const monthLabel = due.toLocaleDateString("he-IL", { month: "long", year: "numeric" });
-              const dueDateStr = due.toISOString().slice(0, 7); // YYYY-MM for matching
-              const paid = property.payments.some((p) =>
+              const match = property.payments.find((p) =>
                 p.leaseId === lease.id &&
                 p.paymentType === "Rent" &&
-                p.status === "paid" &&
-                p.dueDate?.slice(0, 7) === dueDateStr
+                p.dueDate &&
+                isoMonthKey(p.dueDate) === slot.monthKey
               );
-              reminders.push({ lease, month: monthLabel, dueDate: due, paid });
-            }
+              // תשלום חלקי הוא מצב שלישי - לא "התקבל"
+              const status: "paid" | "partial" | "unpaid" =
+                match?.status === "paid" ? "paid" : match?.status === "partial" ? "partial" : "unpaid";
+              reminders.push({ lease, month: monthLabel, dueDate: due, status });
+            });
           });
 
           if (!reminders.length) return null;
@@ -659,7 +668,8 @@ export default function PropertyDetailPage() {
               <div className="space-y-2">
                 {reminders.map((r, i) => (
                   <div key={i} className={`flex items-center justify-between px-4 py-3 rounded-lg border text-sm ${
-                    r.paid ? "bg-green-50 border-green-200 text-green-700" :
+                    r.status === "paid" ? "bg-green-50 border-green-200 text-green-700" :
+                    r.status === "partial" ? "bg-blue-50 border-blue-200 text-blue-700" :
                     r.dueDate <= today ? "bg-red-50 border-red-200 text-red-700" :
                     "bg-white border-amber-200 text-amber-800"
                   }`}>
@@ -671,7 +681,7 @@ export default function PropertyDetailPage() {
                       <span>₪{Number(r.lease.monthlyRent).toLocaleString()}</span>
                     </div>
                     <span className="font-bold text-xs px-2 py-1 rounded-full">
-                      {r.paid ? "✅ התקבל" : r.dueDate <= today ? "⚠️ לא התקבל" : "📅 עתידי"}
+                      {r.status === "paid" ? "✅ התקבל" : r.status === "partial" ? "🔶 חלקי" : r.dueDate <= today ? "⚠️ לא התקבל" : "📅 עתידי"}
                     </span>
                   </div>
                 ))}

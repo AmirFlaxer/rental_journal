@@ -111,9 +111,15 @@ select option { background: var(--bg-elevated); color: var(--text-1); }
 .bg-indigo-100             { background-color: var(--accent-dim) !important; }
 .text-indigo-800           { color: var(--accent)           !important; }
 .ring-indigo-400,
-.focus\:ring-indigo-400    { --tw-ring-color: var(--accent)  !important; }
+.focus\:ring-indigo-400,
+.focus\:ring-indigo-500,
+.focus\:ring-blue-500      { --tw-ring-color: var(--accent)  !important; }
 .border-indigo-400,
-.focus\:border-indigo-400  { border-color: var(--accent)    !important; }
+.border-indigo-500,
+.border-indigo-600,
+.focus\:border-indigo-400,
+.focus\:border-indigo-500,
+.focus\:border-blue-500    { border-color: var(--accent)    !important; }
 .shadow-indigo-200         { --tw-shadow-color: transparent  !important; }
 
 /* Blue → accent */

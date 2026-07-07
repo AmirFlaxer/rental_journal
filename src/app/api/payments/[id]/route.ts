@@ -3,12 +3,7 @@ import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { paymentSchema } from "@/lib/validations";
-import {
-  isAutoTaxEnabled,
-  createAutoTaxExpense,
-  deleteAutoTaxExpense,
-  updateAutoTaxExpense,
-} from "@/lib/auto-tax";
+import { reconcileAutoTax } from "@/lib/auto-tax";
 import {
   isCheckPaymentMethod,
   closeCheckReminderForPayment,
@@ -46,14 +41,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // שמירת מצב התשלום לפני העדכון
     const { data: existing } = await supabase
       .from("payments")
-      .select("paid_date, amount, payment_type, property_id, lease_id, due_date, lease:leases(payment_method)")
+      .select("status, paid_date, amount, payment_type, property_id, lease_id, due_date, lease:leases(payment_method)")
       .eq("id", id)
       .eq("user_id", session.user.id)
       .single();
 
     const body = await request.json();
+    // מונע mass-assignment (למשל userId/id) גם בעדכון חלקי - ולידציה תמיד רצה, כולל בנתיב החלקי
+    delete body.userId;
+    delete body.id;
     const isFullUpdate = ["propertyId", "paymentType", "amount", "dueDate"].some((k) => k in body);
-    const data = isFullUpdate ? paymentSchema.parse(body) : body;
+    const data = isFullUpdate ? paymentSchema.parse(body) : paymentSchema.partial().parse(body);
 
     const { data: row, error } = await supabase
       .from("payments")
@@ -65,35 +63,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     if (error) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
 
-    // ניהול הוצאת מס אוטומטית
-    if (existing) {
-      const wasRent = existing.payment_type === "Rent";
-      const isNowRent = (data.paymentType ?? existing.payment_type) === "Rent";
-      const wasPaid = !!existing.paid_date;
-      const isNowPaid = "paidDate" in data ? !!data.paidDate : wasPaid;
-      const oldAmount = existing.amount;
-      const newAmount = data.amount ?? oldAmount;
+    // ניהול הוצאת מס אוטומטית ותזכורת "הפקדת שק" לפי המצב הסופי אחרי העדכון
+    if (existing && row) {
+      const wasPaid = existing.status === "paid";
+      const isNowRent = row.payment_type === "Rent";
+      const isNowPaid = row.status === "paid";
 
-      if (isNowRent && isNowPaid && !wasPaid) {
-        // הפך לשולם → יוצר הוצאת מס
-        const autoTax = await isAutoTaxEnabled(session.user.id);
-        if (autoTax) {
-          const paidDate = data.paidDate
-            ? new Date(data.paidDate).toISOString()
-            : new Date().toISOString();
-          const propId = data.propertyId ?? existing.property_id;
-          await createAutoTaxExpense(supabase, session.user.id, id, propId, newAmount, paidDate);
-        }
-      } else if (wasRent && wasPaid && !isNowPaid) {
-        // הוסר תשלום → מוחק הוצאת מס
-        await deleteAutoTaxExpense(supabase, session.user.id, id);
-      } else if (wasRent && wasPaid && isNowPaid && newAmount !== oldAmount) {
-        // סכום השתנה → מעדכן הוצאת מס
-        await updateAutoTaxExpense(supabase, session.user.id, id, newAmount);
-      }
-
-      // ניהול תזכורת "הפקדת שק" — סנכרון אוטומטי מול תקבולים
-      const leaseId = data.leaseId ?? existing.lease_id;
+      // תשלום חלקי לעולם לא סוגר תזכורת שק - רק status "paid" מלא סוגר/פותח מחדש
+      const leaseId = row.lease_id;
       const leaseRelation = existing.lease as
         | { payment_method: string | null }
         | { payment_method: string | null }[]
@@ -103,15 +80,23 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         : leaseRelation?.payment_method;
       if (isNowRent && isNowPaid && !wasPaid) {
         if (leaseId && isCheckPaymentMethod(leasePaymentMethod)) {
-          const paidDate = data.paidDate
-            ? new Date(data.paidDate).toISOString()
-            : new Date().toISOString();
-          const dueDate = data.dueDate ? new Date(data.dueDate).toISOString() : existing.due_date;
-          await closeCheckReminderForPayment(supabase, session.user.id, id, leaseId, dueDate, paidDate);
+          const paidDate = row.paid_date ?? new Date().toISOString();
+          await closeCheckReminderForPayment(supabase, session.user.id, id, leaseId, row.due_date, paidDate);
         }
-      } else if (wasRent && wasPaid && !isNowPaid) {
+      } else if (wasPaid && !isNowPaid) {
         await reopenCheckReminderForPayment(supabase, session.user.id, id);
       }
+
+      // מס אוטומטי - על הסכום שהתקבל בפועל (מטפל גם בתשלום חלקי)
+      await reconcileAutoTax(supabase, session.user.id, {
+        id,
+        payment_type: row.payment_type,
+        property_id: row.property_id,
+        amount: row.amount,
+        status: row.status,
+        paid_date: row.paid_date,
+        notes: row.notes,
+      });
     }
 
     return NextResponse.json(camelKeys(row));
@@ -129,8 +114,20 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
   const supabase = await createClient();
 
-  // מחיקת הוצאת מס משויכת לפני מחיקת התשלום
-  await deleteAutoTaxExpense(supabase, session.user.id, id);
+  // תזכורת שק: פותח מחדש לפני המחיקה - אם התקבול הזה סגר תזכורת, שלא תיעלם איתו
+  await reopenCheckReminderForPayment(supabase, session.user.id, id);
+
+  // מחיקת הוצאת מס משויכת לפני מחיקת התשלום - ה-FK on delete set null מנתק את
+  // source_payment_id במקום למחוק, ולכן חובה להסיר את הוצאת המס באופן מפורש כאן
+  await reconcileAutoTax(supabase, session.user.id, {
+    id,
+    payment_type: "Rent",
+    property_id: null,
+    amount: 0,
+    status: "pending",
+    paid_date: null,
+    notes: null,
+  });
 
   const { error } = await supabase
     .from("payments")

@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { apiGet, queryKeys } from "@/lib/api-client";
+import { getReceivedAmount } from "@/lib/domain/partial-payment";
 
 const MONTHS_SHORT = [
   "ינו׳", "פבר׳", "מרץ", "אפר׳", "מאי", "יוני",
@@ -29,6 +32,7 @@ interface RawPayment {
   dueDate: string;
   paymentType: string;
   status: string;
+  notes?: string | null;
 }
 
 interface Property {
@@ -37,6 +41,10 @@ interface Property {
   city: string;
   payments: RawPayment[];
 }
+
+interface ReportsResponse { propertyStats: Property[]; }
+
+const EMPTY_PROPERTIES: Property[] = [];
 
 function deriveYears(properties: Property[]): number[] {
   const years = new Set<number>();
@@ -67,7 +75,9 @@ function computeTaxTable(properties: Property[], year: number): TaxTableData {
         new Date(pay.dueDate).getFullYear() === year
       ) {
         const monthIdx = new Date(pay.dueDate).getMonth();
-        months[monthIdx] += pay.amount;
+        // דוח מס לדיווח אמיתי - צריך לספור את הסכום שהתקבל בפועל, לא את הסכום
+        // המלא. תשלום חלקי (status="partial") מקודד את הסכום שהתקבל ב-notes.
+        months[monthIdx] += getReceivedAmount(pay);
       }
     }
     const total = months.reduce((s, v) => s + v, 0);
@@ -86,20 +96,14 @@ function computeTaxTable(properties: Property[], year: number): TaxTableData {
 }
 
 export default function TaxReportPage() {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
-  useEffect(() => {
-    fetch("/api/reports")
-      .then((r) => r.json())
-      .then((d) => {
-        setProperties((d.propertyStats as Property[]) || []);
-      })
-      .catch(() => setError("שגיאה בטעינת הנתונים"))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: queryKeys.reports,
+    queryFn: () => apiGet<ReportsResponse>("/api/reports"),
+  });
+
+  const properties = data?.propertyStats ?? EMPTY_PROPERTIES;
 
   const availableYears = useMemo(() => deriveYears(properties), [properties]);
 
@@ -112,7 +116,7 @@ export default function TaxReportPage() {
   const taxMonths = monthTotals.map((v) => Math.round(v * 0.1));
   const hasAnyData = grandTotal > 0;
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -151,7 +155,17 @@ export default function TaxReportPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 space-y-6">
-        {error && <div className="p-4 bg-red-100 border border-red-300 text-red-700 rounded-xl">{error}</div>}
+        {isError && (
+          <div className="p-4 bg-red-100 border border-red-300 text-red-700 rounded-xl flex items-center justify-between gap-3">
+            <span>שגיאה בטעינת הנתונים</span>
+            <button
+              onClick={() => refetch()}
+              className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 flex-shrink-0"
+            >
+              נסה שוב
+            </button>
+          </div>
+        )}
 
         {/* Year selector */}
         <div className="flex items-center gap-3 flex-wrap">

@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatPhone } from "@/lib/phone";
 import { calcEffectiveRent, LINKAGE_TYPE_LABELS } from "@/lib/linkage";
 import type { IndexRate, LinkageType, LinkageFrequency } from "@/lib/linkage";
+import { apiGet, queryKeys } from "@/lib/api-client";
 
 interface Lease {
   id: string;
@@ -69,20 +71,14 @@ function formatDate(d: string) {
 
 export default function LeasesPage() {
   const router = useRouter();
-  const [leases, setLeases] = useState<Lease[]>([]);
-  const [indexRates, setIndexRates] = useState<IndexRate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const leasesQuery = useQuery({ queryKey: queryKeys.leases, queryFn: () => apiGet<Lease[]>("/api/leases") });
+  const indexRatesQuery = useQuery({ queryKey: queryKeys.indexRates, queryFn: () => apiGet<IndexRate[]>("/api/index-rates") });
   const [filter, setFilter] = useState<"all" | "active" | "future" | "ended">("all");
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/leases").then((r) => r.json()),
-      fetch("/api/index-rates").then((r) => r.json()),
-    ]).then(([leasesData, ratesData]) => {
-      if (Array.isArray(leasesData)) setLeases(leasesData);
-      if (Array.isArray(ratesData)) setIndexRates(ratesData);
-    }).finally(() => setLoading(false));
-  }, []);
+  const leases = leasesQuery.data ?? [];
+  const indexRates = indexRatesQuery.data ?? [];
+  const isPending = leasesQuery.isPending || indexRatesQuery.isPending;
+  const failedQuery = [leasesQuery, indexRatesQuery].find((q) => q.isError);
 
   const withStatus = leases.map((l) => ({ ...l, _status: leaseStatus(l) }));
 
@@ -109,10 +105,22 @@ export default function LeasesPage() {
     ended: deduped.filter((l) => l._status === "ended").length,
   };
 
-  if (loading) {
+  if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (failedQuery) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-3">
+        <p className="text-red-600 text-sm">{(failedQuery.error as Error).message}</p>
+        <button onClick={() => failedQuery.refetch()}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700">
+          נסה שוב
+        </button>
       </div>
     );
   }

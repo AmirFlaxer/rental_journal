@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { calcEffectiveRent, pickRate, getEffectivePeriodStart, type IndexRate, type LinkageType, type LinkageFrequency } from "@/lib/linkage";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiGet, queryKeys } from "@/lib/api-client";
+import { calcEffectiveRent, pickRate, type IndexRate, type LinkageType, type LinkageFrequency } from "@/lib/linkage";
+import { localMonthKey } from "@/lib/domain/dates";
 
 interface Lease {
   id: string;
@@ -12,6 +15,8 @@ interface Lease {
   status: string;
   linkageType?: string;
   linkageFrequency?: LinkageFrequency;
+  baseAmount?: number | null;
+  baseDate?: string | null;
   properties?: { title: string; city: string };
   tenant?: { firstName: string; lastName: string };
 }
@@ -35,6 +40,9 @@ const TYPE_LABELS: Record<string, string> = {
   cpi: "מדד כללי (CPI)",
 };
 
+const EMPTY_LEASES: Lease[] = [];
+const EMPTY_RATES: IndexRate[] = [];
+
 function addMonths(date: Date, n: number): Date {
   const d = new Date(date);
   d.setMonth(d.getMonth() + n);
@@ -52,9 +60,11 @@ function buildHistory(
   frequency: LinkageFrequency,
   rates: IndexRate[]
 ): HistoryRow[] {
-  const base = lease.monthlyRent;
-  const leaseStart = new Date(lease.startDate);
-  leaseStart.setDate(1);
+  // בסיס החישוב הוא baseAmount/baseDate של החוזה (כמו ב-leases/page.tsx) -
+  // לא monthlyRent/startDate תמיד, אחרת ההצמדה מחושבת מבסיס שגוי אחרי עדכון.
+  const base = lease.baseAmount ?? lease.monthlyRent;
+  const leaseBaseDate = new Date(lease.baseDate ?? lease.startDate);
+  leaseBaseDate.setDate(1);
   const today = new Date();
   today.setDate(1);
   const end = new Date(lease.endDate);
@@ -62,12 +72,12 @@ function buildHistory(
   const until = today < end ? today : end;
 
   if (type === "none") {
-    return [{ period: leaseStart.toISOString().slice(0, 7), rateValue: null, rent: base, diff: 0 }];
+    return [{ period: localMonthKey(leaseBaseDate), rateValue: null, rent: base, diff: 0 }];
   }
 
-  // Find base rate — use lease start date, or fall back to earliest available rate
-  let baseRate = pickRate(rates, type, leaseStart);
-  let effectiveStart = leaseStart;
+  // Find base rate — use lease base date, or fall back to earliest available rate
+  let baseRate = pickRate(rates, type, leaseBaseDate);
+  let effectiveStart = leaseBaseDate;
   if (!baseRate) {
     const earliest = rates
       .filter((r) => r.type === type)
@@ -79,14 +89,18 @@ function buildHistory(
 
   const rows: HistoryRow[] = [];
   const step = freqStep(frequency);
-  let cur = getEffectivePeriodStart(effectiveStart, frequency);
+  // הלולאה מתחילה מתאריך הבסיס האפקטיבי של החוזה עצמו - לא מעוגלת אחורה
+  // לתחילת רבעון/מחצית קלנדריים (זה יצר שורה ראשונה עם "שינוי" פיקטיבי
+  // שקדם בפועל לחוזה).
+  let cur = new Date(effectiveStart);
+  cur.setDate(1);
 
   while (cur <= until) {
     const rate = pickRate(rates, type, cur);
     if (rate) {
       const rent = Math.round((base * rate.value) / baseRate.value);
       rows.push({
-        period: cur.toISOString().slice(0, 7),
+        period: localMonthKey(cur),
         rateValue: rate.value,
         rent,
         diff: rent - base,
@@ -108,53 +122,70 @@ function fmtPeriod(p: string, freq: LinkageFrequency): string {
 }
 
 export default function LinkageComparisonPage() {
-  const [leases, setLeases] = useState<Lease[]>([]);
-  const [rates, setRates] = useState<IndexRate[]>([]);
+  const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string>("");
   const [frequency, setFrequency] = useState<LinkageFrequency>("monthly");
   const [selectedType, setSelectedType] = useState<LinkageType | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  const handleRefreshRates = async () => {
-    setRefreshing(true);
-    setRefreshMsg("");
-    try {
+  const {
+    data: leasesData,
+    isLoading: leasesLoading,
+    isError: leasesError,
+    refetch: refetchLeases,
+  } = useQuery({
+    queryKey: queryKeys.leases,
+    queryFn: () => apiGet<Lease[]>("/api/leases"),
+  });
+
+  const {
+    data: ratesData,
+    isLoading: ratesLoading,
+    isError: ratesError,
+    refetch: refetchRates,
+  } = useQuery({
+    queryKey: queryKeys.indexRates,
+    queryFn: () => apiGet<IndexRate[]>("/api/index-rates"),
+  });
+
+  const loading = leasesLoading || ratesLoading;
+  const hasError = leasesError || ratesError;
+  const rates = ratesData ?? EMPTY_RATES;
+
+  // מציג את כל החוזים - פעילים קודם, אחר כך שאר הסטטוסים
+  const leases = useMemo(() => {
+    const all = leasesData ?? EMPTY_LEASES;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return [...all].sort((a, b) => {
+      const aActive = new Date(a.startDate) <= today && new Date(a.endDate) >= today ? 0 : 1;
+      const bActive = new Date(b.startDate) <= today && new Date(b.endDate) >= today ? 0 : 1;
+      if (aActive !== bActive) return aActive - bActive;
+      return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+    });
+  }, [leasesData]);
+
+  // בוחר חוזה ראשון כברירת מחדל פעם אחת כשהחוזים נטענים
+  useEffect(() => {
+    if (!selectedId && leases.length > 0) setSelectedId(leases[0].id);
+  }, [leases, selectedId]);
+
+  const refreshRatesMutation = useMutation({
+    mutationFn: async () => {
       const res = await fetch("/api/index-rates/refresh");
       if (!res.ok) throw new Error();
-      const json = await res.json() as { results?: { type: string; inserted: number }[] };
+      return res.json() as Promise<{ results?: { type: string; inserted: number }[] }>;
+    },
+    onSuccess: async (json) => {
       const total = (json.results ?? []).reduce((s, r) => s + r.inserted, 0);
-      const data = await fetch("/api/index-rates").then((r) => r.json());
-      if (Array.isArray(data)) setRates(data);
-      setRefreshMsg(total > 0 ? `נוספו ${total} נקודות נתונים` : data.length > 0 ? "קיימים נתונים בDB" : "השרתים החיצוניים לא החזירו נתונים");
-    } catch {
-      setRefreshMsg("שגיאה בעדכון המדדים");
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/leases").then((r) => r.json()),
-      fetch("/api/index-rates").then((r) => r.json()),
-    ]).then(([leasesData, ratesData]) => {
-      const all: Lease[] = Array.isArray(leasesData) ? leasesData : [];
-      // מציג את כל החוזים — פעילים קודם, אחר כך שאר הסטטוסים
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const sorted = [...all].sort((a, b) => {
-        const aActive = new Date(a.startDate) <= today && new Date(a.endDate) >= today ? 0 : 1;
-        const bActive = new Date(b.startDate) <= today && new Date(b.endDate) >= today ? 0 : 1;
-        if (aActive !== bActive) return aActive - bActive;
-        return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+      const updated = await queryClient.fetchQuery({
+        queryKey: queryKeys.indexRates,
+        queryFn: () => apiGet<IndexRate[]>("/api/index-rates"),
       });
-      setLeases(sorted);
-      if (sorted.length > 0) setSelectedId(sorted[0].id);
-      if (Array.isArray(ratesData)) setRates(ratesData);
-    }).finally(() => setLoading(false));
-  }, []);
+      setRefreshMsg(total > 0 ? `נוספו ${total} נקודות נתונים` : updated.length > 0 ? "קיימים נתונים בDB" : "השרתים החיצוניים לא החזירו נתונים");
+    },
+    onError: () => setRefreshMsg("שגיאה בעדכון המדדים"),
+  });
 
   const lease = leases.find((l) => l.id === selectedId);
 
@@ -182,6 +213,16 @@ export default function LinkageComparisonPage() {
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : hasError ? (
+          <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center space-y-3">
+            <p className="text-gray-500 font-medium">שגיאה בטעינת הנתונים</p>
+            <button
+              onClick={() => { refetchLeases(); refetchRates(); }}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700"
+            >
+              נסה שוב
+            </button>
           </div>
         ) : leases.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center text-gray-400">
@@ -292,11 +333,11 @@ export default function LinkageComparisonPage() {
                     )}
                     <button
                       type="button"
-                      onClick={handleRefreshRates}
-                      disabled={refreshing}
+                      onClick={() => refreshRatesMutation.mutate()}
+                      disabled={refreshRatesMutation.isPending}
                       className="px-3 py-1.5 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 disabled:opacity-50 transition-colors"
                     >
-                      {refreshing ? "מעדכן..." : "↻ עדכן מדדים"}
+                      {refreshRatesMutation.isPending ? "מעדכן..." : "↻ עדכן מדדים"}
                     </button>
                     {refreshMsg && <span className={`text-xs font-semibold ${refreshMsg.includes("שגיאה") ? "text-red-500" : "text-green-600"}`}>{refreshMsg}</span>}
                   </div>
@@ -308,11 +349,11 @@ export default function LinkageComparisonPage() {
             {lease && (
               <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-2">
                 <p className="text-sm font-semibold text-gray-700 mb-3">
-                  בחר מסלול לפירוט חישוב ←
+                  בחר מסלול לפירוט חישוב
                 </p>
                 {(["none", "usd", "cpi"] as const).map((type) => {
                   const effective = calcEffectiveRent(
-                    { linkageType: type, linkageFrequency: frequency, baseAmount: lease.monthlyRent, baseDate: lease.startDate, monthlyRent: lease.monthlyRent },
+                    { linkageType: type, linkageFrequency: frequency, baseAmount: lease.baseAmount ?? null, baseDate: lease.baseDate ?? null, monthlyRent: lease.monthlyRent },
                     rates
                   );
                   const diff = effective - lease.monthlyRent;
@@ -437,7 +478,7 @@ export default function LinkageComparisonPage() {
                           </td>
                           <td className="px-4 py-3 font-bold text-indigo-700">
                             ₪{calcEffectiveRent(
-                              { linkageType: selectedType, linkageFrequency: frequency, baseAmount: lease.monthlyRent, baseDate: lease.startDate, monthlyRent: lease.monthlyRent },
+                              { linkageType: selectedType, linkageFrequency: frequency, baseAmount: lease.baseAmount ?? null, baseDate: lease.baseDate ?? null, monthlyRent: lease.monthlyRent },
                               rates
                             ).toLocaleString("he-IL")}
                           </td>

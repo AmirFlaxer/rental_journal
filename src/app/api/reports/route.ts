@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { camelKeys } from "@/lib/supabase/case";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
+import { getReceivedAmount } from "@/lib/domain/partial-payment";
 import type { PropertyRow, LeaseRow, ExpenseRow, PaymentRow } from "@/types/database";
 
 export async function GET() {
@@ -31,7 +32,13 @@ export async function GET() {
       // כך שלא ייספר פעמיים (גם כהוצאה וגם כחישוב 10%).
       const realExpenses = (p.expenses ?? []).filter((e) => !e.is_auto_tax);
       const totalExpenses = realExpenses.reduce((s, e) => s + e.amount, 0);
-      const totalPaid = (p.payments ?? []).filter((pay) => pay.paid_date).reduce((s, pay) => s + pay.amount, 0);
+      // הכנסות = תקבולי שכ"ד בלבד (לא פיקדונות/החזרים), ובסכום שהתקבל בפועל -
+      // תשלום חלקי נספר לפי מה ששולם, לא לפי amount הגולמי
+      const totalPaid = (p.payments ?? [])
+        .filter((pay) => pay.payment_type === "Rent")
+        .reduce((s, pay) => s + getReceivedAmount({
+          amount: pay.amount, status: pay.status, paidDate: pay.paid_date, notes: pay.notes,
+        }), 0);
       const totalPending = (p.payments ?? []).filter((pay) => !pay.paid_date && pay.payment_type === "Rent").reduce((s, pay) => s + pay.amount, 0);
 
       const expensesByCategory: Record<string, number> = {};
@@ -60,7 +67,9 @@ export async function GET() {
     };
 
     const allPayments = (properties as PropertyRow[] ?? []).flatMap((p) =>
-      (p.payments ?? []).filter((pay: PaymentRow) => pay.paid_date).map((pay) => ({ ...pay, propertyTitle: p.title }))
+      (p.payments ?? [])
+        .filter((pay: PaymentRow) => pay.payment_type === "Rent" && pay.paid_date)
+        .map((pay) => ({ ...pay, propertyTitle: p.title }))
     );
     const allExpenses = (properties as PropertyRow[] ?? []).flatMap((p) =>
       (p.expenses ?? []).filter((e: ExpenseRow) => !e.is_auto_tax).map((e: ExpenseRow) => ({ ...e, propertyTitle: p.title }))
@@ -73,7 +82,9 @@ export async function GET() {
       if (!dateKey) continue;
       const key = new Date(dateKey).toISOString().slice(0, 7);
       if (!monthlyMap[key]) monthlyMap[key] = { income: 0, expenses: 0 };
-      monthlyMap[key].income += pay.amount;
+      monthlyMap[key].income += getReceivedAmount({
+        amount: pay.amount, status: pay.status, paidDate: pay.paid_date, notes: pay.notes,
+      });
     }
     for (const exp of allExpenses) {
       const key = new Date(exp.date).toISOString().slice(0, 7);

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { camelKeys, snakeKeys } from "@/lib/supabase/case";
+import { taskUpdateSchema } from "@/lib/validations";
+import { z } from "zod";
 
 interface RouteParams { params: Promise<{ id: string }> }
 
@@ -13,10 +15,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const supabase = await createClient();
     const body = await request.json();
+    // ולידציה מונעת mass-assignment - zod מסנן שדות לא מוכרים (userId וכו') אוטומטית
+    const data = taskUpdateSchema.parse(body);
 
     const { data: row, error } = await supabase
       .from("tasks")
-      .update(snakeKeys(body) as object)
+      .update(snakeKeys(data) as object)
       .eq("id", id)
       .eq("user_id", session.user.id)
       .select()
@@ -24,7 +28,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     if (error) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(camelKeys(row));
-  } catch {
+  } catch (error) {
+    if (error instanceof z.ZodError)
+      return NextResponse.json({ error: "Validation failed", details: error.flatten() }, { status: 400 });
     return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
   }
 }

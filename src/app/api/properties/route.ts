@@ -10,17 +10,13 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = await createClient();
-  // Auto-expire leases whose end date has passed
-  await supabase
-    .from("leases")
-    .update({ status: "ended" })
-    .eq("user_id", session.user.id)
-    .in("status", ["active", "paused"])
-    .lt("end_date", new Date().toISOString().slice(0, 10));
+  // הערה: פקיעת חוזים אוטומטית (status=ended כש-end_date עבר) עברה ל-cron היומי
+  // (/api/cron/notify) - כתיבה בתוך נתיב קריאה שרצה בכל טעינת דף הייתה שגויה.
+  // ה-UI ממילא תאריך-מודע (effectiveLeaseStatus) ולא תלוי בעדכון הזה בזמן אמת.
 
   const { data, error } = await supabase
     .from("properties")
-    .select("*, leases(id, status, monthly_rent)")
+    .select("*, leases(id, status, monthly_rent, start_date, end_date)")
     .eq("user_id", session.user.id)
     .order("created_at", { ascending: false });
 

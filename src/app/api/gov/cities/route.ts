@@ -17,9 +17,12 @@ const ISRAEL_CITIES = [
   "באקה אל-גרבייה","נשר","עתלית","פוריידיס","כפר מנדא","נוף הגליל","כפר קרע",
 ];
 
+// רשימת ערים משתנה לעיתים נדירות מאוד - קאשינג ציבורי ליום שלם
+const CACHE_HEADERS = { headers: { "Cache-Control": "public, max-age=86400" } };
+
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
-  if (q.length < 2) return NextResponse.json([]);
+  if (q.length < 2) return NextResponse.json([], CACHE_HEADERS);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
@@ -39,12 +42,12 @@ export async function GET(req: NextRequest) {
       .map((r: Record<string, string>) => r["שם_ישוב"])
       .filter(Boolean) as string[];
 
-    if (cities.length > 0) return NextResponse.json(cities);
+    if (cities.length > 0) return NextResponse.json(cities, CACHE_HEADERS);
   } catch {
     clearTimeout(timer);
   }
 
   // Fallback: built-in list
   const matches = ISRAEL_CITIES.filter((c) => c.includes(q)).slice(0, 10);
-  return NextResponse.json(matches);
+  return NextResponse.json(matches, CACHE_HEADERS);
 }

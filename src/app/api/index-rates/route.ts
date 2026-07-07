@@ -15,5 +15,8 @@ export async function GET() {
     .limit(240); // ~10 שנים של נתונים חודשיים
 
   if (error) return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
-  return NextResponse.json(camelKeys(data));
+  // מדדים מתעדכנים לכל היותר פעם בחודש - קאשינג פרטי (לפי משתמש) לשעה
+  return NextResponse.json(camelKeys(data), {
+    headers: { "Cache-Control": "private, max-age=3600" },
+  });
 }

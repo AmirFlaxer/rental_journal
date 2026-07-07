@@ -164,9 +164,6 @@ export interface Payment {
   status: PaymentStatus;
   method?: string | null;
   referenceNum?: string | null;
-  checkNumber?: string | null;
-  checkDate?: string | null;
-  depositReminder: boolean;
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -184,6 +181,8 @@ export interface Task {
   dueDate: string;
   completedAt?: string | null;
   priority: TaskPriority;
+  // הערה: העמודה status מיושנת - לעולם לא מתעדכנת ע"י האפליקציה בפועל.
+  // completedAt הוא מקור האמת היחיד למשימה פתוחה (null) מול שהושלמה (תאריך).
   status: TaskStatus;
   relatedEntityType?: string | null;
   relatedEntityId?: string | null;
@@ -319,9 +318,6 @@ export interface PaymentRow {
   status: string;
   method?: string | null;
   reference_num?: string | null;
-  check_number?: string | null;
-  check_date?: string | null;
-  deposit_reminder: boolean;
   notes?: string | null;
   created_at: string;
   updated_at: string;

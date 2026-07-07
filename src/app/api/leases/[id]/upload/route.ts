@@ -10,6 +10,13 @@ const ALLOWED_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/msword",
 ];
+// מיפוי MIME מאומת -> סיומת. גוזרים את סיומת הקובץ המאוחסן ממנו ולא משם הקובץ
+// של המשתמש - שם קובץ יכול להכיל תווים שרירותיים (כולל / ו-..)
+const MIME_EXTENSIONS: Record<string, string> = {
+  "application/pdf": "pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/msword": "doc",
+};
 const MAX_SIZE = 10 * 1024 * 1024;
 
 interface RouteParams { params: Promise<{ id: string }> }
@@ -38,7 +45,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (file.size > MAX_SIZE)
       return NextResponse.json({ error: "הקובץ גדול מדי. הגודל המקסימלי הוא 10MB" }, { status: 400 });
 
-    const ext = file.name.split(".").pop() || "bin";
+    const ext = MIME_EXTENSIONS[file.type] ?? "bin";
     const storedName = `${id}/${randomUUID()}.${ext}`;
     const bytes = await file.arrayBuffer();
 

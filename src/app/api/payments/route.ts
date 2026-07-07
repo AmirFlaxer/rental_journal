@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { paymentSchema } from "@/lib/validations";
-import { isAutoTaxEnabled, createAutoTaxExpense } from "@/lib/auto-tax";
+import { reconcileAutoTax } from "@/lib/auto-tax";
 import { isCheckPaymentMethod, closeCheckReminderForPayment } from "@/lib/check-reminders";
 import { z } from "zod";
 
@@ -12,9 +12,12 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = await createClient();
+  // צמצום over-fetching: כל צרכני הרשימה (payments/debts/dashboard) קוראים רק property.id/title.
+  // ה-join המקונן ל-lease (lease:leases(*)) לא נקרא בשום מקום - leaseId כבר קיים כשדה root
+  // (מכוסה ע"י `*`), אז הוסר לגמרי.
   const { data, error } = await supabase
     .from("payments")
-    .select("*, property:properties(*), lease:leases(*)")
+    .select("*, property:properties(id, title)")
     .eq("user_id", session.user.id)
     .order("due_date", { ascending: false });
 
@@ -61,29 +64,27 @@ export async function POST(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
 
-    // יצירת הוצאת מס אוטומטית אם התקבול שולם
-    if (data.paidDate && data.paymentType === "Rent" && row) {
-      const autoTax = await isAutoTaxEnabled(session.user.id);
-      if (autoTax) {
-        await createAutoTaxExpense(
-          supabase,
-          session.user.id,
-          row.id,
-          data.propertyId,
-          data.amount,
-          new Date(data.paidDate).toISOString()
-        );
-      }
+    if (row) {
+      // מס אוטומטי - על הסכום שהתקבל בפועל (מטפל גם בתשלום חלקי - status "partial")
+      await reconcileAutoTax(supabase, session.user.id, {
+        id: row.id,
+        payment_type: row.payment_type,
+        property_id: row.property_id,
+        amount: row.amount,
+        status: row.status,
+        paid_date: row.paid_date,
+        notes: row.notes,
+      });
 
-      // סגירת תזכורת "הפקדת שק" אם החוזה משולם בשיקים
-      if (data.leaseId && lease && isCheckPaymentMethod(lease.payment_method)) {
+      // סגירת תזכורת "הפקדת שק" רק כששולם במלואו (status "paid" בדיוק, לא partial) ובשיקים
+      if (data.leaseId && lease && row.status === "paid" && isCheckPaymentMethod(lease.payment_method)) {
         await closeCheckReminderForPayment(
           supabase,
           session.user.id,
           row.id,
           data.leaseId,
           new Date(data.dueDate).toISOString(),
-          new Date(data.paidDate).toISOString()
+          row.paid_date ?? new Date().toISOString()
         );
       }
     }

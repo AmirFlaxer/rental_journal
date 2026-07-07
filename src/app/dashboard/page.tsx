@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
+import { listRentMonths, coveredPropertyMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
+import { getDebtAmount } from "@/lib/domain/partial-payment";
+import { apiGet, queryKeys } from "@/lib/api-client";
 
 interface Property {
   id: string;
@@ -19,6 +23,7 @@ interface Lease {
   endDate: string;
   monthlyRent: number;
   status: string;
+  properties?: { id: string; title: string };
 }
 
 interface Payment {
@@ -26,7 +31,11 @@ interface Payment {
   status: string;
   amount: number;
   dueDate: string;
+  paidDate?: string;
+  notes?: string;
+  paymentType: string;
   lease?: { id: string };
+  property?: { id: string };
   isVirtual?: boolean;
 }
 
@@ -38,39 +47,31 @@ interface Expense {
 const TYPE_HE: Record<string, string> = { Apartment: "דירה", House: "בית", Commercial: "מסחרי" };
 
 function pendingPaymentsSummary(leases: Lease[], dbPayments: Payment[]): { count: number; amount: number } {
-  const now = new Date();
-  // מחרוזת "היום" מקומית — השוואה למחרוזת dueDate חסינה לאזור-זמן (new Date("YYYY-MM-DD") = UTC).
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const today = todayStr();
   let count = 0;
   let amount = 0;
 
+  // תקבולי DB לא-משולמים: תשלום חלקי נספר לפי יתרת החוב הפתוחה, לא הסכום המלא
   for (const p of dbPayments) {
-    if (p.status !== "paid") { count++; amount += p.amount; }
+    if (p.status !== "paid") { count++; amount += getDebtAmount(p); }
   }
+
+  // dedup לפי נכס+חודש (כמו payments/debts) - לא חוזה+חודש, כדי שלא יימנה חיוב
+  // כפול כששני חוזים לאותו נכס מתחלפים
+  const covered = coveredPropertyMonths(dbPayments);
 
   for (const lease of leases) {
     if (!isLeaseCurrentlyActive(lease)) continue;
-    const start = new Date(lease.startDate);
-    const end = new Date(lease.endDate);
-    const cur = new Date(start.getFullYear(), start.getMonth(), 1);
-    const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
-    const startDay = start.getDate();
+    const propId = lease.properties?.id;
+    if (!propId) continue;
 
-    while (cur <= endMonth) {
-      const year = cur.getFullYear();
-      const month = cur.getMonth() + 1;
-      const monthKey = `${year}-${String(month).padStart(2, "0")}`;
-      const lastDay = new Date(year, month, 0).getDate();
-      const day = Math.min(startDay, lastDay);
-      const dueDate = `${monthKey}-${String(day).padStart(2, "0")}`;
-
-      if (dueDate <= todayStr) {
-        const exists = dbPayments.some(
-          (p) => p.lease?.id === lease.id && p.dueDate.slice(0, 7) === monthKey
-        );
-        if (!exists) { count++; amount += lease.monthlyRent; }
-      }
-      cur.setMonth(cur.getMonth() + 1);
+    for (const { monthKey, dueDate } of listRentMonths(lease)) {
+      if (dueDate > today) continue;
+      const key = propertyMonthKey(propId, monthKey);
+      if (covered.has(key)) continue;
+      count++;
+      amount += lease.monthlyRent;
+      covered.add(key);
     }
   }
 
@@ -83,27 +84,39 @@ function daysUntil(dateStr: string): number {
 }
 
 export default function Dashboard() {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [leases, setLeases] = useState<Lease[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
+  const propertiesQuery = useQuery({ queryKey: queryKeys.properties, queryFn: () => apiGet<Property[]>("/api/properties") });
+  const leasesQuery = useQuery({ queryKey: queryKeys.leases, queryFn: () => apiGet<Lease[]>("/api/leases") });
+  const paymentsQuery = useQuery({ queryKey: queryKeys.payments, queryFn: () => apiGet<Payment[]>("/api/payments") });
+  const expensesQuery = useQuery({ queryKey: queryKeys.expenses, queryFn: () => apiGet<Expense[]>("/api/expenses") });
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/properties").then((r) => r.json()),
-      fetch("/api/leases").then((r) => r.json()),
-      fetch("/api/payments").then((r) => r.json()),
-      fetch("/api/expenses").then((r) => r.json()),
-    ]).then(([props, leas, pays, exps]) => {
-      if (Array.isArray(props)) setProperties(props);
-      if (Array.isArray(leas)) setLeases(leas);
-      if (Array.isArray(pays)) setPayments(pays);
-      if (Array.isArray(exps)) setExpenses(exps);
-    }).finally(() => setLoading(false));
-  }, []);
+  const properties = useMemo(() => propertiesQuery.data ?? [], [propertiesQuery.data]);
+  const leases = useMemo(() => leasesQuery.data ?? [], [leasesQuery.data]);
+  const payments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
+  const expenses = useMemo(() => expensesQuery.data ?? [], [expensesQuery.data]);
 
-  if (loading) {
+  const isPending = propertiesQuery.isPending || leasesQuery.isPending || paymentsQuery.isPending || expensesQuery.isPending;
+  const failedQuery = [propertiesQuery, leasesQuery, paymentsQuery, expensesQuery].find((q) => q.isError);
+
+  const activeLeases = useMemo(
+    () => properties.flatMap((p) => p.leases || []).filter(isLeaseCurrentlyActive),
+    [properties]
+  );
+  const monthlyIncome = useMemo(() => activeLeases.reduce((s, l) => s + l.monthlyRent, 0), [activeLeases]);
+  const pendingSummary = useMemo(() => pendingPaymentsSummary(leases, payments), [leases, payments]);
+  const totalExpenses = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses]);
+
+  // חוזים שפוגים תוך 60 יום
+  const expiringLeases = useMemo(
+    () =>
+      leases
+        .filter((l) => isLeaseCurrentlyActive(l))
+        .map((l) => ({ ...l, daysLeft: daysUntil(l.endDate) }))
+        .filter((l) => l.daysLeft >= 0 && l.daysLeft <= 60)
+        .sort((a, b) => a.daysLeft - b.daysLeft),
+    [leases]
+  );
+
+  if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
@@ -111,17 +124,19 @@ export default function Dashboard() {
     );
   }
 
-  const activeLeases = properties.flatMap((p) => p.leases || []).filter(isLeaseCurrentlyActive);
-  const monthlyIncome = activeLeases.reduce((s, l) => s + l.monthlyRent, 0);
-  const { count: pendingCount, amount: pendingAmount } = pendingPaymentsSummary(leases, payments);
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+  if (failedQuery) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-3">
+        <p className="text-red-600 text-sm">{(failedQuery.error as Error).message}</p>
+        <button onClick={() => failedQuery.refetch()}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700">
+          נסה שוב
+        </button>
+      </div>
+    );
+  }
 
-  // חוזים שפוגים תוך 60 יום
-  const expiringLeases = leases
-    .filter((l) => isLeaseCurrentlyActive(l))
-    .map((l) => ({ ...l, daysLeft: daysUntil(l.endDate) }))
-    .filter((l) => l.daysLeft >= 0 && l.daysLeft <= 60)
-    .sort((a, b) => a.daysLeft - b.daysLeft);
+  const { count: pendingCount, amount: pendingAmount } = pendingSummary;
 
   const stats = [
     { label: "נכסים", value: properties.length, icon: "🏢", gradient: "from-zinc-600 to-zinc-800", href: "/dashboard/properties" },

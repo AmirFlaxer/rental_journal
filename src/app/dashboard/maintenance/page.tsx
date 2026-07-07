@@ -1,22 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/api-client";
 
 export default function MaintenancePage() {
-  const [cleanupRunning, setCleanupRunning] = useState(false);
-  const [cleanupResult, setCleanupResult] = useState<{ deleted: number; label: string } | null>(null);
+  const queryClient = useQueryClient();
 
-  const [leaseCleanupRunning, setLeaseCleanupRunning] = useState(false);
-  const [leaseCleanupResult, setLeaseCleanupResult] = useState<{ deleted: number; label: string } | null>(null);
-
-  const [leaseAuditRunning, setLeaseAuditRunning] = useState(false);
-  const [leaseAuditResult, setLeaseAuditResult] = useState<{ issues: string[] } | null>(null);
-
-  const handleCleanupOrphanTasks = async () => {
-    setCleanupRunning(true);
-    setCleanupResult(null);
-    try {
+  const cleanupTasksMutation = useMutation({
+    mutationFn: async () => {
       const [tasksRes, leasesRes] = await Promise.all([
         fetch("/api/tasks").then((r) => r.json()),
         fetch("/api/leases").then((r) => r.json()),
@@ -59,18 +51,15 @@ export default function MaintenancePage() {
       }
 
       await Promise.all(toDelete.map((id) => fetch(`/api/tasks/${id}`, { method: "DELETE" })));
-      setCleanupResult({ deleted: toDelete.length, label: "משימות תזכורת שק יתומות/כפולות/שגויות" });
-    } catch {
-      setCleanupResult({ deleted: -1, label: "שגיאה בניקוי" });
-    } finally {
-      setCleanupRunning(false);
-    }
-  };
+      return { deleted: toDelete.length, label: "משימות תזכורת שק יתומות/כפולות/שגויות" };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+    },
+  });
 
-  const handleCleanupOrphanLeases = async () => {
-    setLeaseCleanupRunning(true);
-    setLeaseCleanupResult(null);
-    try {
+  const cleanupLeasesMutation = useMutation({
+    mutationFn: async () => {
       const [leasesRes, propsRes] = await Promise.all([
         fetch("/api/leases").then((r) => r.json()),
         fetch("/api/properties").then((r) => r.json()),
@@ -80,18 +69,17 @@ export default function MaintenancePage() {
       const orphans = (leasesRes as { id: string; properties?: { id: string } }[])
         .filter((l) => !l.properties?.id || !propIds.has(l.properties.id));
       await Promise.all(orphans.map((l) => fetch(`/api/leases/${l.id}`, { method: "DELETE" })));
-      setLeaseCleanupResult({ deleted: orphans.length, label: "חוזים יתומים (ללא נכס)" });
-    } catch {
-      setLeaseCleanupResult({ deleted: -1, label: "שגיאה בניקוי" });
-    } finally {
-      setLeaseCleanupRunning(false);
-    }
-  };
+      return { deleted: orphans.length, label: "חוזים יתומים (ללא נכס)" };
+    },
+    onSuccess: () => {
+      // מחיקת חוזים יתומים משפיעה גם על משימות/תזכורות שהיו קשורות אליהם
+      queryClient.invalidateQueries({ queryKey: queryKeys.leases });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+    },
+  });
 
-  const handleLeaseAudit = async () => {
-    setLeaseAuditRunning(true);
-    setLeaseAuditResult(null);
-    try {
+  const leaseAuditMutation = useMutation({
+    mutationFn: async () => {
       const [leasesRes, propsRes] = await Promise.all([
         fetch("/api/leases").then((r) => r.json()),
         fetch("/api/properties").then((r) => r.json()),
@@ -125,21 +113,29 @@ export default function MaintenancePage() {
       const orphanCount = (leasesRes as Lease[]).filter((l) => !l.properties?.id || !propIds.has(l.properties.id)).length;
       if (orphanCount > 0) issues.push(`${orphanCount} חוזים ללא נכס (יתומים)`);
 
-      setLeaseAuditResult({ issues: issues.length ? issues : ["לא נמצאו בעיות"] });
-    } catch {
-      setLeaseAuditResult({ issues: ["שגיאה בבדיקה"] });
-    } finally {
-      setLeaseAuditRunning(false);
-    }
-  };
+      return { issues: issues.length ? issues : ["לא נמצאו בעיות"] };
+    },
+  });
+
+  const cleanupResult = cleanupTasksMutation.isError
+    ? { deleted: -1, label: "שגיאה בניקוי" }
+    : cleanupTasksMutation.data ?? null;
+
+  const leaseCleanupResult = cleanupLeasesMutation.isError
+    ? { deleted: -1, label: "שגיאה בניקוי" }
+    : cleanupLeasesMutation.data ?? null;
+
+  const leaseAuditResult = leaseAuditMutation.isError
+    ? { issues: ["שגיאה בבדיקה"] }
+    : leaseAuditMutation.data ?? null;
 
   const actions = [
     {
       title: "ניקוי תזכורות שק",
       desc: "מוחק תזכורות 'הפקדת שק' יתומות, כפולות, או עם תאריך שגוי",
       icon: "🧹",
-      onClick: handleCleanupOrphanTasks,
-      running: cleanupRunning,
+      onClick: () => cleanupTasksMutation.mutate(),
+      running: cleanupTasksMutation.isPending,
       result: cleanupResult,
       btnLabel: "נקה",
       color: "orange",
@@ -148,8 +144,8 @@ export default function MaintenancePage() {
       title: "ניקוי חוזים יתומים",
       desc: "מוחק חוזים שהנכס שלהם נמחק",
       icon: "📄",
-      onClick: handleCleanupOrphanLeases,
-      running: leaseCleanupRunning,
+      onClick: () => cleanupLeasesMutation.mutate(),
+      running: cleanupLeasesMutation.isPending,
       result: leaseCleanupResult,
       btnLabel: "נקה",
       color: "orange",
@@ -210,11 +206,11 @@ export default function MaintenancePage() {
             </div>
             <button
               type="button"
-              onClick={handleLeaseAudit}
-              disabled={leaseAuditRunning}
+              onClick={() => leaseAuditMutation.mutate()}
+              disabled={leaseAuditMutation.isPending}
               className="flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors"
             >
-              {leaseAuditRunning ? "בודק..." : "בדוק"}
+              {leaseAuditMutation.isPending ? "בודק..." : "בדוק"}
             </button>
           </div>
           {leaseAuditResult && (

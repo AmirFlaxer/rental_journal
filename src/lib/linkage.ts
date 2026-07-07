@@ -1,3 +1,5 @@
+import { localDateStr } from "./domain/dates";
+
 export type LinkageType = "none" | "usd" | "cpi";
 export type LinkageFrequency = "monthly" | "quarterly" | "semiannual";
 
@@ -22,7 +24,9 @@ export function getEffectivePeriodStart(date: Date, frequency: LinkageFrequency)
 
 // Pick the most recent rate whose period_date <= targetDate
 export function pickRate(rates: IndexRate[], type: LinkageType, targetDate: Date): IndexRate | null {
-  const target = targetDate.toISOString().slice(0, 10);
+  // localDateStr ולא toISOString - בדפדפן ישראלי (UTC+2/+3) toISOString מסיט חצות
+  // מקומי ליום הקודם, ובתחילת חודש זה גורם לבחירת מדד של התקופה הקודמת בטעות.
+  const target = localDateStr(targetDate);
   const matching = rates
     .filter((r) => r.type === type && r.periodDate <= target)
     .sort((a, b) => b.periodDate.localeCompare(a.periodDate));
