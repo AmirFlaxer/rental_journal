@@ -19,7 +19,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      # npm install (ולא npm ci) - קובץ ה-lock נוצר על Windows וחסרות בו
+      # חבילות אופציונליות ספציפיות ל-Linux (@emnapi), ו-npm ci נוקשה מדי לגביהן
+      - run: npm install --no-audit --no-fund
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Lint
