@@ -123,6 +123,17 @@ export const taskUpdateSchema = taskSchema.partial().extend({
   completedAt: z.coerce.date().nullish(),
 });
 
+// Property Utility Validations - קונפיגורציית חשבונות שירות לפי נכס
+export const propertyUtilitySchema = z.object({
+  propertyId: z.string().min(1, "Property is required"),
+  type: z.enum(["water", "gas", "electricity", "municipal_tax", "house_committee", "other"]),
+  customLabel: z.string().nullish(),
+  frequency: z.enum(["monthly", "bimonthly"]).default("monthly"),
+  anchorMonth: z.number().int().min(1).max(12).nullish(),
+  responsibility: z.enum(["owner_pays", "owner_forwards", "tenant_pays"]).default("owner_pays"),
+  active: z.boolean().optional(),
+});
+
 // Feedback Validations
 export const feedbackSchema = z.object({
   type: z.enum(["bug", "feature", "other"]).default("other"),
@@ -139,4 +150,5 @@ export type ExpenseInput = z.infer<typeof expenseSchema>;
 export type PaymentInput = z.infer<typeof paymentSchema>;
 export type TaskInput = z.infer<typeof taskSchema>;
 export type TaskUpdateInput = z.infer<typeof taskUpdateSchema>;
+export type PropertyUtilityInput = z.infer<typeof propertyUtilitySchema>;
 export type FeedbackInput = z.infer<typeof feedbackSchema>;

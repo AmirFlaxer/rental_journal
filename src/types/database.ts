@@ -223,6 +223,24 @@ export interface IndexRate {
   createdAt: string;
 }
 
+export type PropertyUtilityType = "water" | "gas" | "electricity" | "municipal_tax" | "house_committee" | "other";
+export type PropertyUtilityFrequency = "monthly" | "bimonthly";
+export type PropertyUtilityResponsibility = "owner_pays" | "owner_forwards" | "tenant_pays";
+
+export interface PropertyUtility {
+  id: string;
+  userId: string;
+  propertyId: string;
+  type: PropertyUtilityType;
+  customLabel?: string | null;
+  frequency: PropertyUtilityFrequency;
+  anchorMonth?: number | null;
+  responsibility: PropertyUtilityResponsibility;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Joined / enriched types used in API responses
 
 export interface LeaseWithRelations extends Lease {
@@ -323,6 +341,20 @@ export interface PaymentRow {
   reference_num?: string | null;
   notes?: string | null;
   partial_paid_amount?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PropertyUtilityRow {
+  id: string;
+  user_id: string;
+  property_id: string;
+  type: string;
+  custom_label?: string | null;
+  frequency: string;
+  anchor_month?: number | null;
+  responsibility: string;
+  active: boolean;
   created_at: string;
   updated_at: string;
 }

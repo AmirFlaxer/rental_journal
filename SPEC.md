@@ -2,6 +2,15 @@
 
 > מצב נוכחי, החלטות, והצעד הבא. מתעדכן בכל session.
 
+## פיצ'ר: חשבונות שירות + תזכורות מחזוריות (2026-07-08)
+
+- **טבלה חדשה `property_utilities`** (על הנכס): type (מים/גז/חשמל/ארנונה/ועד בית/אחר), frequency (monthly/bimonthly + anchor_month), responsibility (owner_pays/owner_forwards/tenant_pays), active. CRUD ב-/api/property-utilities. סעיף UI בעמוד הנכס.
+- **תזכורות וירטואליות חדשות** (אותו דפוס של תזכורות שק - מרפאות את עצמן, סימון "בוצע" = שורת DB שחוסמת חזרה לאותה תקופה, מחזור הבא מופיע מעצמו):
+  - **חשבונות שירות**: src/lib/domain/utility-schedule.ts - תזכורת לתקופה הנוכחית לחשבונות owner_pays/owner_forwards (נוסח שונה). tenant_pays = בלי תזכורת. bimonthly לפי זוגיות anchor_month.
+  - **סיום חוזה מתקרב**: src/lib/domain/lease-reminders.ts - מ-90 יום לפני end_date, הסלמת עדיפות ב-75/60 יום, תזכורת אחת שסימון אחד סוגר (מפתח lease+endDate).
+- **"שחזור תזכורות" (רעיון ישן) קופל לכאן**: הווירטואליות מרפאות את עצמן, אין צורך בכפתור שחזור.
+- מיגרציה `20260708_property_utilities.sql` **טרם הורצה בפרודקשן**. spec: docs/superpowers/specs/2026-07-08-property-utilities-design.md.
+
 ## גל שיפורים שני (2026-07-08) - חוב-טכני, freemium, משוב, לינט
 
 - **תשלום חלקי כעמודת DB**: עמודת `payments.partial_paid_amount` אמיתית במקום הקידוד `__partial__` ב-notes. getReceivedAmount מעדיף אותה ונופל לפענוח notes לרשומות ישנות (backfill במיגרציה, notes לא נמחק). רשומות חדשות: הסיבה ב-notes כטקסט נקי, הסכום בעמודה.

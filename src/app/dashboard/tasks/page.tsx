@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DateInput } from "@/components/date-input";
 import { listRentMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
+import { generateVirtualUtilityTasks, type PropertyUtilityLike } from "@/lib/domain/utility-schedule";
+import { generateVirtualLeaseRenewalTasks } from "@/lib/domain/lease-reminders";
 import { apiGet, queryKeys } from "@/lib/api-client";
 
 const CAT_HE: Record<string, string> = {
@@ -96,6 +98,23 @@ interface Lease {
   tenant?: { firstName: string; lastName: string };
 }
 
+interface Property {
+  id: string;
+  title: string;
+}
+
+/** שורה גולמית מ-/api/property-utilities - בלי propertyTitle (מצטרף מ-/api/properties בצד לקוח) */
+interface PropertyUtilityRow {
+  id: string;
+  propertyId: string;
+  type: PropertyUtilityLike["type"];
+  customLabel?: string | null;
+  frequency: PropertyUtilityLike["frequency"];
+  anchorMonth?: number | null;
+  responsibility: PropertyUtilityLike["responsibility"];
+  active: boolean;
+}
+
 /**
  * יוצר תזכורות שק וירטואליות (לתצוגה בלבד, לא נשמרות ב-DB) מחוזים פעילים בשיטת שיקים.
  * השם כולל "Virtual" בכוונה כדי לא להתבלבל עם src/lib/check-reminders.ts השרתי -
@@ -157,7 +176,10 @@ function generateVirtualCheckTasks(leases: Lease[], dbTasks: Task[]): Task[] {
 }
 
 // "רלוונטי" = פג מועד או עד 30 יום קדימה
+// חשבונות שירות ותזכורות סיום חוזה כבר מסוננים לחלון הרלוונטי שלהם ביצירה
+// (generateVirtualUtilityTasks / generateVirtualLeaseRenewalTasks) - תמיד "רלוונטי", גם אם ה-dueDate רחוק מ-30 יום
 function isRelevant(t: Task) {
+  if (t.relatedEntityType === "property_utility" || t.relatedEntityType === "lease_renewal") return true;
   const due = new Date(t.dueDate);
   due.setHours(0, 0, 0, 0);
   const in30 = new Date();
@@ -186,10 +208,21 @@ export default function TasksPage() {
   const queryClient = useQueryClient();
   const tasksQuery = useQuery({ queryKey: queryKeys.tasks, queryFn: () => apiGet<Task[]>("/api/tasks") });
   const leasesQuery = useQuery({ queryKey: queryKeys.leases, queryFn: () => apiGet<Lease[]>("/api/leases") });
+  const propertiesQuery = useQuery({ queryKey: queryKeys.properties, queryFn: () => apiGet<Property[]>("/api/properties") });
+  // הטבלה property_utilities עלולה עוד לא להיות קיימת בפרודקשן (מיגרציה לא רצה) -
+  // retry:false כדי להיכשל מהר, ולא נכנסת ל-isPending/failedQuery: אם היא נכשלת,
+  // דף התזכורות ממשיך לעבוד רגיל, פשוט בלי תזכורות החשבונות (data ?? [] בהמשך)
+  const utilitiesQuery = useQuery({
+    queryKey: queryKeys.propertyUtilities,
+    queryFn: () => apiGet<PropertyUtilityRow[]>("/api/property-utilities"),
+    retry: false,
+  });
   const dbTasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const leases = useMemo(() => leasesQuery.data ?? [], [leasesQuery.data]);
-  const isPending = tasksQuery.isPending || leasesQuery.isPending;
-  const failedQuery = [tasksQuery, leasesQuery].find((q) => q.isError);
+  const properties = useMemo(() => propertiesQuery.data ?? [], [propertiesQuery.data]);
+  const utilityRows = useMemo(() => utilitiesQuery.data ?? [], [utilitiesQuery.data]);
+  const isPending = tasksQuery.isPending || leasesQuery.isPending || propertiesQuery.isPending;
+  const failedQuery = [tasksQuery, leasesQuery, propertiesQuery].find((q) => q.isError);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showDone, setShowDone] = useState(true);
@@ -263,6 +296,24 @@ export default function TasksPage() {
   // ממוין ב-useMemo כי לולאת השרשור-חוזים רצה בכל render, וללא זה גם בכל הקלדה בטופס
   const virtualCheck = useMemo(() => generateVirtualCheckTasks(leases, dbTasks), [leases, dbTasks]);
 
+  // הרכבת קלט חשבונות השירות: property-utilities (אין בו propertyTitle) + join עם properties
+  const utilitiesWithTitle: PropertyUtilityLike[] = useMemo(() => {
+    const titleByPropertyId = new Map(properties.map((p) => [p.id, p.title]));
+    return utilityRows.map((u) => ({
+      ...u,
+      propertyTitle: titleByPropertyId.get(u.propertyId) ?? "נכס",
+    }));
+  }, [utilityRows, properties]);
+
+  const virtualUtility = useMemo(
+    () => generateVirtualUtilityTasks(utilitiesWithTitle, dbTasks, new Date()),
+    [utilitiesWithTitle, dbTasks]
+  );
+  const virtualLeaseRenewal = useMemo(
+    () => generateVirtualLeaseRenewalTasks(leases, dbTasks, new Date()),
+    [leases, dbTasks]
+  );
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -270,7 +321,7 @@ export default function TasksPage() {
   const leaseToPropertyId = new Map(leases.map((l) => [l.id, l.properties?.id ?? l.id]));
   const dedupedPending: Task[] = [];
   const seenPropertyMonth = new Set<string>();
-  for (const t of [...pendingDb, ...virtualCheck].sort((a, b) => {
+  for (const t of [...pendingDb, ...virtualCheck, ...virtualUtility, ...virtualLeaseRenewal].sort((a, b) => {
     // משימה לא-פגת-תוקף קודמת לפגת-תוקף באותו חודש (לתיקון באג UTC שיצר תאריכים שגויים ב-DB)
     const aOver = new Date(a.dueDate) < today;
     const bOver = new Date(b.dueDate) < today;
@@ -296,7 +347,11 @@ export default function TasksPage() {
       return a.dueDate.localeCompare(b.dueDate);   // אחר כך הכי מוקדם
     });
   const future = allPending.filter((t) => !isRelevant(t));
-  const overdueCount = allPending.filter((t) => new Date(t.dueDate) < today).length;
+  // תזכורות חשבון שירות מעוגנות לתחילת החודש (dueDate = ה-1) ומייצגות את "החודש הנוכחי",
+  // לא deadline - לכן לא נספרות/מוצגות כפג-מועד לאורך החודש.
+  const overdueCount = allPending.filter(
+    (t) => t.relatedEntityType !== "property_utility" && new Date(t.dueDate) < today
+  ).length;
 
   const resetForm = () => {
     setForm({ title: "", description: "", category: "Other", dueDate: "", priority: "normal" });
@@ -480,7 +535,7 @@ export default function TasksPage() {
   );
 
   const TaskRow = ({ t, isDone }: { t: Task; isDone: boolean }) => {
-    const isOverdue = !isDone && new Date(t.dueDate) < today;
+    const isOverdue = !isDone && t.relatedEntityType !== "property_utility" && new Date(t.dueDate) < today;
     const dueLabel = isDone
       ? new Date(t.dueDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })
       : formatDue(t.dueDate, isOverdue);

@@ -17,3 +17,4 @@
 | 20260708_payments_partial_amount.sql | ✅ 2026-07-08 |
 | 20260708_subscriptions.sql | ✅ 2026-07-08 |
 | 20260708_feedback.sql | ✅ 2026-07-08 |
+| 20260708_property_utilities.sql | ⬜ טרם |

@@ -306,6 +306,25 @@ create policy "feedback_insert_own" on feedback for insert with check (user_id =
 create policy "feedback_read_own" on feedback for select using (user_id = auth.uid());
 
 -- ----------------------------------------------------------------
+-- PROPERTY UTILITIES (קונפיגורציית חשבונות שירות לפי נכס - מים/גז/חשמל/ארנונה/ועד בית/אחר)
+-- ----------------------------------------------------------------
+create table if not exists property_utilities (
+  id             text        primary key default gen_random_uuid()::text,
+  user_id        uuid        not null references auth.users(id) on delete cascade,
+  property_id    text        not null references properties(id) on delete cascade,
+  type           text        not null,
+  custom_label   text,
+  frequency      text        not null default 'monthly',
+  anchor_month   int,
+  responsibility text        not null default 'owner_pays',
+  active         boolean     not null default true,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+alter table property_utilities enable row level security;
+create policy "property_utilities_owner" on property_utilities for all using (user_id = auth.uid());
+
+-- ----------------------------------------------------------------
 -- ROW LEVEL SECURITY (RLS)
 -- מאפשר לכל משתמש לגשת רק לנתונים שלו
 -- ----------------------------------------------------------------

@@ -1,12 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import type { Lease, Expense, Payment, LeaseDocument } from "@/types/database";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Lease, Expense, Payment, LeaseDocument, PropertyUtility, PropertyUtilityType, PropertyUtilityFrequency, PropertyUtilityResponsibility } from "@/types/database";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 import { listRentMonths } from "@/lib/domain/rent-schedule";
 import { isoMonthKey, isoDateParts, localMonthKey } from "@/lib/domain/dates";
+import { utilityTypeLabel } from "@/lib/domain/utility-schedule";
+import { apiGet, queryKeys } from "@/lib/api-client";
 
 const EXPENSE_CAT_HE: Record<string, string> = {
   Maintenance: "תחזוקה",
@@ -23,6 +26,44 @@ const PAYMENT_TYPE_HE: Record<string, string> = {
   Return: "החזר",
   Other: "אחר",
 };
+
+// חשבונות שירות - תוויות עבריות. תווית "אחר" נלקחת מ-utilityTypeLabel (customLabel).
+const UTILITY_TYPE_OPTIONS: { value: PropertyUtilityType; label: string; icon: string }[] = [
+  { value: "water", label: "מים", icon: "💧" },
+  { value: "gas", label: "גז", icon: "🔥" },
+  { value: "electricity", label: "חשמל", icon: "⚡" },
+  { value: "municipal_tax", label: "ארנונה", icon: "🏛️" },
+  { value: "house_committee", label: "ועד בית", icon: "🏢" },
+  { value: "other", label: "אחר", icon: "📌" },
+];
+const UTILITY_TYPE_ICON: Record<PropertyUtilityType, string> = Object.fromEntries(
+  UTILITY_TYPE_OPTIONS.map((o) => [o.value, o.icon])
+) as Record<PropertyUtilityType, string>;
+
+const UTILITY_FREQUENCY_HE: Record<PropertyUtilityFrequency, string> = {
+  monthly: "חודשי",
+  bimonthly: "דו-חודשי",
+};
+
+const UTILITY_RESPONSIBILITY_OPTIONS: { value: PropertyUtilityResponsibility; label: string; hint: string }[] = [
+  { value: "owner_pays", label: "המשכיר משלם", hint: "יוצר תזכורת תשלום בכל מחזור" },
+  { value: "owner_forwards", label: "מגיע למשכיר - להעביר לשוכר", hint: "יוצר תזכורת להעברת החשבון לשוכר" },
+  { value: "tenant_pays", label: "השוכר משלם ישירות", hint: "ללא תזכורת - באחריות השוכר" },
+];
+const UTILITY_RESPONSIBILITY_HE: Record<PropertyUtilityResponsibility, string> = Object.fromEntries(
+  UTILITY_RESPONSIBILITY_OPTIONS.map((o) => [o.value, o.label])
+) as Record<PropertyUtilityResponsibility, string>;
+
+const UTILITY_MONTH_HE = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+
+interface UtilityFormState {
+  id: string | null;
+  type: PropertyUtilityType;
+  customLabel: string;
+  frequency: PropertyUtilityFrequency;
+  anchorMonth: number;
+  responsibility: PropertyUtilityResponsibility;
+}
 
 interface Property {
   id: string;
@@ -88,6 +129,26 @@ export default function PropertyDetailPage() {
   const [termLoading, setTermLoading] = useState(false);
   const [termResult, setTermResult] = useState<{ effectiveDate: string; noticeMonths: number } | null>(null);
 
+  // חשבונות שירות - נטענים בנפרד דרך TanStack Query (משותף עם דף התזכורות)
+  const queryClient = useQueryClient();
+  const utilitiesQuery = useQuery({
+    queryKey: queryKeys.propertyUtilities,
+    queryFn: () => apiGet<PropertyUtility[]>("/api/property-utilities"),
+    retry: false, // הטבלה אולי עוד לא קיימת בפרודקשן - לא לנסות שוב, להציג מיד הודעה עדינה
+  });
+  const [utilityForm, setUtilityForm] = useState<UtilityFormState | null>(null); // null = הטופס סגור
+  const [utilitySaving, setUtilitySaving] = useState(false);
+  const [utilityFormError, setUtilityFormError] = useState("");
+  const [utilityListError, setUtilityListError] = useState("");
+  const utilityListErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // אישור מחיקה דו-שלבי (כמו בדף התזכורות): לחיצה ראשונה הופכת לכפתור "בטוח?", מתאפס אחרי 3 שניות
+  const [confirmDeleteUtilityId, setConfirmDeleteUtilityId] = useState<string | null>(null);
+  const confirmDeleteUtilityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (utilityListErrorTimer.current) clearTimeout(utilityListErrorTimer.current);
+    if (confirmDeleteUtilityTimer.current) clearTimeout(confirmDeleteUtilityTimer.current);
+  }, []);
+
   const loadProperty = useCallback(() => {
     setIsLoading(true);
     fetch(`/api/properties/${propertyId}`)
@@ -106,7 +167,6 @@ export default function PropertyDetailPage() {
   // גם נקרא ידנית (לא מ-effect) אחרי מחיקה/עדכון כדי לרענן את הנכס, ולכן לא ניתן
   // להעביר את הלוגיקה לגמרי החוצה מה-effect בלי לשכפל קוד. הסיכון בשינוי הדפוס
   // (לולאת רנדורים / איבוד מצב טעינה) גדול מהתועלת בהשתקת האזהרה.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (propertyId) loadProperty(); }, [propertyId, loadProperty]);
 
   const handleDelete = async () => {
@@ -176,6 +236,90 @@ export default function PropertyDetailPage() {
   const monthlyRent = activeLeases.reduce((s, l) => s + (l.monthlyRent || 0), 0);
   const totalExpenses = property.expenses.reduce((s, e) => s + (e.amount || 0), 0);
   const typeHe = PROPERTY_TYPE_HE[property.propertyType] ?? property.propertyType;
+
+  // חשבונות שירות של הנכס הנוכחי בלבד (ה-query מחזיר את כל החשבונות של המשתמש)
+  const propertyUtilities = (utilitiesQuery.data ?? []).filter((u) => u.propertyId === property.id);
+
+  const showUtilityListError = (msg: string) => {
+    if (utilityListErrorTimer.current) clearTimeout(utilityListErrorTimer.current);
+    setUtilityListError(msg);
+    utilityListErrorTimer.current = setTimeout(() => setUtilityListError(""), 4000);
+  };
+
+  const openNewUtilityForm = () => {
+    setUtilityFormError("");
+    setUtilityForm({
+      id: null,
+      type: "water",
+      customLabel: "",
+      frequency: "monthly",
+      anchorMonth: new Date().getMonth() + 1,
+      responsibility: "owner_pays",
+    });
+  };
+
+  const openEditUtilityForm = (u: PropertyUtility) => {
+    setUtilityFormError("");
+    setUtilityForm({
+      id: u.id,
+      type: u.type,
+      customLabel: u.customLabel ?? "",
+      frequency: u.frequency,
+      anchorMonth: u.anchorMonth ?? new Date().getMonth() + 1,
+      responsibility: u.responsibility,
+    });
+  };
+
+  const handleUtilitySubmit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!utilityForm) return;
+    setUtilityFormError("");
+    setUtilitySaving(true);
+    try {
+      const payload = {
+        propertyId: property.id,
+        type: utilityForm.type,
+        customLabel: utilityForm.type === "other" ? (utilityForm.customLabel.trim() || null) : null,
+        frequency: utilityForm.frequency,
+        anchorMonth: utilityForm.frequency === "bimonthly" ? utilityForm.anchorMonth : null,
+        responsibility: utilityForm.responsibility,
+      };
+      const res = await fetch(
+        utilityForm.id ? `/api/property-utilities/${utilityForm.id}` : "/api/property-utilities",
+        {
+          method: utilityForm.id ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה בשמירת חשבון השירות");
+      queryClient.invalidateQueries({ queryKey: queryKeys.propertyUtilities });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+      setUtilityForm(null);
+    } catch (err) {
+      setUtilityFormError(err instanceof Error ? err.message : "שגיאה בשמירת חשבון השירות");
+    } finally {
+      setUtilitySaving(false);
+    }
+  };
+
+  const requestDeleteUtility = (id: string) => {
+    if (confirmDeleteUtilityTimer.current) clearTimeout(confirmDeleteUtilityTimer.current);
+    setConfirmDeleteUtilityId(id);
+    confirmDeleteUtilityTimer.current = setTimeout(() => setConfirmDeleteUtilityId(null), 3000);
+  };
+
+  const handleDeleteUtility = async (id: string) => {
+    setConfirmDeleteUtilityId(null);
+    const res = await fetch(`/api/property-utilities/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.propertyUtilities });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+    } else {
+      showUtilityListError("שגיאה במחיקת חשבון השירות");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -297,6 +441,106 @@ export default function PropertyDetailPage() {
                 ביטול
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Utility form modal - חשבון שירות (הוספה/עריכה) */}
+      {utilityForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-8 max-w-sm w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">
+              {utilityForm.id ? "עריכת חשבון שירות" : "הוספת חשבון שירות"}
+            </h3>
+            <form onSubmit={handleUtilitySubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">סוג חשבון</label>
+                <select
+                  value={utilityForm.type}
+                  onChange={(e) => setUtilityForm({ ...utilityForm, type: e.target.value as PropertyUtilityType })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  {UTILITY_TYPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {utilityForm.type === "other" && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">שם החשבון</label>
+                  <input
+                    type="text"
+                    value={utilityForm.customLabel}
+                    onChange={(e) => setUtilityForm({ ...utilityForm, customLabel: e.target.value })}
+                    placeholder="למשל: אינטרנט"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">תדירות</label>
+                <div className="flex gap-2">
+                  {(["monthly", "bimonthly"] as const).map((f) => (
+                    <button key={f} type="button"
+                      onClick={() => setUtilityForm({ ...utilityForm, frequency: f })}
+                      className={`flex-1 py-2 rounded-lg font-semibold text-sm border ${
+                        utilityForm.frequency === f ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-300"
+                      }`}>
+                      {UTILITY_FREQUENCY_HE[f]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {utilityForm.frequency === "bimonthly" && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">חודש עוגן</label>
+                  <select
+                    value={utilityForm.anchorMonth}
+                    onChange={(e) => setUtilityForm({ ...utilityForm, anchorMonth: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    {UTILITY_MONTH_HE.map((m, i) => (
+                      <option key={m} value={i + 1}>{m}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">החודש שבו נוחת החשבון - קובע את מחזור הדו-חודשי</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">אחריות לתשלום</label>
+                <div className="space-y-2">
+                  {UTILITY_RESPONSIBILITY_OPTIONS.map((o) => (
+                    <button key={o.value} type="button"
+                      onClick={() => setUtilityForm({ ...utilityForm, responsibility: o.value })}
+                      className={`w-full text-right px-3 py-2 rounded-lg border text-sm transition-colors ${
+                        utilityForm.responsibility === o.value ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-300"
+                      }`}>
+                      <div className="font-semibold">{o.label}</div>
+                      <div className={`text-xs mt-0.5 ${utilityForm.responsibility === o.value ? "text-blue-100" : "text-gray-400"}`}>
+                        {o.hint}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {utilityFormError && <p className="text-red-600 text-sm">{utilityFormError}</p>}
+
+              <div className="flex gap-3 pt-2">
+                <button type="submit" disabled={utilitySaving}
+                  className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 text-sm">
+                  {utilitySaving ? "שומר..." : "שמירה"}
+                </button>
+                <button type="button" onClick={() => setUtilityForm(null)}
+                  className="flex-1 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-semibold text-sm">
+                  ביטול
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -627,6 +871,72 @@ export default function PropertyDetailPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+
+        {/* Utilities section - חשבונות שירות */}
+        <div id="utilities" className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900">חשבונות שירות</h2>
+            <button
+              onClick={openNewUtilityForm}
+              className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold text-sm"
+            >
+              + הוסף חשבון
+            </button>
+          </div>
+
+          {utilityListError && (
+            <div className="mx-6 mt-4 px-4 py-2 bg-red-50 border border-red-300 text-red-700 rounded-lg text-sm">
+              {utilityListError}
+            </div>
+          )}
+
+          {utilitiesQuery.isError ? (
+            <p className="px-6 py-8 text-gray-400 text-center text-sm">
+              חשבונות שירות עדיין לא זמינים - יש להריץ מיגרציה כדי להפעיל את התכונה.
+            </p>
+          ) : propertyUtilities.length === 0 ? (
+            <p className="px-6 py-8 text-gray-400 text-center">אין חשבונות שירות מוגדרים</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {propertyUtilities.map((u) => {
+                const label = utilityTypeLabel(u.type, u.customLabel);
+                const isConfirmingDelete = confirmDeleteUtilityId === u.id;
+                return (
+                  <div key={u.id} className="flex items-center justify-between px-6 py-3 gap-3 flex-wrap">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-semibold text-gray-900">
+                        {UTILITY_TYPE_ICON[u.type]} {label}
+                      </span>
+                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-semibold">
+                        {UTILITY_FREQUENCY_HE[u.frequency]}
+                        {u.frequency === "bimonthly" && u.anchorMonth ? ` · עוגן ${UTILITY_MONTH_HE[u.anchorMonth - 1]}` : ""}
+                      </span>
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">
+                        {UTILITY_RESPONSIBILITY_HE[u.responsibility] ?? u.responsibility}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => openEditUtilityForm(u)}
+                        className="px-2 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-200"
+                      >
+                        ✏️ עריכה
+                      </button>
+                      <button
+                        onClick={() => (isConfirmingDelete ? handleDeleteUtility(u.id) : requestDeleteUtility(u.id))}
+                        className={`px-2 py-1 rounded-lg text-xs font-semibold ${
+                          isConfirmingDelete ? "bg-red-600 text-white hover:bg-red-700" : "bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700"
+                        }`}
+                      >
+                        {isConfirmingDelete ? "בטוח?" : "🗑️ מחיקה"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
