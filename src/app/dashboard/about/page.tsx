@@ -90,13 +90,13 @@ export default function AboutPage() {
           <span className="text-gray-600">אודות</span>
         </div>
         <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
-          <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+          <span className="inline-block w-1.5 h-7 rounded-full tick-accent" />
           אודות
         </h1>
       </div>
 
       {/* Hero — about the app */}
-      <div className="relative overflow-hidden rounded-2xl p-6 bg-gradient-to-br from-pink-500 to-pink-700 text-white">
+      <div className="relative overflow-hidden rounded-2xl p-6 grad-accent-diag text-white">
         <span className="absolute -top-4 -left-3 text-7xl opacity-15 select-none">🏠</span>
         <div className="relative">
           <h2 className="text-xl font-extrabold drop-shadow-sm">יומן השכרות</h2>
@@ -129,11 +129,11 @@ export default function AboutPage() {
       {/* About the developer */}
       <section className="space-y-3">
         <h2 className="text-base font-bold text-gray-900 flex items-center gap-2.5">
-          <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+          <span className="inline-block w-1 h-5 rounded-full tick-accent" />
           המפתח
         </h2>
         <div className="bg-white rounded-2xl border border-gray-200 p-5 flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-500 to-pink-700 text-white flex items-center justify-center text-2xl font-extrabold flex-shrink-0">
+          <div className="w-14 h-14 rounded-2xl grad-accent-diag text-white flex items-center justify-center text-2xl font-extrabold flex-shrink-0">
             {DEV.name.charAt(0)}
           </div>
           <div className="min-w-0">
@@ -192,7 +192,7 @@ export default function AboutPage() {
               onClick={() => { setType("feature"); setSaveStatus("idle"); }}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
                 type === "feature"
-                  ? "bg-gradient-to-br from-pink-500 to-pink-700 text-white border-transparent"
+                  ? "grad-accent-diag text-white border-transparent"
                   : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
               }`}
             >

@@ -426,7 +426,7 @@ export default function PaymentsPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
-            <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+            <span className="inline-block w-1.5 h-7 rounded-full tick-accent" />
             תקבולים
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">מה צריך לסמן</p>

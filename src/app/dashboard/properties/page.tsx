@@ -71,7 +71,7 @@ export default function PropertiesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
-            <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+            <span className="inline-block w-1.5 h-7 rounded-full tick-accent" />
             הנכסים שלי
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">{properties.length} נכסים</p>
@@ -116,7 +116,7 @@ export default function PropertiesPage() {
               <div key={p.id} className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-md hover:border-indigo-200 transition-all">
                 <Link href={`/dashboard/properties/${p.id}`} className="block">
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-pink-700 text-white rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
+                    <div className="w-12 h-12 grad-accent-diag text-white rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
                       {TYPE_ICON[p.propertyType] || "🏠"}
                     </div>
                     <div className="flex-1 min-w-0">

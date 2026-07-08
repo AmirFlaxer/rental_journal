@@ -120,6 +120,9 @@ export default function TaxReportPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
+        {/* ספינר כתום בכוונה — עקבי עם ערכת הצבע הסמנטית של המסך (מס = כתום/amber:
+            כפתורים, כרטיסי סיכום, שורת סה"כ בטבלה). שאר המסכים שאינם עוסקים בחוב/מס
+            משתמשים ב-border-indigo-600 (accent). */}
         <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );

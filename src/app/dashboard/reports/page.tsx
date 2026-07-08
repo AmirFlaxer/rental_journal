@@ -213,7 +213,7 @@ export default function ReportsPage() {
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none bg-gradient-to-l from-pink-500/10 via-transparent to-transparent" />
+        <div className="absolute inset-0 pointer-events-none grad-accent-fade-l" />
         <div className="max-w-6xl mx-auto px-4 py-5 sm:px-6 flex justify-between items-center relative">
           <div>
             <div className="flex items-center gap-2 text-sm text-gray-400 mb-1.5">
@@ -222,7 +222,7 @@ export default function ReportsPage() {
               <span className="text-gray-600">דוחות</span>
             </div>
             <h1 className="text-2xl sm:text-[28px] font-extrabold text-gray-900 flex items-center gap-2.5">
-              <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+              <span className="inline-block w-1.5 h-7 rounded-full tick-accent" />
               דוחות ואנליטיקה
             </h1>
           </div>
@@ -335,7 +335,7 @@ export default function ReportsPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2.5">
-              <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+              <span className="inline-block w-1 h-5 rounded-full tick-accent" />
               סיכום לפי נכס{selectedYear ? ` — ${selectedYear}` : ""}
             </h2>
           </div>

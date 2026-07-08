@@ -91,6 +91,13 @@ export default function EditLeasePage() {
   const [uploadError, setUploadError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // מחיקת מסמך — אישור דו-שלבי במקום confirm() ילידי
+  const [confirmDeleteDocId, setConfirmDeleteDocId] = useState<string | null>(null);
+  const confirmDeleteDocTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (confirmDeleteDocTimer.current) clearTimeout(confirmDeleteDocTimer.current);
+  }, []);
+
   // Extraction
   const [extractingDocId, setExtractingDocId] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
@@ -311,11 +318,19 @@ export default function EditLeasePage() {
   };
 
   const handleDeleteDoc = async (docId: string) => {
-    if (!confirm("למחוק את המסמך?")) return;
+    setConfirmDeleteDocId(null);
     const res = await fetch(`/api/documents/${docId}`, { method: "DELETE" });
     if (res.ok) {
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
     }
+  };
+
+  // אישור מחיקה דו-שלבי: לחיצה ראשונה הופכת את הכפתור ל"בטוח?", מתאפס אחרי 3 שניות
+  // (אותו דפוס כמו במסך תזכורות — src/app/dashboard/tasks/page.tsx)
+  const requestDeleteDoc = (docId: string) => {
+    if (confirmDeleteDocTimer.current) clearTimeout(confirmDeleteDocTimer.current);
+    setConfirmDeleteDocId(docId);
+    confirmDeleteDocTimer.current = setTimeout(() => setConfirmDeleteDocId(null), 3000);
   };
 
   function formatBytes(bytes: number) {
@@ -765,14 +780,26 @@ export default function EditLeasePage() {
                       >
                         {extractingDocId === doc.id ? "⏳ מחלץ..." : "✨ שאוב נתונים"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteDoc(doc.id)}
-                        className="text-red-400 hover:text-red-600 text-sm"
-                        title="מחק מסמך"
-                      >
-                        🗑
-                      </button>
+                      {/* מחיקה — אישור דו-שלבי: לחיצה ראשונה הופכת ל"בטוח?", מתאפס אחרי 3 שניות */}
+                      {confirmDeleteDocId === doc.id ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDoc(doc.id)}
+                          className="px-2 py-1 rounded-lg text-xs font-bold text-white flex-shrink-0"
+                          style={{ background: "#dc2626" }}
+                        >
+                          בטוח?
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => requestDeleteDoc(doc.id)}
+                          className="text-red-400 hover:text-red-600 text-sm"
+                          title="מחק מסמך"
+                        >
+                          🗑
+                        </button>
+                      )}
                     </div>
                   </li>
                 ))}

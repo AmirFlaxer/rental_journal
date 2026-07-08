@@ -118,7 +118,7 @@ export default function PropertyReportPage() {
               <span className="text-gray-600">{report.title}</span>
             </div>
             <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
-              <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+              <span className="inline-block w-1.5 h-7 rounded-full tick-accent" />
               {report.title}
             </h1>
             <p className="text-gray-500 text-sm mt-0.5 pr-4">{report.city}</p>
@@ -229,7 +229,7 @@ export default function PropertyReportPage() {
           {/* Leases */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2.5">
-              <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+              <span className="inline-block w-1 h-5 rounded-full tick-accent" />
               חוזי שכירות
             </h2>
             {(report.leases || []).length === 0 ? (

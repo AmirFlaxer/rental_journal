@@ -151,7 +151,7 @@ export default function Dashboard() {
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
-          <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+          <span className="inline-block w-1.5 h-7 rounded-full tick-accent" />
           שלום 👋
         </h1>
         <p className="text-gray-500 mt-1 text-sm">
@@ -215,7 +215,7 @@ export default function Dashboard() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-gray-900 flex items-center gap-2.5">
-            <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+            <span className="inline-block w-1 h-5 rounded-full tick-accent" />
             הנכסים שלי
           </h2>
           <Link href="/dashboard/properties/new"

@@ -627,7 +627,7 @@ export default function TasksPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
-            <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+            <span className="inline-block w-1.5 h-7 rounded-full tick-accent" />
             תזכורות
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
@@ -850,7 +850,7 @@ export default function TasksPage() {
       {/* Relevant tasks */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 px-1">
-          <span className="inline-block w-1 h-4 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+          <span className="inline-block w-1 h-4 rounded-full tick-accent" />
           <h2 className="font-semibold text-gray-600 text-sm">רלוונטיות</h2>
           {overdueCount > 0 && (
             <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">{overdueCount} פג מועד</span>

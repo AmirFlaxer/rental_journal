@@ -143,6 +143,8 @@ export default function DebtsPage() {
   if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen">
+        {/* ספינר אדום בכוונה — עקבי עם ערכת הצבע הסמנטית של המסך (חובות = אדום/rose:
+            hero, סכומים, badges). שאר המסכים שאינם עוסקים בחוב/מס משתמשים ב-border-indigo-600 (accent). */}
         <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -164,7 +166,7 @@ export default function DebtsPage() {
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
-          <span className="inline-block w-1.5 h-7 rounded-full bg-gradient-to-b from-pink-400 to-pink-600" />
+          <span className="inline-block w-1.5 h-7 rounded-full tick-accent" />
           דוח חובות
         </h1>
         <p className="text-sm text-gray-500 mt-0.5">תשלומים שלא התקבלו במלואם</p>

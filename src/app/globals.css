@@ -141,6 +141,26 @@ select option { background: var(--bg-elevated); color: var(--text-1); }
 .accent-pink-600           { accent-color: var(--accent) !important; }
 .text-pink-600,
 .text-pink-700             { color: var(--accent) !important; }
+/* ⚠ deprecated: המיפויים למעלה (pink → accent) הם רשת ביטחון היסטורית.
+   לשימושים חדשים/מוחלפים יש להשתמש ב-.tick-accent / .grad-accent-diag / .grad-accent-fade-l
+   למטה — הם לא תלויים בזה שמישהו כתב "pink" בקוד, ולכן פחות שבירים. אל תמחקו את מיפויי ה-pink -
+   דפים שעדיין לא הומרו מסתמכים עליהם. */
+
+/* ── Semantic accent-gradient classes — יציבים, לא תלויים במיפוי pink→accent ─
+   מייצרים בדיוק את אותו מראה כמו הגרדיאנטים מ-pink למעלה (from-pink / to-pink),
+   בלי להסתמך על "לכידת" שם מחלקה ורוד. */
+.tick-accent {
+  /* מחליף: bg-gradient-to-b from-pink-400 to-pink-600 — פס-סימון אנכי ליד כותרות */
+  background-image: linear-gradient(to bottom, var(--accent), var(--accent-hover)) !important;
+}
+.grad-accent-diag {
+  /* מחליף: bg-gradient-to-br from-pink-500 to-pink-700 — כרטיסי/אייקוני מותג */
+  background-image: linear-gradient(to bottom right, var(--accent), var(--accent-hover)) !important;
+}
+.grad-accent-fade-l {
+  /* מחליף: bg-gradient-to-l from-pink-500/10 via-transparent to-transparent — כתם רקע דקורטיבי */
+  background-image: linear-gradient(to left, rgba(124,131,255,0.10), transparent, transparent) !important;
+}
 
 /* ── Cards / surfaces ───────────────────────────────── */
 .rounded-2xl,
