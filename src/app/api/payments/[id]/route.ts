@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
-import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { paymentSchema } from "@/lib/validations";
 import { reconcileAutoTax } from "@/lib/auto-tax";
 import {
@@ -27,7 +26,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     .single();
 
   if (error || !data) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
-  return NextResponse.json(camelKeys(data));
+  return NextResponse.json(data);
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
@@ -47,24 +46,24 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       .single();
 
     const body = await request.json();
-    // מונע mass-assignment (למשל userId/id) גם בעדכון חלקי - ולידציה תמיד רצה, כולל בנתיב החלקי
-    delete body.userId;
+    // מונע mass-assignment (למשל user_id/id) גם בעדכון חלקי - ולידציה תמיד רצה, כולל בנתיב החלקי
+    delete body.user_id;
     delete body.id;
-    const isFullUpdate = ["propertyId", "paymentType", "amount", "dueDate"].some((k) => k in body);
+    const isFullUpdate = ["property_id", "payment_type", "amount", "due_date"].some((k) => k in body);
     const data = isFullUpdate ? paymentSchema.parse(body) : paymentSchema.partial().parse(body);
-    // partialPaidAmount לא ב-paymentSchema (paymentSchema.ts הוא בבעלות תחום אחר) -
+    // partial_paid_amount לא ב-paymentSchema (paymentSchema.ts הוא בבעלות תחום אחר) -
     // נקלט ישירות מה-body ומועבר בנפרד ל-update
     const partialPaidAmount =
-      typeof body.partialPaidAmount === "number"
-        ? body.partialPaidAmount
-        : body.partialPaidAmount === null
+      typeof body.partial_paid_amount === "number"
+        ? body.partial_paid_amount
+        : body.partial_paid_amount === null
           ? null
           : undefined;
 
     const { data: row, error } = await supabase
       .from("payments")
       .update({
-        ...(snakeKeys(data) as object),
+        ...data,
         ...(partialPaidAmount !== undefined ? { partial_paid_amount: partialPaidAmount } : {}),
       })
       .eq("id", id)
@@ -111,7 +110,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    return NextResponse.json(camelKeys(row));
+    return NextResponse.json(row);
   } catch (error) {
     if (error instanceof z.ZodError)
       return NextResponse.json({ error: "Validation failed", details: error.flatten() }, { status: 400 });
@@ -131,14 +130,17 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
   // מחיקת הוצאת מס משויכת לפני מחיקת התשלום - ה-FK on delete set null מנתק את
   // source_payment_id במקום למחוק, ולכן חובה להסיר את הוצאת המס באופן מפורש כאן
+  // property_id ריק בכוונה - reconcileAutoTax בודק received<=0 קודם (amount:0/status:"pending"
+  // תמיד מחזירים received=0), אז ענף המחיקה מובטח בלי תלות בערך property_id בפועל
   await reconcileAutoTax(supabase, session.user.id, {
     id,
     payment_type: "Rent",
-    property_id: null,
+    property_id: "",
     amount: 0,
     status: "pending",
     paid_date: null,
     notes: null,
+    partial_paid_amount: null,
   });
 
   const { error } = await supabase

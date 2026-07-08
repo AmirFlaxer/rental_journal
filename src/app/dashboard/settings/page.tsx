@@ -248,12 +248,12 @@ export default function SettingsPage() {
       if (!Array.isArray(leasesRes) || !Array.isArray(propsRes)) throw new Error("שגיאה");
 
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const isActive = (l: { startDate: string; endDate: string; status?: string | null }) => {
+      const isActive = (l: { start_date: string; end_date: string; status?: string | null }) => {
         if (l.status === "ended" || l.status === "paused") return false;
-        return new Date(l.startDate) <= today && new Date(l.endDate) >= today;
+        return new Date(l.start_date) <= today && new Date(l.end_date) >= today;
       };
 
-      type Lease = { id: string; startDate: string; endDate: string; status?: string | null; properties?: { id: string; title: string } };
+      type Lease = { id: string; start_date: string; end_date: string; status?: string | null; properties?: { id: string; title: string } };
       const activeByProp = new Map<string, Lease[]>();
       for (const l of leasesRes as Lease[]) {
         if (!isActive(l) || !l.properties?.id) continue;

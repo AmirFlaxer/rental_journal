@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
-import { camelKeys } from "@/lib/supabase/case";
 
 interface RouteParams { params: Promise<{ id: string }> }
 
@@ -24,13 +23,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "החוזה מוגן מפני סיום מוקדם" }, { status: 400 });
 
     const body = await request.json();
-    const { requestedBy, requestDate, reason } = body;
+    const { requested_by, request_date, reason } = body;
 
-    if (!requestedBy || !["tenant", "landlord"].includes(requestedBy))
+    if (!requested_by || !["tenant", "landlord"].includes(requested_by))
       return NextResponse.json({ error: "יש לציין מי מבקש את הסיום" }, { status: 400 });
 
-    const reqDate = requestDate ? new Date(requestDate) : new Date();
-    const noticeMonths = requestedBy === "tenant"
+    const reqDate = request_date ? new Date(request_date) : new Date();
+    const noticeMonths = requested_by === "tenant"
       ? (lease.tenant_notice_months ?? 1)
       : (lease.landlord_notice_months ?? 1);
 
@@ -43,7 +42,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { data: updated, error: updateErr } = await supabase
       .from("leases")
       .update({
-        termination_requested_by: requestedBy,
+        termination_requested_by: requested_by,
         termination_request_date: reqDate.toISOString(),
         termination_effective_date: finalEffective.toISOString(),
         termination_reason: reason || null,
@@ -56,7 +55,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .single();
 
     if (updateErr) return NextResponse.json({ error: "שגיאה בסיום החוזה" }, { status: 500 });
-    return NextResponse.json({ lease: camelKeys(updated), noticeMonths, effectiveDate: finalEffective });
+    return NextResponse.json({ lease: updated, noticeMonths, effectiveDate: finalEffective });
   } catch (error) {
     console.error("Terminate lease error:", error);
     return NextResponse.json({ error: "שגיאה בסיום החוזה" }, { status: 500 });

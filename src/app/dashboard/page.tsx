@@ -13,15 +13,15 @@ interface Property {
   title: string;
   address: string;
   city: string;
-  propertyType: string;
-  leases?: { status: string; startDate?: string; endDate?: string; monthlyRent: number }[];
+  property_type: string;
+  leases?: { status: string; start_date: string; end_date: string; monthly_rent: number }[];
 }
 
 interface Lease {
   id: string;
-  startDate: string;
-  endDate: string;
-  monthlyRent: number;
+  start_date: string;
+  end_date: string;
+  monthly_rent: number;
   status: string;
   properties?: { id: string; title: string };
 }
@@ -30,10 +30,10 @@ interface Payment {
   id: string;
   status: string;
   amount: number;
-  dueDate: string;
-  paidDate?: string;
+  due_date: string;
+  paid_date?: string;
   notes?: string;
-  paymentType: string;
+  payment_type: string;
   lease?: { id: string };
   property?: { id: string };
   isVirtual?: boolean;
@@ -65,12 +65,12 @@ function pendingPaymentsSummary(leases: Lease[], dbPayments: Payment[]): { count
     const propId = lease.properties?.id;
     if (!propId) continue;
 
-    for (const { monthKey, dueDate } of listRentMonths(lease)) {
-      if (dueDate > today) continue;
+    for (const { monthKey, due_date } of listRentMonths(lease)) {
+      if (due_date > today) continue;
       const key = propertyMonthKey(propId, monthKey);
       if (covered.has(key)) continue;
       count++;
-      amount += lease.monthlyRent;
+      amount += lease.monthly_rent;
       covered.add(key);
     }
   }
@@ -101,7 +101,7 @@ export default function Dashboard() {
     () => properties.flatMap((p) => p.leases || []).filter(isLeaseCurrentlyActive),
     [properties]
   );
-  const monthlyIncome = useMemo(() => activeLeases.reduce((s, l) => s + l.monthlyRent, 0), [activeLeases]);
+  const monthlyIncome = useMemo(() => activeLeases.reduce((s, l) => s + l.monthly_rent, 0), [activeLeases]);
   const pendingSummary = useMemo(() => pendingPaymentsSummary(leases, payments), [leases, payments]);
   const totalExpenses = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses]);
 
@@ -110,7 +110,7 @@ export default function Dashboard() {
     () =>
       leases
         .filter((l) => isLeaseCurrentlyActive(l))
-        .map((l) => ({ ...l, daysLeft: daysUntil(l.endDate) }))
+        .map((l) => ({ ...l, daysLeft: daysUntil(l.end_date) }))
         .filter((l) => l.daysLeft >= 0 && l.daysLeft <= 60)
         .sort((a, b) => a.daysLeft - b.daysLeft),
     [leases]
@@ -244,13 +244,13 @@ export default function Dashboard() {
           <div className="space-y-2">
             {properties.map((p) => {
               const active = (p.leases || []).filter(isLeaseCurrentlyActive);
-              const rent = active.reduce((s, l) => s + l.monthlyRent, 0);
+              const rent = active.reduce((s, l) => s + l.monthly_rent, 0);
               return (
                 <Link key={p.id} href={`/dashboard/properties/${p.id}`}
                   className="bg-white rounded-xl flex items-center justify-between px-4 py-4 shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-xl flex items-center justify-center text-lg font-bold flex-shrink-0">
-                      {TYPE_HE[p.propertyType]?.charAt(0) || "נ"}
+                      {TYPE_HE[p.property_type]?.charAt(0) || "נ"}
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900">{p.title}</p>

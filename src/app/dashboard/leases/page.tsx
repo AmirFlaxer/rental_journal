@@ -11,25 +11,25 @@ import { apiGet, queryKeys } from "@/lib/api-client";
 
 interface Lease {
   id: string;
-  startDate: string;
-  endDate: string;
-  monthlyRent: number;
+  start_date: string;
+  end_date: string;
+  monthly_rent: number;
   status: string;
-  leaseTerm: number;
-  hasOption?: boolean;
-  optionMonths?: number;
-  paymentMethod?: string;
-  linkageType?: LinkageType;
-  linkageFrequency?: LinkageFrequency;
-  baseAmount?: number;
-  baseDate?: string;
+  lease_term: number;
+  has_option?: boolean;
+  option_months?: number;
+  payment_method?: string;
+  linkage_type?: LinkageType;
+  linkage_frequency?: LinkageFrequency;
+  base_amount?: number;
+  base_date?: string;
   properties?: { id: string; title: string; city: string; address: string };
-  tenant?: { firstName: string; lastName: string; phone?: string };
+  tenant?: { first_name: string; last_name: string; phone?: string };
 }
 
 function daysUntilExpiry(lease: Lease): number {
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  return Math.ceil((new Date(lease.endDate).getTime() - today.getTime()) / 86400000);
+  return Math.ceil((new Date(lease.end_date).getTime() - today.getTime()) / 86400000);
 }
 
 function leaseStatus(lease: Lease): "active" | "future" | "ended" {
@@ -40,8 +40,8 @@ function leaseStatus(lease: Lease): "active" | "future" | "ended" {
   // ולכן תאריך הסיום הוא מקור האמת. הנתונים עצמם נשמרים כהיסטוריה.
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const start = new Date(lease.startDate);
-  const end = new Date(lease.endDate);
+  const start = new Date(lease.start_date);
+  const end = new Date(lease.end_date);
   if (start > today) return "future";
   if (end < today) return "ended";
   return "active";
@@ -87,7 +87,7 @@ export default function LeasesPage() {
   // בתוקף > עתידי > הסתיים — בלי למחוק את הנתונים עצמם.
   const STATUS_RANK: Record<string, number> = { active: 0, future: 1, ended: 2 };
   const dupKey = (l: (typeof withStatus)[number]) =>
-    `${l.properties?.id ?? l.id}|${(l.startDate ?? "").slice(0, 10)}|${(l.endDate ?? "").slice(0, 10)}`;
+    `${l.properties?.id ?? l.id}|${(l.start_date ?? "").slice(0, 10)}|${(l.end_date ?? "").slice(0, 10)}`;
   const chosen = new Map<string, (typeof withStatus)[number]>();
   for (const lease of withStatus) {
     const existing = chosen.get(dupKey(lease));
@@ -210,37 +210,37 @@ export default function LeasesPage() {
                     </div>
                     <p className="text-sm text-gray-500 mt-0.5">
                       {lease.properties?.city && `${lease.properties.city} · `}
-                      {lease.tenant ? `${lease.tenant.firstName} ${lease.tenant.lastName}` : "שוכר לא ידוע"}
+                      {lease.tenant ? `${lease.tenant.first_name} ${lease.tenant.last_name}` : "שוכר לא ידוע"}
                       {lease.tenant?.phone && ` · ${formatPhone(lease.tenant.phone)}`}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      {formatDate(lease.startDate)} – {formatDate(lease.endDate)}
-                      {lease.hasOption && lease.optionMonths && (
-                        <span className="mr-2 text-indigo-500">+ אופציה {lease.optionMonths} חודשים</span>
+                      {formatDate(lease.start_date)} – {formatDate(lease.end_date)}
+                      {lease.has_option && lease.option_months && (
+                        <span className="mr-2 text-indigo-500">+ אופציה {lease.option_months} חודשים</span>
                       )}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {lease.paymentMethod === "bank_transfer" ? "💳 העברה בנקאית" : "🧾 שקים"}
+                      {lease.payment_method === "bank_transfer" ? "💳 העברה בנקאית" : "🧾 שקים"}
                     </p>
                   </div>
 
                   {/* Rent + arrow */}
                   <div className="text-right flex-shrink-0 flex flex-col items-end justify-center gap-1">
-                    {lease.linkageType && lease.linkageType !== "none" ? (() => {
+                    {lease.linkage_type && lease.linkage_type !== "none" ? (() => {
                       const effective = calcEffectiveRent(
-                        { ...lease, linkageType: lease.linkageType!, linkageFrequency: lease.linkageFrequency ?? "monthly", baseAmount: lease.baseAmount ?? null, baseDate: lease.baseDate ?? null },
+                        { ...lease, linkage_type: lease.linkage_type!, linkage_frequency: lease.linkage_frequency ?? "monthly", base_amount: lease.base_amount ?? null, base_date: lease.base_date ?? null },
                         indexRates
                       );
-                      const changed = effective !== lease.monthlyRent;
+                      const changed = effective !== lease.monthly_rent;
                       return (
                         <>
                           <p className="font-bold text-gray-900">₪{effective.toLocaleString()}</p>
-                          {changed && <p className="text-xs text-gray-400 line-through">₪{lease.monthlyRent.toLocaleString()}</p>}
-                          <p className="text-xs text-indigo-500">{LINKAGE_TYPE_LABELS[lease.linkageType!]}</p>
+                          {changed && <p className="text-xs text-gray-400 line-through">₪{lease.monthly_rent.toLocaleString()}</p>}
+                          <p className="text-xs text-indigo-500">{LINKAGE_TYPE_LABELS[lease.linkage_type!]}</p>
                         </>
                       );
                     })() : (
-                      <p className="font-bold text-gray-900">₪{lease.monthlyRent.toLocaleString()}</p>
+                      <p className="font-bold text-gray-900">₪{lease.monthly_rent.toLocaleString()}</p>
                     )}
                     <p className="text-xs text-gray-400">לחודש</p>
                     <span className="text-gray-400 text-lg leading-none">›</span>

@@ -9,8 +9,8 @@ import { PhoneInput } from "@/components/phone-input";
 
 interface Tenant {
   id: string;
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   email?: string;
   phone?: string;
 }
@@ -143,10 +143,10 @@ export default function AddLeasePage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            firstName: newFirstName,
-            lastName: newLastName,
+            first_name: newFirstName,
+            last_name: newLastName,
             phone: newPhone || undefined,
-            idNumber: newIdNumber || undefined,
+            id_number: newIdNumber || undefined,
           }),
         });
         if (!tenantRes.ok) {
@@ -162,25 +162,25 @@ export default function AddLeasePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          propertyId,
-          tenantId: resolvedTenantId,
-          startDate,
-          endDate,
-          monthlyRent: monthlyRent ?? 0,
-          depositAmount: depositAmount || undefined,
-          leaseTerm: parseInt(leaseTerm),
+          property_id: propertyId,
+          tenant_id: resolvedTenantId,
+          start_date: startDate,
+          end_date: endDate,
+          monthly_rent: monthlyRent ?? 0,
+          deposit_amount: depositAmount || undefined,
+          lease_term: parseInt(leaseTerm),
           terms: terms || undefined,
-          paymentMethod,
-          checkBank: paymentMethod === "standing_order" ? checkBank || undefined : undefined,
-          checkBranch: paymentMethod === "standing_order" ? checkBranch || undefined : undefined,
-          checkAccount: paymentMethod === "standing_order" ? checkAccount || undefined : undefined,
-          secondTenantFirstName: hasSecondTenant && secondTenantFirstName ? secondTenantFirstName : null,
-          secondTenantLastName: hasSecondTenant && secondTenantLastName ? secondTenantLastName : null,
-          secondTenantIdNumber: hasSecondTenant && secondTenantIdNumber ? secondTenantIdNumber : null,
-          secondTenantPhone: hasSecondTenant && secondTenantPhone ? secondTenantPhone : null,
-          secondTenantEmail: hasSecondTenant && secondTenantEmail ? secondTenantEmail : null,
-          linkageType,
-          linkageFrequency,
+          payment_method: paymentMethod,
+          check_bank: paymentMethod === "standing_order" ? checkBank || undefined : undefined,
+          check_branch: paymentMethod === "standing_order" ? checkBranch || undefined : undefined,
+          check_account: paymentMethod === "standing_order" ? checkAccount || undefined : undefined,
+          second_tenant_first_name: hasSecondTenant && secondTenantFirstName ? secondTenantFirstName : null,
+          second_tenant_last_name: hasSecondTenant && secondTenantLastName ? secondTenantLastName : null,
+          second_tenant_id_number: hasSecondTenant && secondTenantIdNumber ? secondTenantIdNumber : null,
+          second_tenant_phone: hasSecondTenant && secondTenantPhone ? secondTenantPhone : null,
+          second_tenant_email: hasSecondTenant && secondTenantEmail ? secondTenantEmail : null,
+          linkage_type: linkageType,
+          linkage_frequency: linkageFrequency,
         }),
       });
 
@@ -197,12 +197,12 @@ export default function AddLeasePage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            propertyId,
-            leaseId: lease.id,
-            paymentType: "Deposit",
+            property_id: propertyId,
+            lease_id: lease.id,
+            payment_type: "Deposit",
             amount: depositAmount,
-            dueDate: startDate,
-            paidDate: depositStatus === "paid" && depositPaidDate ? depositPaidDate : undefined,
+            due_date: startDate,
+            paid_date: depositStatus === "paid" && depositPaidDate ? depositPaidDate : undefined,
             status: depositStatus,
             notes: "פיקדון",
           }),
@@ -288,7 +288,7 @@ export default function AddLeasePage() {
                 <option value="">-- בחר דייר --</option>
                 {tenants.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.firstName} {t.lastName}
+                    {t.first_name} {t.last_name}
                     {t.phone ? ` | ${t.phone}` : ""}
                   </option>
                 ))}

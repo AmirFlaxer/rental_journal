@@ -37,23 +37,23 @@ describe("getReceivedAmount", () => {
     expect(getReceivedAmount({ amount: 1000, status: "partial", notes: "משהו לא מקודד" })).toBe(0);
   });
 
-  it("partial עם partialPaidAmount - מעדיף את העמודה על פני notes", () => {
+  it("partial עם partial_paid_amount - מעדיף את העמודה על פני notes", () => {
     const notes = encodePartial(400, "תשלום חלקי");
     expect(
-      getReceivedAmount({ amount: 1000, status: "partial", notes, partialPaidAmount: 700 })
+      getReceivedAmount({ amount: 1000, status: "partial", notes, partial_paid_amount: 700 })
     ).toBe(700);
   });
 
-  it("partial עם partialPaidAmount ו-notes רגיל (לא מקודד) - העמודה מספיקה", () => {
+  it("partial עם partial_paid_amount ו-notes רגיל (לא מקודד) - העמודה מספיקה", () => {
     expect(
-      getReceivedAmount({ amount: 1000, status: "partial", notes: "סיבה חופשית", partialPaidAmount: 250 })
+      getReceivedAmount({ amount: 1000, status: "partial", notes: "סיבה חופשית", partial_paid_amount: 250 })
     ).toBe(250);
   });
 
-  it("partial עם partialPaidAmount=null (רשומה ישנה) - נופל לפענוח notes", () => {
+  it("partial עם partial_paid_amount=null (רשומה ישנה) - נופל לפענוח notes", () => {
     const notes = encodePartial(400, "תשלום חלקי");
     expect(
-      getReceivedAmount({ amount: 1000, status: "partial", notes, partialPaidAmount: null })
+      getReceivedAmount({ amount: 1000, status: "partial", notes, partial_paid_amount: null })
     ).toBe(400);
   });
 
@@ -62,9 +62,9 @@ describe("getReceivedAmount", () => {
     expect(getReceivedAmount({ amount: 1000, status: "overdue" })).toBe(0);
   });
 
-  it("fallback היסטורי - status לא תקין עם paidDate מוגדר מחזיר את הסכום המלא", () => {
+  it("fallback היסטורי - status לא תקין עם paid_date מוגדר מחזיר את הסכום המלא", () => {
     expect(
-      getReceivedAmount({ amount: 1000, status: "לא ידוע", paidDate: "2025-01-01" })
+      getReceivedAmount({ amount: 1000, status: "לא ידוע", paid_date: "2025-01-01" })
     ).toBe(1000);
   });
 });
@@ -84,8 +84,8 @@ describe("getDebtAmount", () => {
     expect(getDebtAmount({ amount: 1000, status: "partial", notes })).toBe(0);
   });
 
-  it("מעדיף את partialPaidAmount על פני הקידוד ב-notes", () => {
+  it("מעדיף את partial_paid_amount על פני הקידוד ב-notes", () => {
     const notes = encodePartial(400, "תשלום חלקי");
-    expect(getDebtAmount({ amount: 1000, status: "partial", notes, partialPaidAmount: 600 })).toBe(400);
+    expect(getDebtAmount({ amount: 1000, status: "partial", notes, partial_paid_amount: 600 })).toBe(400);
   });
 });

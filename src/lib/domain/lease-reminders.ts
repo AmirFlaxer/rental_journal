@@ -4,24 +4,21 @@
 // (הארכת חוזה = end_date חדש = מחזור חדש, לא נחסם ע"י הישן).
 
 import { diffDays, localDateStr } from "./dates";
+import type { Task } from "@/types/database";
 
 export interface LeaseLike {
   id: string;
   /** ISO - עשוי לכלול שעה */
-  endDate: string;
+  end_date: string;
   status?: string | null;
   properties?: { id: string; title: string } | null;
 }
 
 /** תזכורת קיימת ב-DB (אמיתית) - לצורך dedup מול תזכורות וירטואליות */
-export interface DbTaskLike {
-  category: string;
-  relatedEntityType?: string;
-  relatedEntityId?: string;
-  /** YYYY-MM-DD */
-  dueDate: string;
-  completedAt?: string;
-}
+export type DbTaskLike = Pick<
+  Task,
+  "category" | "related_entity_type" | "related_entity_id" | "due_date" | "completed_at"
+>;
 
 /** תואם ל-interface Task בדף התזכורות (src/app/dashboard/tasks/page.tsx) */
 export interface VirtualTask {
@@ -30,10 +27,10 @@ export interface VirtualTask {
   description?: string;
   category: string;
   /** YYYY-MM-DD */
-  dueDate: string;
+  due_date: string;
   priority: "low" | "normal" | "high";
-  relatedEntityType: string;
-  relatedEntityId: string;
+  related_entity_type: string;
+  related_entity_id: string;
   isVirtual: true;
 }
 
@@ -53,15 +50,15 @@ export function generateVirtualLeaseRenewalTasks(
   for (const lease of leases) {
     if (lease.status === "ended" || lease.status === "paused") continue;
 
-    const endDateStr = lease.endDate.slice(0, 10);
+    const endDateStr = lease.end_date.slice(0, 10);
     const daysToEnd = diffDays(endDateStr, todayIso);
     if (daysToEnd < 0 || daysToEnd > 90) continue;
 
     const covered = dbTasks.some(
       (t) =>
-        t.relatedEntityType === "lease_renewal" &&
-        t.relatedEntityId === lease.id &&
-        t.dueDate.slice(0, 10) === endDateStr
+        t.related_entity_type === "lease_renewal" &&
+        t.related_entity_id === lease.id &&
+        t.due_date.slice(0, 10) === endDateStr
     );
     if (covered) continue;
 
@@ -76,10 +73,10 @@ export function generateVirtualLeaseRenewalTasks(
         : `סיום חוזה מתקרב - ${propertyTitle}`,
       description: `מסתיים בעוד ${daysToEnd} ימים`,
       category: "Lease Renewal",
-      dueDate: endDateStr,
+      due_date: endDateStr,
       priority,
-      relatedEntityType: "lease_renewal",
-      relatedEntityId: lease.id,
+      related_entity_type: "lease_renewal",
+      related_entity_id: lease.id,
       isVirtual: true,
     });
   }

@@ -28,12 +28,12 @@ function fmtFull(n: number) {
 interface RawPayment {
   id: string;
   amount: number;
-  paidDate?: string | null;
-  dueDate: string;
-  paymentType: string;
+  paid_date?: string | null;
+  due_date: string;
+  payment_type: string;
   status: string;
   notes?: string | null;
-  partialPaidAmount?: number | null;
+  partial_paid_amount?: number | null;
 }
 
 interface Property {
@@ -43,7 +43,7 @@ interface Property {
   payments: RawPayment[];
 }
 
-interface ReportsResponse { propertyStats: Property[]; }
+interface ReportsResponse { property_stats: Property[]; }
 
 const EMPTY_PROPERTIES: Property[] = [];
 
@@ -51,8 +51,8 @@ function deriveYears(properties: Property[]): number[] {
   const years = new Set<number>();
   for (const p of properties) {
     for (const pay of p.payments) {
-      if (pay.paidDate && pay.paymentType === "Rent") {
-        years.add(new Date(pay.dueDate).getFullYear());
+      if (pay.paid_date && pay.payment_type === "Rent") {
+        years.add(new Date(pay.due_date).getFullYear());
       }
     }
   }
@@ -71,11 +71,11 @@ function computeTaxTable(properties: Property[], year: number): TaxTableData {
     const months = Array(12).fill(0);
     for (const pay of p.payments) {
       if (
-        pay.paymentType === "Rent" &&
-        pay.paidDate &&
-        new Date(pay.dueDate).getFullYear() === year
+        pay.payment_type === "Rent" &&
+        pay.paid_date &&
+        new Date(pay.due_date).getFullYear() === year
       ) {
-        const monthIdx = new Date(pay.dueDate).getMonth();
+        const monthIdx = new Date(pay.due_date).getMonth();
         // דוח מס לדיווח אמיתי - צריך לספור את הסכום שהתקבל בפועל, לא את הסכום
         // המלא. תשלום חלקי (status="partial") מקודד את הסכום שהתקבל ב-notes.
         months[monthIdx] += getReceivedAmount(pay);
@@ -104,7 +104,7 @@ export default function TaxReportPage() {
     queryFn: () => apiGet<ReportsResponse>("/api/reports"),
   });
 
-  const properties = data?.propertyStats ?? EMPTY_PROPERTIES;
+  const properties = data?.property_stats ?? EMPTY_PROPERTIES;
 
   const availableYears = useMemo(() => deriveYears(properties), [properties]);
 

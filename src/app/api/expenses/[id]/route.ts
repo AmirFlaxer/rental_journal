@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
-import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { expenseSchema } from "@/lib/validations";
 import { z } from "zod";
 
@@ -21,7 +20,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     .single();
 
   if (error || !data) return NextResponse.json({ error: "Expense not found" }, { status: 404 });
-  return NextResponse.json(camelKeys(data));
+  return NextResponse.json(data);
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
@@ -36,14 +35,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { data: row, error } = await supabase
       .from("expenses")
-      .update(snakeKeys(data) as object)
+      .update(data)
       .eq("id", id)
       .eq("user_id", session.user.id)
       .select("*, properties(*)")
       .single();
 
     if (error) return NextResponse.json({ error: "Expense not found" }, { status: 404 });
-    return NextResponse.json(camelKeys(row));
+    return NextResponse.json(row);
   } catch (error) {
     if (error instanceof z.ZodError)
       return NextResponse.json({ error: "Validation failed", details: error.flatten() }, { status: 400 });

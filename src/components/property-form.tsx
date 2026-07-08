@@ -10,15 +10,15 @@ const FIELD_HE: Record<string, string> = {
   title: "שם הנכס",
   address: "רחוב",
   city: "עיר / ישוב",
-  propertyType: "סוג נכס",
-  zipCode: "מיקוד",
-  houseNumber: "מספר בית",
+  property_type: "סוג נכס",
+  zip_code: "מיקוד",
+  house_number: "מספר בית",
   bedrooms: "חדרי שינה",
   bathrooms: "חדרי אמבטיה",
-  squareMeters: 'שטח (מ"ר)',
+  square_meters: 'שטח (מ"ר)',
   floor: "קומה",
-  numParkingSpots: "חניות",
-  purchasePrice: "מחיר רכישה",
+  num_parking_spots: "חניות",
+  purchase_price: "מחיר רכישה",
 };
 
 interface PropertyFormProps {
@@ -38,18 +38,18 @@ export function PropertyForm({
       title: "",
       description: "",
       address: "",
-      houseNumber: "",
+      house_number: "",
       city: "",
-      zipCode: "",
-      propertyType: "Apartment",
+      zip_code: "",
+      property_type: "Apartment",
       bedrooms: undefined,
       bathrooms: undefined,
-      squareMeters: undefined,
+      square_meters: undefined,
       floor: undefined,
-      apartmentNumber: undefined,
-      numBalconies: undefined,
-      numParkingSpots: 0,
-      purchasePrice: undefined,
+      apartment_number: undefined,
+      num_balconies: undefined,
+      num_parking_spots: 0,
+      purchase_price: undefined,
     }
   );
   const [isLoading, setIsLoading] = useState(false);
@@ -150,8 +150,8 @@ export function PropertyForm({
             סוג נכס *
           </label>
           <select
-            value={formData.propertyType}
-            onChange={(e) => setFormData({ ...formData, propertyType: e.target.value as PropertyInput["propertyType"] })}
+            value={formData.property_type}
+            onChange={(e) => setFormData({ ...formData, property_type: e.target.value as PropertyInput["property_type"] })}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="Apartment">דירה</option>
@@ -163,13 +163,13 @@ export function PropertyForm({
         {/* כתובת, עיר, מיקוד */}
         <AddressAutocomplete
           address={formData.address}
-          houseNumber={formData.houseNumber || ""}
+          houseNumber={formData.house_number || ""}
           city={formData.city}
-          zipCode={formData.zipCode ?? undefined}
+          zipCode={formData.zip_code ?? undefined}
           onAddressChange={(v) => setFormData({ ...formData, address: v })}
-          onHouseNumberChange={(v) => setFormData({ ...formData, houseNumber: v || undefined })}
+          onHouseNumberChange={(v) => setFormData({ ...formData, house_number: v || undefined })}
           onCityChange={(v) => setFormData({ ...formData, city: v })}
-          onZipChange={(v) => setFormData({ ...formData, zipCode: v || undefined })}
+          onZipChange={(v) => setFormData({ ...formData, zip_code: v || undefined })}
           className="md:col-span-2"
         />
 
@@ -200,9 +200,9 @@ export function PropertyForm({
           </label>
           <input
             type="text"
-            value={formData.apartmentNumber || ""}
+            value={formData.apartment_number || ""}
             onChange={(e) =>
-              setFormData({ ...formData, apartmentNumber: e.target.value || undefined })
+              setFormData({ ...formData, apartment_number: e.target.value || undefined })
             }
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="מספר דירה"
@@ -256,11 +256,11 @@ export function PropertyForm({
           </label>
           <input
             type="number"
-            value={formData.squareMeters || ""}
+            value={formData.square_meters || ""}
             onChange={(e) =>
               setFormData({
                 ...formData,
-                squareMeters: e.target.value ? parseFloat(e.target.value) : undefined,
+                square_meters: e.target.value ? parseFloat(e.target.value) : undefined,
               })
             }
             min="0"
@@ -277,11 +277,11 @@ export function PropertyForm({
           </label>
           <input
             type="number"
-            value={formData.numBalconies ?? ""}
+            value={formData.num_balconies ?? ""}
             onChange={(e) =>
               setFormData({
                 ...formData,
-                numBalconies: e.target.value !== "" ? parseInt(e.target.value) : undefined,
+                num_balconies: e.target.value !== "" ? parseInt(e.target.value) : undefined,
               })
             }
             min="0"
@@ -297,11 +297,11 @@ export function PropertyForm({
           </label>
           <input
             type="number"
-            value={formData.numParkingSpots ?? 0}
+            value={formData.num_parking_spots ?? 0}
             onChange={(e) =>
               setFormData({
                 ...formData,
-                numParkingSpots: e.target.value !== "" ? parseInt(e.target.value) : 0,
+                num_parking_spots: e.target.value !== "" ? parseInt(e.target.value) : 0,
               })
             }
             min="0"
@@ -315,8 +315,8 @@ export function PropertyForm({
             מחיר רכישה
           </label>
           <NumberInput
-            value={formData.purchasePrice}
-            onChange={(v) => setFormData({ ...formData, purchasePrice: v })}
+            value={formData.purchase_price}
+            onChange={(v) => setFormData({ ...formData, purchase_price: v })}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="מחיר רכישה בש&quot;ח"
           />

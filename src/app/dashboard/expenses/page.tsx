@@ -37,11 +37,11 @@ interface Expense {
   description: string;
   amount: number;
   date: string;
-  vendorName?: string;
+  vendor_name?: string;
   notes?: string;
   recurring: boolean;
-  recurringFreq?: string;
-  paidBy: string;
+  recurring_freq?: string;
+  paid_by: string;
   properties: { id: string; title: string; city: string };
 }
 
@@ -54,16 +54,16 @@ interface Property {
 const CATEGORIES = ["Maintenance", "Insurance", "Tax", "Utilities", "Professional Fees", "Other"];
 
 const emptyForm = () => ({
-  propertyId: "",
+  property_id: "",
   category: "Maintenance",
   description: "",
   amount: "",
-  vendorName: "",
+  vendor_name: "",
   notes: "",
   date: new Date().toISOString().split("T")[0],
   recurring: false,
-  recurringFreq: "monthly",
-  paidBy: "landlord",
+  recurring_freq: "monthly",
+  paid_by: "landlord",
 });
 
 export default function ExpensesPage() {
@@ -137,7 +137,7 @@ export default function ExpensesPage() {
     if (filterYear && new Date(e.date).getFullYear() !== parseInt(filterYear)) return false;
     if (search) {
       const q = search.toLowerCase();
-      const text = `${e.description} ${e.vendorName ?? ""} ${e.properties?.title ?? ""}`.toLowerCase();
+      const text = `${e.description} ${e.vendor_name ?? ""} ${e.properties?.title ?? ""}`.toLowerCase();
       if (!text.includes(q)) return false;
     }
     return true;
@@ -155,16 +155,16 @@ export default function ExpensesPage() {
   const openEdit = (e: Expense) => {
     setEditingId(e.id);
     setForm({
-      propertyId: e.properties?.id ?? "",
+      property_id: e.properties?.id ?? "",
       category: e.category,
       description: e.description,
       amount: String(e.amount),
-      vendorName: e.vendorName ?? "",
+      vendor_name: e.vendor_name ?? "",
       notes: e.notes ?? "",
       date: e.date.slice(0, 10),
       recurring: e.recurring,
-      recurringFreq: e.recurringFreq ?? "monthly",
-      paidBy: e.paidBy ?? "landlord",
+      recurring_freq: e.recurring_freq ?? "monthly",
+      paid_by: e.paid_by ?? "landlord",
     });
     setError("");
     setShowForm(true);
@@ -182,16 +182,16 @@ export default function ExpensesPage() {
     setError("");
     try {
       const body = {
-        propertyId: form.propertyId,
+        property_id: form.property_id,
         category: form.category,
         description: form.description,
         amount: parseFloat(form.amount),
-        vendorName: form.vendorName || undefined,
+        vendor_name: form.vendor_name || undefined,
         notes: form.notes || undefined,
         date: form.date,
         recurring: form.recurring,
-        recurringFreq: form.recurring ? form.recurringFreq : undefined,
-        paidBy: form.paidBy,
+        recurring_freq: form.recurring ? form.recurring_freq : undefined,
+        paid_by: form.paid_by,
       };
       await saveMutation.mutateAsync({ id: editingId, body });
       closeForm();
@@ -293,7 +293,7 @@ export default function ExpensesPage() {
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">נכס *</label>
-                <select value={form.propertyId} onChange={(e) => setForm({ ...form, propertyId: e.target.value })}
+                <select value={form.property_id} onChange={(e) => setForm({ ...form, property_id: e.target.value })}
                   required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
                   <option value="">בחר נכס...</option>
                   {properties.map((p) => (
@@ -331,14 +331,14 @@ export default function ExpensesPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">ספק</label>
-                  <input type="text" value={form.vendorName} onChange={(e) => setForm({ ...form, vendorName: e.target.value })}
+                  <input type="text" value={form.vendor_name} onChange={(e) => setForm({ ...form, vendor_name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="שם הספק" />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">שולם על ידי</label>
-                  <select value={form.paidBy} onChange={(e) => setForm({ ...form, paidBy: e.target.value })}
+                  <select value={form.paid_by} onChange={(e) => setForm({ ...form, paid_by: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
                     <option value="landlord">בעל הדירה</option>
                     <option value="tenant">שוכר</option>
@@ -356,7 +356,7 @@ export default function ExpensesPage() {
               {form.recurring && (
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">תדירות חזרה</label>
-                  <select value={form.recurringFreq} onChange={(e) => setForm({ ...form, recurringFreq: e.target.value })}
+                  <select value={form.recurring_freq} onChange={(e) => setForm({ ...form, recurring_freq: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
                     <option value="monthly">חודשי</option>
                     <option value="bi-monthly">דו-חודשי</option>
@@ -410,9 +410,9 @@ export default function ExpensesPage() {
                       <p className="font-semibold text-gray-900 truncate">{e.description}</p>
                       <p className="text-xs text-gray-400">
                         {e.properties?.title} · {CAT_HE[e.category]}
-                        {e.vendorName && ` · ${e.vendorName}`}
-                        {e.paidBy === "tenant" && " · שוכר"}
-                        {e.recurring && ` · חוזרת ${e.recurringFreq ? FREQ_HE[e.recurringFreq] || e.recurringFreq : ""}`}
+                        {e.vendor_name && ` · ${e.vendor_name}`}
+                        {e.paid_by === "tenant" && " · שוכר"}
+                        {e.recurring && ` · חוזרת ${e.recurring_freq ? FREQ_HE[e.recurring_freq] || e.recurring_freq : ""}`}
                       </p>
                       {e.notes && <p className="text-xs text-gray-500 mt-0.5 truncate">📝 {e.notes}</p>}
                     </div>

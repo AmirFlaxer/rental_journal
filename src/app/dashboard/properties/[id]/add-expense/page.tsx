@@ -43,15 +43,15 @@ export default function AddExpensePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          propertyId,
+          property_id: propertyId,
           category,
           description,
           amount: amount ?? 0,
           date,
-          vendorName: vendorName || undefined,
-          paidBy,
+          vendor_name: vendorName || undefined,
+          paid_by: paidBy,
           recurring,
-          recurringFreq: recurring ? recurringFreq : undefined,
+          recurring_freq: recurring ? recurringFreq : undefined,
         }),
       });
       if (!res.ok) {

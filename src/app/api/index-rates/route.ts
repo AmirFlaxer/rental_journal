@@ -1,7 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
-import { camelKeys } from "@/lib/supabase/case";
 
 export async function GET() {
   const session = await auth();
@@ -16,7 +15,7 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
   // מדדים מתעדכנים לכל היותר פעם בחודש - קאשינג פרטי (לפי משתמש) לשעה
-  return NextResponse.json(camelKeys(data), {
+  return NextResponse.json(data, {
     headers: { "Cache-Control": "private, max-age=3600" },
   });
 }

@@ -36,14 +36,14 @@ interface ReportData {
   id: string;
   title: string;
   city: string;
-  propertyType: string;
-  monthlyRent: number;
-  totalExpenses: number;
-  totalPaid: number;
-  totalPending: number;
-  netIncome: number;
-  expensesByCategory: Record<string, number>;
-  leases: (Lease & { tenant?: { firstName: string; lastName: string } })[];
+  property_type: string;
+  monthly_rent: number;
+  total_expenses: number;
+  total_paid: number;
+  total_pending: number;
+  net_income: number;
+  expenses_by_category: Record<string, number>;
+  leases: (Lease & { tenant?: { first_name: string; last_name: string } })[];
   expenses: Expense[];
   payments: Payment[];
 }
@@ -75,7 +75,7 @@ export default function PropertyReportPage() {
     fetch("/api/reports")
       .then((r) => r.json())
       .then((d) => {
-        const found = (d.propertyStats || []).find((p: ReportData) => p.id === propertyId);
+        const found = (d.property_stats || []).find((p: ReportData) => p.id === propertyId);
         if (found) setReport(found);
         else setError("הנכס לא נמצא");
       })
@@ -102,7 +102,7 @@ export default function PropertyReportPage() {
     );
   }
 
-  const maxCat = Math.max(...Object.values(report.expensesByCategory), 1);
+  const maxCat = Math.max(...Object.values(report.expenses_by_category), 1);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -154,18 +154,18 @@ export default function PropertyReportPage() {
 
         {/* KPIs */}
         {(() => {
-          const tax10 = Math.round(report.totalPaid * 0.1);
-          const netAfterTax = report.totalPaid - report.totalExpenses - tax10;
+          const tax10 = Math.round(report.total_paid * 0.1);
+          const netAfterTax = report.total_paid - report.total_expenses - tax10;
           return (
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: "שכ\"ד חודשי", value: report.monthlyRent > 0 ? fmt(report.monthlyRent) : "—", icon: "📄", gradient: "from-pink-500 to-pink-700" },
-                  { label: "הכנסה כוללת", value: fmt(report.totalPaid), icon: "💰", gradient: "from-emerald-500 to-emerald-700" },
-                  { label: "הוצאות כוללות", value: fmt(report.totalExpenses), icon: "💸", gradient: "from-rose-500 to-rose-700" },
+                  { label: "שכ\"ד חודשי", value: report.monthly_rent > 0 ? fmt(report.monthly_rent) : "—", icon: "📄", gradient: "from-pink-500 to-pink-700" },
+                  { label: "הכנסה כוללת", value: fmt(report.total_paid), icon: "💰", gradient: "from-emerald-500 to-emerald-700" },
+                  { label: "הוצאות כוללות", value: fmt(report.total_expenses), icon: "💸", gradient: "from-rose-500 to-rose-700" },
                   showTax
                     ? { label: "נטו אחרי מס", value: fmt(netAfterTax), icon: netAfterTax >= 0 ? "📈" : "📉", gradient: netAfterTax >= 0 ? "from-emerald-500 to-emerald-700" : "from-rose-500 to-rose-700" }
-                    : { label: "רווח נטו", value: fmt(report.netIncome), icon: report.netIncome >= 0 ? "📈" : "📉", gradient: report.netIncome >= 0 ? "from-emerald-500 to-emerald-700" : "from-rose-500 to-rose-700" },
+                    : { label: "רווח נטו", value: fmt(report.net_income), icon: report.net_income >= 0 ? "📈" : "📉", gradient: report.net_income >= 0 ? "from-emerald-500 to-emerald-700" : "from-rose-500 to-rose-700" },
                 ].map(({ label, value, icon, gradient }) => (
                   <div key={label} className={`relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br ${gradient} text-white`}>
                     <div className="absolute -top-3 -left-3 text-5xl opacity-15 select-none">{icon}</div>
@@ -182,7 +182,7 @@ export default function PropertyReportPage() {
                   </div>
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                     <div className="text-xs font-semibold text-gray-400 uppercase mb-1">נטו לפני מס</div>
-                    <div className={`text-xl font-bold ${report.netIncome >= 0 ? "text-green-600" : "text-red-500"}`}>{fmt(report.netIncome)}</div>
+                    <div className={`text-xl font-bold ${report.net_income >= 0 ? "text-green-600" : "text-red-500"}`}>{fmt(report.net_income)}</div>
                   </div>
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                     <div className="text-xs font-semibold text-gray-400 uppercase mb-1">נטו אחרי מס</div>
@@ -203,11 +203,11 @@ export default function PropertyReportPage() {
               <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-orange-400 to-orange-600" />
               הוצאות לפי קטגוריה
             </h2>
-            {Object.keys(report.expensesByCategory).length === 0 ? (
+            {Object.keys(report.expenses_by_category).length === 0 ? (
               <p className="text-gray-400 text-sm">אין הוצאות רשומות</p>
             ) : (
               <div className="space-y-3">
-                {Object.entries(report.expensesByCategory)
+                {Object.entries(report.expenses_by_category)
                   .sort(([, a], [, b]) => b - a)
                   .map(([cat, amount]) => (
                     <div key={cat}>
@@ -220,7 +220,7 @@ export default function PropertyReportPage() {
                   ))}
                 <div className="pt-2 border-t border-gray-100 flex justify-between text-sm font-bold">
                   <span>סה&quot;כ</span>
-                  <span className="text-red-600">{fmt(report.totalExpenses)}</span>
+                  <span className="text-red-600">{fmt(report.total_expenses)}</span>
                 </div>
               </div>
             )}
@@ -240,7 +240,7 @@ export default function PropertyReportPage() {
                   <div key={lease.id} className="border border-gray-100 rounded-lg p-3">
                     <div className="flex justify-between items-start mb-1">
                       <span className="font-semibold text-gray-800">
-                        {lease.tenant?.firstName} {lease.tenant?.lastName}
+                        {lease.tenant?.first_name} {lease.tenant?.last_name}
                       </span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
                         effectiveLeaseStatus(lease) === "active" ? "bg-green-100 text-green-700" :
@@ -251,9 +251,9 @@ export default function PropertyReportPage() {
                       </span>
                     </div>
                     <div className="text-xs text-gray-500">
-                      {new Date(lease.startDate).toLocaleDateString("he-IL")} — {new Date(lease.endDate).toLocaleDateString("he-IL")}
+                      {new Date(lease.start_date).toLocaleDateString("he-IL")} — {new Date(lease.end_date).toLocaleDateString("he-IL")}
                     </div>
-                    <div className="text-sm font-semibold text-green-600 mt-1">{fmt(lease.monthlyRent)} / חודש</div>
+                    <div className="text-sm font-semibold text-green-600 mt-1">{fmt(lease.monthly_rent)} / חודש</div>
                   </div>
                 ))}
               </div>
@@ -263,8 +263,8 @@ export default function PropertyReportPage() {
 
         {/* Monthly rent schedule — only active leases */}
         {(report.leases || []).filter((l) => effectiveLeaseStatus(l) === "active").map((lease) => {
-          const start = new Date(lease.startDate);
-          const end = new Date(lease.endDate);
+          const start = new Date(lease.start_date);
+          const end = new Date(lease.end_date);
           const today = new Date();
 
           // Build list of all months in the lease
@@ -284,7 +284,7 @@ export default function PropertyReportPage() {
 
           // Match payments to months
           const rentPayments = (report.payments || []).filter(
-            (p) => p.leaseId === lease.id && p.paymentType === "Rent"
+            (p) => p.lease_id === lease.id && p.payment_type === "Rent"
           );
 
           return (
@@ -292,11 +292,11 @@ export default function PropertyReportPage() {
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">
-                    לוח תקבולים — {lease.tenant?.firstName} {lease.tenant?.lastName}
+                    לוח תקבולים — {lease.tenant?.first_name} {lease.tenant?.last_name}
                   </h2>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {new Date(lease.startDate).toLocaleDateString("he-IL")} — {new Date(lease.endDate).toLocaleDateString("he-IL")}
-                    {" · "}₪{Number(lease.monthlyRent).toLocaleString()} / חודש
+                    {new Date(lease.start_date).toLocaleDateString("he-IL")} — {new Date(lease.end_date).toLocaleDateString("he-IL")}
+                    {" · "}₪{Number(lease.monthly_rent).toLocaleString()} / חודש
                   </p>
                 </div>
                 <span className={`text-xs px-3 py-1 rounded-full font-bold ${
@@ -309,9 +309,9 @@ export default function PropertyReportPage() {
               </div>
               <div className="p-4 flex flex-wrap gap-2">
                 {months.map(({ key, label, due }) => {
-                  const match = rentPayments.find((p) => (p.dueDate || "").slice(0, 7) === key);
+                  const match = rentPayments.find((p) => (p.due_date || "").slice(0, 7) === key);
                   // תשלום חלקי הוא מצב שלישי - לא "שולם" (isPaid דורש status==="paid" בדיוק,
-                  // לא רק paidDate שקיים גם על תקבולים חלקיים)
+                  // לא רק paid_date שקיים גם על תקבולים חלקיים)
                   const isPaid = match?.status === "paid";
                   const isPartial = match?.status === "partial";
                   const isFuture = due > today;
@@ -326,9 +326,9 @@ export default function PropertyReportPage() {
                       <span className="mt-0.5">
                         {isPaid ? "✅" : isPartial ? "🔶" : isFuture ? "🔲" : "❌"}
                       </span>
-                      {(isPaid || isPartial) && match?.paidDate && (
+                      {(isPaid || isPartial) && match?.paid_date && (
                         <span className="text-[10px] text-gray-400">
-                          {new Date(match.paidDate).toLocaleDateString("he-IL", { day: "numeric", month: "numeric" })}
+                          {new Date(match.paid_date).toLocaleDateString("he-IL", { day: "numeric", month: "numeric" })}
                         </span>
                       )}
                     </div>
@@ -350,9 +350,9 @@ export default function PropertyReportPage() {
               תקבולים
             </h2>
             <div className="flex gap-4 text-sm">
-              <span className="text-green-600 font-semibold">שולם: {fmt(report.totalPaid)}</span>
-              {report.totalPending > 0 && (
-                <span className="text-orange-500 font-semibold">ממתין: {fmt(report.totalPending)}</span>
+              <span className="text-green-600 font-semibold">שולם: {fmt(report.total_paid)}</span>
+              {report.total_pending > 0 && (
+                <span className="text-orange-500 font-semibold">ממתין: {fmt(report.total_pending)}</span>
               )}
             </div>
           </div>
@@ -372,13 +372,13 @@ export default function PropertyReportPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {[...(report.payments || [])]
-                    .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())
+                    .sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime())
                     .map((pay) => (
                       <tr key={pay.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-gray-700">{PAYMENT_TYPE_HE[pay.paymentType] ?? pay.paymentType}</td>
-                        <td className="px-4 py-3 text-gray-600">{new Date(pay.dueDate).toLocaleDateString("he-IL")}</td>
+                        <td className="px-4 py-3 text-gray-700">{PAYMENT_TYPE_HE[pay.payment_type] ?? pay.payment_type}</td>
+                        <td className="px-4 py-3 text-gray-600">{new Date(pay.due_date).toLocaleDateString("he-IL")}</td>
                         <td className="px-4 py-3 text-gray-600">
-                          {pay.paidDate ? new Date(pay.paidDate).toLocaleDateString("he-IL") : "—"}
+                          {pay.paid_date ? new Date(pay.paid_date).toLocaleDateString("he-IL") : "—"}
                         </td>
                         <td className="px-4 py-3 font-semibold text-gray-900">{fmt(pay.amount)}</td>
                         <td className="px-4 py-3">

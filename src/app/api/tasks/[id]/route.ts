@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
-import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { taskUpdateSchema } from "@/lib/validations";
 import { z } from "zod";
 
@@ -20,14 +19,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { data: row, error } = await supabase
       .from("tasks")
-      .update(snakeKeys(data) as object)
+      .update(data)
       .eq("id", id)
       .eq("user_id", session.user.id)
       .select()
       .single();
 
     if (error) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json(camelKeys(row));
+    return NextResponse.json(row);
   } catch (error) {
     if (error instanceof z.ZodError)
       return NextResponse.json({ error: "Validation failed", details: error.flatten() }, { status: 400 });

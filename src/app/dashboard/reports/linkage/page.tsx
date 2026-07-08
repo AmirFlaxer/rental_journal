@@ -9,16 +9,16 @@ import { localMonthKey } from "@/lib/domain/dates";
 
 interface Lease {
   id: string;
-  startDate: string;
-  endDate: string;
-  monthlyRent: number;
+  start_date: string;
+  end_date: string;
+  monthly_rent: number;
   status: string;
-  linkageType?: string;
-  linkageFrequency?: LinkageFrequency;
-  baseAmount?: number | null;
-  baseDate?: string | null;
+  linkage_type?: string;
+  linkage_frequency?: LinkageFrequency;
+  base_amount?: number | null;
+  base_date?: string | null;
   properties?: { title: string; city: string };
-  tenant?: { firstName: string; lastName: string };
+  tenant?: { first_name: string; last_name: string };
 }
 
 interface HistoryRow {
@@ -60,14 +60,14 @@ function buildHistory(
   frequency: LinkageFrequency,
   rates: IndexRate[]
 ): HistoryRow[] {
-  // בסיס החישוב הוא baseAmount/baseDate של החוזה (כמו ב-leases/page.tsx) -
-  // לא monthlyRent/startDate תמיד, אחרת ההצמדה מחושבת מבסיס שגוי אחרי עדכון.
-  const base = lease.baseAmount ?? lease.monthlyRent;
-  const leaseBaseDate = new Date(lease.baseDate ?? lease.startDate);
+  // בסיס החישוב הוא base_amount/base_date של החוזה (כמו ב-leases/page.tsx) -
+  // לא monthly_rent/start_date תמיד, אחרת ההצמדה מחושבת מבסיס שגוי אחרי עדכון.
+  const base = lease.base_amount ?? lease.monthly_rent;
+  const leaseBaseDate = new Date(lease.base_date ?? lease.start_date);
   leaseBaseDate.setDate(1);
   const today = new Date();
   today.setDate(1);
-  const end = new Date(lease.endDate);
+  const end = new Date(lease.end_date);
   end.setDate(1);
   const until = today < end ? today : end;
 
@@ -81,10 +81,10 @@ function buildHistory(
   if (!baseRate) {
     const earliest = rates
       .filter((r) => r.type === type)
-      .sort((a, b) => a.periodDate.localeCompare(b.periodDate))[0];
+      .sort((a, b) => a.period_date.localeCompare(b.period_date))[0];
     if (!earliest) return [];
     baseRate = earliest;
-    effectiveStart = new Date(earliest.periodDate);
+    effectiveStart = new Date(earliest.period_date);
   }
 
   const rows: HistoryRow[] = [];
@@ -158,10 +158,10 @@ export default function LinkageComparisonPage() {
     const all = leasesData ?? EMPTY_LEASES;
     const today = new Date(); today.setHours(0, 0, 0, 0);
     return [...all].sort((a, b) => {
-      const aActive = new Date(a.startDate) <= today && new Date(a.endDate) >= today ? 0 : 1;
-      const bActive = new Date(b.startDate) <= today && new Date(b.endDate) >= today ? 0 : 1;
+      const aActive = new Date(a.start_date) <= today && new Date(a.end_date) >= today ? 0 : 1;
+      const bActive = new Date(b.start_date) <= today && new Date(b.end_date) >= today ? 0 : 1;
       if (aActive !== bActive) return aActive - bActive;
-      return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+      return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
     });
   }, [leasesData]);
 
@@ -244,9 +244,9 @@ export default function LinkageComparisonPage() {
                       const l = leases.find((x) => x.id === effectiveSelectedId);
                       if (!l) return <span className="text-gray-400">בחר חוזה...</span>;
                       const today = new Date(); today.setHours(0,0,0,0);
-                      const isActive = new Date(l.startDate) <= today && new Date(l.endDate) >= today;
-                      const tenantName = (l.tenant?.firstName || l.tenant?.lastName)
-                        ? `${l.tenant.firstName ?? ""} ${l.tenant.lastName ?? ""}`.trim()
+                      const isActive = new Date(l.start_date) <= today && new Date(l.end_date) >= today;
+                      const tenantName = (l.tenant?.first_name || l.tenant?.last_name)
+                        ? `${l.tenant.first_name ?? ""} ${l.tenant.last_name ?? ""}`.trim()
                         : "ללא שוכר";
                       return (
                         <span className="flex items-center gap-2">
@@ -257,7 +257,7 @@ export default function LinkageComparisonPage() {
                           <span className="text-gray-400">·</span>
                           <span className="text-gray-700">{tenantName}</span>
                           <span className="text-gray-400">·</span>
-                          <span className="text-indigo-700 font-semibold">₪{(l.monthlyRent ?? 0).toLocaleString()}</span>
+                          <span className="text-indigo-700 font-semibold">₪{(l.monthly_rent ?? 0).toLocaleString()}</span>
                         </span>
                       );
                     })()}
@@ -269,12 +269,12 @@ export default function LinkageComparisonPage() {
                     <div className="absolute z-20 top-full mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
                       {leases.map((l) => {
                         const today = new Date(); today.setHours(0,0,0,0);
-                        const isActive = new Date(l.startDate) <= today && new Date(l.endDate) >= today;
-                        const tenantName = (l.tenant?.firstName || l.tenant?.lastName)
-                          ? `${l.tenant.firstName ?? ""} ${l.tenant.lastName ?? ""}`.trim()
+                        const isActive = new Date(l.start_date) <= today && new Date(l.end_date) >= today;
+                        const tenantName = (l.tenant?.first_name || l.tenant?.last_name)
+                          ? `${l.tenant.first_name ?? ""} ${l.tenant.last_name ?? ""}`.trim()
                           : "ללא שוכר";
-                        const startY = new Date(l.startDate).getFullYear();
-                        const endY = new Date(l.endDate).getFullYear();
+                        const startY = new Date(l.start_date).getFullYear();
+                        const endY = new Date(l.end_date).getFullYear();
                         const isSelected = l.id === effectiveSelectedId;
                         return (
                           <button
@@ -290,7 +290,7 @@ export default function LinkageComparisonPage() {
                             <span className="text-gray-400 flex-shrink-0">·</span>
                             <span className="text-gray-700 truncate">{tenantName}</span>
                             <span className="text-gray-400 flex-shrink-0 mr-auto">·</span>
-                            <span className="text-indigo-700 font-semibold flex-shrink-0">₪{(l.monthlyRent ?? 0).toLocaleString()}</span>
+                            <span className="text-indigo-700 font-semibold flex-shrink-0">₪{(l.monthly_rent ?? 0).toLocaleString()}</span>
                             <span className="text-gray-400 text-xs flex-shrink-0">{startY}-{endY}</span>
                           </button>
                         );
@@ -300,9 +300,9 @@ export default function LinkageComparisonPage() {
                 </div>
                 {lease && (
                   <p className="text-xs text-gray-400 mt-2">
-                    {new Date(lease.startDate).toLocaleDateString("he-IL")} –{" "}
-                    {new Date(lease.endDate).toLocaleDateString("he-IL")} ·{" "}
-                    הצמדה נוכחית: {TYPE_LABELS[lease.linkageType ?? "none"]}
+                    {new Date(lease.start_date).toLocaleDateString("he-IL")} –{" "}
+                    {new Date(lease.end_date).toLocaleDateString("he-IL")} ·{" "}
+                    הצמדה נוכחית: {TYPE_LABELS[lease.linkage_type ?? "none"]}
                   </p>
                 )}
               </div>
@@ -352,12 +352,12 @@ export default function LinkageComparisonPage() {
                 </p>
                 {(["none", "usd", "cpi"] as const).map((type) => {
                   const effective = calcEffectiveRent(
-                    { linkageType: type, linkageFrequency: frequency, baseAmount: lease.baseAmount ?? null, baseDate: lease.baseDate ?? null, monthlyRent: lease.monthlyRent },
+                    { linkage_type: type, linkage_frequency: frequency, base_amount: lease.base_amount ?? null, base_date: lease.base_date ?? null, monthly_rent: lease.monthly_rent },
                     rates
                   );
-                  const diff = effective - lease.monthlyRent;
-                  const pct = lease.monthlyRent > 0 ? ((diff / lease.monthlyRent) * 100).toFixed(1) : "0.0";
-                  const isCurrent = (lease.linkageType ?? "none") === type;
+                  const diff = effective - lease.monthly_rent;
+                  const pct = lease.monthly_rent > 0 ? ((diff / lease.monthly_rent) * 100).toFixed(1) : "0.0";
+                  const isCurrent = (lease.linkage_type ?? "none") === type;
                   const isSelected = selectedType === type;
 
                   return (
@@ -415,8 +415,8 @@ export default function LinkageComparisonPage() {
                       פירוט — {TYPE_LABELS[selectedType]} · {FREQ_LABELS[frequency]}
                     </h2>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      בסיס: ₪{lease.monthlyRent.toLocaleString()} ·{" "}
-                      {new Date(lease.startDate).toLocaleDateString("he-IL")} עד היום
+                      בסיס: ₪{lease.monthly_rent.toLocaleString()} ·{" "}
+                      {new Date(lease.start_date).toLocaleDateString("he-IL")} עד היום
                     </p>
                   </div>
                 </div>
@@ -477,7 +477,7 @@ export default function LinkageComparisonPage() {
                           </td>
                           <td className="px-4 py-3 font-bold text-indigo-700">
                             ₪{calcEffectiveRent(
-                              { linkageType: selectedType, linkageFrequency: frequency, baseAmount: lease.baseAmount ?? null, baseDate: lease.baseDate ?? null, monthlyRent: lease.monthlyRent },
+                              { linkage_type: selectedType, linkage_frequency: frequency, base_amount: lease.base_amount ?? null, base_date: lease.base_date ?? null, monthly_rent: lease.monthly_rent },
                               rates
                             ).toLocaleString("he-IL")}
                           </td>

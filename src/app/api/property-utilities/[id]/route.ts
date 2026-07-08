@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
-import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { propertyUtilitySchema } from "@/lib/validations";
 import { z } from "zod";
 
@@ -17,20 +16,20 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     // ולידציה מונעת mass-assignment - zod מסנן שדות לא מוכרים (userId וכו') אוטומטית
     const data = propertyUtilitySchema.partial().parse(body);
-    // propertyId לא ניתן לשינוי בעדכון - חשבון שייך לנכס שבו נוצר. השמטה מונעת
+    // property_id לא ניתן לשינוי בעדכון - חשבון שייך לנכס שבו נוצר. השמטה מונעת
     // העברת חשבון לנכס אחר בלי אימות בעלות (בניגוד ל-POST שמאמת).
-    delete (data as { propertyId?: string }).propertyId;
+    delete data.property_id;
 
     const { data: row, error } = await supabase
       .from("property_utilities")
-      .update(snakeKeys(data) as object)
+      .update(data)
       .eq("id", id)
       .eq("user_id", session.user.id)
       .select()
       .single();
 
     if (error) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json(camelKeys(row));
+    return NextResponse.json(row);
   } catch (error) {
     if (error instanceof z.ZodError)
       return NextResponse.json({ error: "Validation failed", details: error.flatten() }, { status: 400 });

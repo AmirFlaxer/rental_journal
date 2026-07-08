@@ -4,6 +4,7 @@
 // בכל טעינה, וסימון "בוצע" יוצר שורת tasks אמיתית שחוסמת את התקופה (dedup).
 
 import { localMonthKey } from "./dates";
+import type { Task } from "@/types/database";
 
 export type UtilityType =
   | "water"
@@ -19,26 +20,22 @@ export type UtilityResponsibility = "owner_pays" | "owner_forwards" | "tenant_pa
 
 export interface PropertyUtilityLike {
   id: string;
-  propertyId: string;
-  propertyTitle: string;
+  property_id: string;
+  property_title: string;
   type: UtilityType;
-  customLabel?: string | null;
+  custom_label?: string | null;
   frequency: UtilityFrequency;
   /** 1-12, רלוונטי רק ל-bimonthly - החודש שבו החשבון "נוחת" (מגדיר את זוגיות החלון) */
-  anchorMonth?: number | null;
+  anchor_month?: number | null;
   responsibility: UtilityResponsibility;
   active: boolean;
 }
 
 /** תזכורת קיימת ב-DB (אמיתית) - לצורך dedup מול תזכורות וירטואליות */
-export interface DbTaskLike {
-  category: string;
-  relatedEntityType?: string;
-  relatedEntityId?: string;
-  /** YYYY-MM-DD */
-  dueDate: string;
-  completedAt?: string;
-}
+export type DbTaskLike = Pick<
+  Task,
+  "category" | "related_entity_type" | "related_entity_id" | "due_date" | "completed_at"
+>;
 
 /** תואם ל-interface Task בדף התזכורות (src/app/dashboard/tasks/page.tsx) */
 export interface VirtualTask {
@@ -47,10 +44,10 @@ export interface VirtualTask {
   description?: string;
   category: string;
   /** YYYY-MM-DD */
-  dueDate: string;
+  due_date: string;
   priority: "low" | "normal" | "high";
-  relatedEntityType: string;
-  relatedEntityId: string;
+  related_entity_type: string;
+  related_entity_id: string;
   isVirtual: true;
 }
 
@@ -72,7 +69,7 @@ export function mapUtilityCategory(type: UtilityType): string {
   }
 }
 
-/** תווית עברית של סוג החשבון - ל-other/house_committee נופל ל-customLabel */
+/** תווית עברית של סוג החשבון - ל-other/house_committee נופל ל-custom_label */
 export function utilityTypeLabel(type: UtilityType, customLabel?: string | null): string {
   switch (type) {
     case "water":
@@ -92,15 +89,15 @@ export function utilityTypeLabel(type: UtilityType, customLabel?: string | null)
 
 /**
  * האם החשבון חל בתקופה (החודש) הנוכחית.
- * monthly - תמיד. bimonthly - רק כש-(currentMonth - anchorMonth) זוגי (חלון דו-חודשי
- * שנוחת על anchor_month ואז כל חודשיים). אם anchorMonth חסר - נחשב כתמיד חל (הערה
+ * monthly - תמיד. bimonthly - רק כש-(currentMonth - anchor_month) זוגי (חלון דו-חודשי
+ * שנוחת על anchor_month ואז כל חודשיים). אם anchor_month חסר - נחשב כתמיד חל (הערה
  * לבעל הנכס להשלים את החודש בעריכת הנכס נמצאת ב-UI, לא כאן).
  */
 export function utilityAppliesThisPeriod(utility: PropertyUtilityLike, today: Date): boolean {
   if (utility.frequency === "monthly") return true;
-  if (utility.anchorMonth == null) return true;
+  if (utility.anchor_month == null) return true;
   const currentMonth = today.getMonth() + 1; // 1-12 מקומי
-  return Math.abs(currentMonth - utility.anchorMonth) % 2 === 0;
+  return Math.abs(currentMonth - utility.anchor_month) % 2 === 0;
 }
 
 /** מפתח התקופה הנוכחית - YYYY-MM מקומי */
@@ -110,8 +107,8 @@ export function currentUtilityPeriodKey(today: Date): string {
 
 function utilityTitle(utility: PropertyUtilityLike, label: string): string {
   return utility.responsibility === "owner_forwards"
-    ? `העברת חשבון ${label} לשוכר - ${utility.propertyTitle}`
-    : `תשלום ${label} - ${utility.propertyTitle}`;
+    ? `העברת חשבון ${label} לשוכר - ${utility.property_title}`
+    : `תשלום ${label} - ${utility.property_title}`;
 }
 
 /**
@@ -131,11 +128,11 @@ export function generateVirtualUtilityTasks(
   const covered = new Set<string>();
   for (const t of dbTasks) {
     if (
-      t.relatedEntityType === "property_utility" &&
-      t.relatedEntityId &&
-      t.dueDate.slice(0, 7) === monthKey
+      t.related_entity_type === "property_utility" &&
+      t.related_entity_id &&
+      t.due_date.slice(0, 7) === monthKey
     ) {
-      covered.add(t.relatedEntityId);
+      covered.add(t.related_entity_id);
     }
   }
 
@@ -146,15 +143,15 @@ export function generateVirtualUtilityTasks(
     if (!utilityAppliesThisPeriod(utility, today)) continue;
     if (covered.has(utility.id)) continue;
 
-    const label = utilityTypeLabel(utility.type, utility.customLabel);
+    const label = utilityTypeLabel(utility.type, utility.custom_label);
     virtual.push({
       id: `virtual-util-${utility.id}-${monthKey}`,
       title: utilityTitle(utility, label),
       category: mapUtilityCategory(utility.type),
-      dueDate,
+      due_date: dueDate,
       priority: "normal",
-      relatedEntityType: "property_utility",
-      relatedEntityId: utility.id,
+      related_entity_type: "property_utility",
+      related_entity_id: utility.id,
       isVirtual: true,
     });
     covered.add(utility.id); // dedup בין חשבונות באותה ריצה (למקרה של id כפול בקלט)

@@ -1,7 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
-import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { leaseSchema } from "@/lib/validations";
 import { z } from "zod";
 
@@ -23,7 +22,7 @@ export async function GET(
     .single();
 
   if (error || !data) return NextResponse.json({ error: "חוזה לא נמצא" }, { status: 404 });
-  return NextResponse.json(camelKeys(data));
+  return NextResponse.json(data);
 }
 
 // PUT - עדכון חוזה קיים. חוזים לעולם לא נמחקים ולא נוצרים מחדש כאן - רק עדכון.
@@ -56,7 +55,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { data: property } = await supabase
       .from("properties")
       .select("id")
-      .eq("id", data.propertyId)
+      .eq("id", data.property_id)
       .eq("user_id", session.user.id)
       .single();
 
@@ -66,12 +65,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { data: overlap } = await supabase
       .from("leases")
       .select("id")
-      .eq("property_id", data.propertyId)
+      .eq("property_id", data.property_id)
       .eq("user_id", session.user.id)
       .neq("id", id)
       .neq("status", "ended")
-      .lte("start_date", data.endDate)
-      .gte("end_date", data.startDate)
+      .lte("start_date", data.end_date)
+      .gte("end_date", data.start_date)
       .limit(1)
       .maybeSingle();
 
@@ -81,7 +80,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { data: tenant } = await supabase
       .from("tenants")
       .select("id")
-      .eq("id", data.tenantId)
+      .eq("id", data.tenant_id)
       .eq("user_id", session.user.id)
       .single();
 
@@ -89,14 +88,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // כאשר יש הצמדה ולא סופקו ערכי בסיס בקלט - שומרים על הערכים הקיימים ב-DB אם יש,
     // ורק אם גם אלה חסרים נופלים לברירת מחדל (שכ"ד/תאריך התחלה נוכחיים)
-    if (data.linkageType !== "none") {
-      if (!data.baseAmount) data.baseAmount = existing.base_amount ?? data.monthlyRent;
-      if (!data.baseDate) data.baseDate = existing.base_date ? new Date(existing.base_date) : data.startDate;
+    if (data.linkage_type !== "none") {
+      if (!data.base_amount) data.base_amount = existing.base_amount ?? data.monthly_rent;
+      if (!data.base_date) data.base_date = existing.base_date ? new Date(existing.base_date) : data.start_date;
     }
 
     const { data: row, error } = await supabase
       .from("leases")
-      .update(snakeKeys(data) as object)
+      .update(data)
       .eq("id", id)
       .eq("user_id", session.user.id)
       .select("*, properties(*), tenant:tenants(*), payments(*)")
@@ -107,7 +106,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
     }
 
-    return NextResponse.json(camelKeys(row));
+    return NextResponse.json(row);
   } catch (error) {
     if (error instanceof z.ZodError)
       return NextResponse.json({ error: "Validation failed", details: error.flatten() }, { status: 400 });

@@ -37,29 +37,29 @@ const STATUS_HE: Record<string, string> = {
 
 interface Payment {
   id: string;
-  paymentType: string;
+  payment_type: string;
   amount: number;
-  dueDate: string;
-  paidDate?: string;
+  due_date: string;
+  paid_date?: string;
   status: string;
   notes?: string;
-  partialPaidAmount?: number | null;
+  partial_paid_amount?: number | null;
   property?: { id: string; title: string };
   lease?: { id: string };
   isVirtual?: boolean;
-  propertyTitle?: string;
-  leaseId?: string;
-  propertyId?: string;
+  property_title?: string;
+  lease_id?: string;
+  property_id?: string;
 }
 
 interface Lease {
   id: string;
-  startDate: string;
-  endDate: string;
-  monthlyRent: number;
+  start_date: string;
+  end_date: string;
+  monthly_rent: number;
   status: string;
   properties?: { id: string; title: string };
-  tenant?: { firstName: string; lastName: string };
+  tenant?: { first_name: string; last_name: string };
 }
 
 interface Property {
@@ -77,19 +77,19 @@ function generateVirtualSlots(leases: Lease[], existingPayments: Payment[]): Pay
     const propId = lease.properties?.id;
     if (!propId) continue;
 
-    for (const { monthKey, dueDate } of listRentMonths(lease)) {
+    for (const { monthKey, due_date } of listRentMonths(lease)) {
       const key = propertyMonthKey(propId, monthKey);
       if (covered.has(key)) continue;
       slots.push({
         id: `virtual-${lease.id}-${monthKey}`,
         isVirtual: true,
-        leaseId: lease.id,
-        propertyId: propId,
-        propertyTitle: lease.properties?.title,
-        paymentType: "Rent",
-        amount: lease.monthlyRent,
-        dueDate,
-        status: dueDate <= today ? "due" : "future",
+        lease_id: lease.id,
+        property_id: propId,
+        property_title: lease.properties?.title,
+        payment_type: "Rent",
+        amount: lease.monthly_rent,
+        due_date,
+        status: due_date <= today ? "due" : "future",
       });
       covered.add(key);
     }
@@ -132,7 +132,7 @@ export default function PaymentsPage() {
   const allItems = useMemo(
     () =>
       [...payments, ...virtualSlots].filter((p) => {
-        const propId = p.property?.id ?? p.propertyId;
+        const propId = p.property?.id ?? p.property_id;
         return !filterProp || propId === filterProp;
       }),
     [payments, virtualSlots, filterProp]
@@ -146,18 +146,18 @@ export default function PaymentsPage() {
           const pa = ACTION_PRIORITY[a.status] ?? 4;
           const pb = ACTION_PRIORITY[b.status] ?? 4;
           if (pa !== pb) return pa - pb;
-          return a.dueDate.localeCompare(b.dueDate);
+          return a.due_date.localeCompare(b.due_date);
         }),
     [allItems]
   );
 
   const futureItems = useMemo(
-    () => allItems.filter((p) => p.status === "future").sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    () => allItems.filter((p) => p.status === "future").sort((a, b) => a.due_date.localeCompare(b.due_date)),
     [allItems]
   );
 
   const paidItems = useMemo(
-    () => allItems.filter((p) => p.status === "paid").sort((a, b) => b.dueDate.localeCompare(a.dueDate)),
+    () => allItems.filter((p) => p.status === "paid").sort((a, b) => b.due_date.localeCompare(a.due_date)),
     [allItems]
   );
 
@@ -177,8 +177,8 @@ export default function PaymentsPage() {
   const togglePaid = async (payment: Payment) => {
     const nowPaid = payment.status !== "paid";
     const body = nowPaid
-      ? { status: "paid", paidDate: new Date().toISOString() }
-      : { status: "pending", paidDate: null };
+      ? { status: "paid", paid_date: new Date().toISOString() }
+      : { status: "pending", paid_date: null };
     const res = await fetch(`/api/payments/${payment.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -190,7 +190,7 @@ export default function PaymentsPage() {
   };
 
   const openPartial = (payment: Payment) => {
-    setPartialAmount((payment.partialPaidAmount ?? parsePartialPaid(payment.notes)) || undefined);
+    setPartialAmount((payment.partial_paid_amount ?? parsePartialPaid(payment.notes)) || undefined);
     setPartialReason(parsePartialReason(payment.notes));
     setPartialOpenId(payment.id);
   };
@@ -200,21 +200,21 @@ export default function PaymentsPage() {
     if (!amt || amt <= 0 || amt >= payment.amount) return;
     setSavingPartial(true);
     try {
-      // הסכום נשמר בעמודה ייעודית (partialPaidAmount) - notes מכיל רק את הסיבה
+      // הסכום נשמר בעמודה ייעודית (partial_paid_amount) - notes מכיל רק את הסיבה
       // כטקסט חופשי, בלי קידוד. תאימות לאחור לרשומות ישנות ב-getReceivedAmount.
       if (isVirtual) {
         const res = await fetch("/api/payments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            propertyId: payment.propertyId,
-            leaseId: payment.leaseId,
-            paymentType: "Rent",
+            property_id: payment.property_id,
+            lease_id: payment.lease_id,
+            payment_type: "Rent",
             amount: payment.amount,
-            dueDate: payment.dueDate,
-            paidDate: new Date().toISOString(),
+            due_date: payment.due_date,
+            paid_date: new Date().toISOString(),
             status: "partial",
-            partialPaidAmount: amt,
+            partial_paid_amount: amt,
             notes: partialReason,
           }),
         });
@@ -227,8 +227,8 @@ export default function PaymentsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             status: "partial",
-            paidDate: new Date().toISOString(),
-            partialPaidAmount: amt,
+            paid_date: new Date().toISOString(),
+            partial_paid_amount: amt,
             notes: partialReason,
           }),
         });
@@ -251,12 +251,12 @@ export default function PaymentsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          propertyId: slot.propertyId,
-            leaseId: slot.leaseId,
-          paymentType: "Rent",
+          property_id: slot.property_id,
+            lease_id: slot.lease_id,
+          payment_type: "Rent",
           amount: slot.amount,
-          dueDate: slot.dueDate,
-          paidDate: new Date().toISOString(),
+          due_date: slot.due_date,
+          paid_date: new Date().toISOString(),
           status: "paid",
         }),
       });
@@ -269,9 +269,9 @@ export default function PaymentsPage() {
   };
 
   const renderCard = (p: Payment) => {
-    const propTitle = p.property?.title ?? p.propertyTitle ?? "";
+    const propTitle = p.property?.title ?? p.property_title ?? "";
     const isVirtual = p.isVirtual === true;
-    const partialPaid = p.partialPaidAmount ?? parsePartialPaid(p.notes);
+    const partialPaid = p.partial_paid_amount ?? parsePartialPaid(p.notes);
     const partialReasonText = parsePartialReason(p.notes);
     const remaining = partialPaid != null ? p.amount - partialPaid : null;
     const isPartialOpen = partialOpenId === p.id;
@@ -293,7 +293,7 @@ export default function PaymentsPage() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-sm text-gray-900">
-                {TYPE_HE[p.paymentType] || p.paymentType}
+                {TYPE_HE[p.payment_type] || p.payment_type}
               </span>
               {propTitle && <span className="text-xs text-gray-500">{propTitle}</span>}
               <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLOR[p.status] || "bg-gray-100 text-gray-600"}`}>
@@ -302,11 +302,11 @@ export default function PaymentsPage() {
             </div>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-xs text-gray-400">
-                {new Date(p.dueDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
+                {new Date(p.due_date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
               </span>
-              {p.paidDate && (
+              {p.paid_date && (
                 <span className="text-xs text-gray-400">
-                  · שולם {new Date(p.paidDate).toLocaleDateString("he-IL")}
+                  · שולם {new Date(p.paid_date).toLocaleDateString("he-IL")}
                 </span>
               )}
             </div>

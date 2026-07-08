@@ -4,12 +4,14 @@
 
 export type EffectiveLeaseStatus = "active" | "future" | "expired" | "ended";
 
+// start_date/end_date חובה (required) בכוונה - בסכימה הם NOT NULL, וקורא שטרם
+// הומר ל-snake_case (מעביר startDate/endDate) ייכשל בקומפילציה במקום להתדרדר
+// בשקט ל"הכל active". status נשאר string רחב - הקוד משווה גם "ended"/"paused"
+// ההיסטוריים שאינם ב-enum LeaseStatus המצומצם.
 interface LeaseForStatus {
   status: string;
-  startDate?: string | null;
-  endDate?: string | null;
-  start_date?: string | null;
-  end_date?: string | null;
+  start_date: string;
+  end_date: string;
 }
 
 export function effectiveLeaseStatus(lease: LeaseForStatus): EffectiveLeaseStatus {
@@ -25,8 +27,8 @@ export function effectiveLeaseStatus(lease: LeaseForStatus): EffectiveLeaseStatu
   // שלא נרשמו כלל בחוזה שהסתיים מפסיקים להיווצר כחוב וירטואלי.
   // השוואת מחרוזות תאריך מקומיות - new Date("YYYY-MM-DD") מתפרש כחצות UTC,
   // וחוזה שמתחיל "היום" היה מוצג כ-future לאורך כל היום הראשון (Asia/Jerusalem, UTC+2/3)
-  const startStr = lease.startDate ?? lease.start_date;
-  const endStr = lease.endDate ?? lease.end_date;
+  const startStr = lease.start_date;
+  const endStr = lease.end_date;
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   if (startStr && startStr.slice(0, 10) > todayStr) return "future";

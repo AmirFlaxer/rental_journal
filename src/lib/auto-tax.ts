@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getReceivedAmount } from "@/lib/domain/partial-payment";
 import { localDateStr } from "@/lib/domain/dates";
+import type { Payment } from "@/types/database";
 
 export async function isAutoTaxEnabled(userId: string): Promise<boolean> {
   const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId);
@@ -9,16 +10,10 @@ export async function isAutoTaxEnabled(userId: string): Promise<boolean> {
 }
 
 // מצב התקבול הרלוונטי להתאמת הוצאת המס - שמות שדות snake_case כמו שורת DB גולמית
-export interface AutoTaxPaymentState {
-  id: string;
-  payment_type: string;
-  property_id: string | null;
-  amount: number;
-  status: string;
-  paid_date?: string | null;
-  notes?: string | null;
-  partial_paid_amount?: number | null;
-}
+export type AutoTaxPaymentState = Pick<
+  Payment,
+  "id" | "payment_type" | "property_id" | "amount" | "status" | "paid_date" | "notes" | "partial_paid_amount"
+>;
 
 /**
  * מיישר את הוצאת המס האוטומטית (10%) של תקבול נתון למצב הרצוי - במקום שלוש
@@ -39,9 +34,9 @@ export async function reconcileAutoTax(
       ? getReceivedAmount({
           amount: payment.amount,
           status: payment.status,
-          paidDate: payment.paid_date,
+          paid_date: payment.paid_date,
           notes: payment.notes,
-          partialPaidAmount: payment.partial_paid_amount,
+          partial_paid_amount: payment.partial_paid_amount,
         })
       : 0;
 
@@ -142,9 +137,9 @@ export async function backfillAutoTaxForYear(
       const received = getReceivedAmount({
         amount: p.amount,
         status: p.status,
-        paidDate: p.paid_date,
+        paid_date: p.paid_date,
         notes: p.notes,
-        partialPaidAmount: p.partial_paid_amount,
+        partial_paid_amount: p.partial_paid_amount,
       });
       if (received <= 0) return null;
       return {

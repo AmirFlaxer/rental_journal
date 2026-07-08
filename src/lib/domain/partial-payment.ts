@@ -3,7 +3,7 @@
 // "__partial__:<amount>\n<reason>" - קידוד זה עדיין נתמך לקריאה (פענוח notes)
 // לתאימות לאחור, אבל אינו נכתב עוד לרשומות חדשות.
 // כל צרכן של "כמה באמת התקבל" חייב לעבור דרך getReceivedAmount - לא דרך
-// amount/paidDate ישירות.
+// amount/paid_date ישירות.
 
 export function encodePartial(amount: number, reason: string): string {
   return `__partial__:${amount}\n${reason}`.trim();
@@ -23,23 +23,23 @@ export function parsePartialReason(notes?: string | null): string {
 export interface ReceivedAmountInput {
   amount: number;
   status: string;
-  paidDate?: string | null;
+  paid_date?: string | null;
   notes?: string | null;
   /** עמודת ה-DB - מקור האמת לרשומות חדשות. undefined/null נופל חזרה לפענוח notes. */
-  partialPaidAmount?: number | null;
+  partial_paid_amount?: number | null;
 }
 
 /**
  * הסכום שהתקבל בפועל עבור תקבול:
- * paid - הסכום המלא; partial - עמודת partialPaidAmount, ואם היא ריקה (רשומה
+ * paid - הסכום המלא; partial - עמודת partial_paid_amount, ואם היא ריקה (רשומה
  * ישנה) נופל חזרה לפענוח הקידוד ב-notes; אחרת - 0.
  * זה הבסיס הנכון למס אוטומטי, דוחות הכנסה ודוח מס - לא amount הגולמי.
  */
 export function getReceivedAmount(p: ReceivedAmountInput): number {
   if (p.status === "paid") return p.amount;
-  if (p.status === "partial") return p.partialPaidAmount ?? parsePartialPaid(p.notes) ?? 0;
-  // fallback היסטורי: רשומות ישנות עם paidDate בלי status תקין
-  if (p.paidDate && p.status !== "pending" && p.status !== "overdue") return p.amount;
+  if (p.status === "partial") return p.partial_paid_amount ?? parsePartialPaid(p.notes) ?? 0;
+  // fallback היסטורי: רשומות ישנות עם paid_date בלי status תקין
+  if (p.paid_date && p.status !== "pending" && p.status !== "overdue") return p.amount;
   return 0;
 }
 
