@@ -25,11 +25,14 @@ const APP_FEATURES = [
 
 type FeedbackType = "bug" | "feature";
 
+type SaveStatus = "idle" | "success" | "error";
+
 export default function AboutPage() {
   const [type, setType] = useState<FeedbackType>("bug");
   const [title, setTitle] = useState("");
   const [details, setDetails] = useState("");
   const [copied, setCopied] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 
   const subjectPrefix = type === "bug" ? "🐞 דיווח באג" : "✨ בקשת פיצ'ר";
   const subject = `[${type === "bug" ? "באג" : "בקשה"}] ${title || "ללא כותרת"}`;
@@ -50,6 +53,31 @@ export default function AboutPage() {
     } catch {
       /* ignore */
     }
+  };
+
+  // ניסיון best-effort לשמור את הפנייה גם ב-DB (בנוסף למייל, לא במקומו).
+  // אם נכשל (למשל טבלת feedback עוד לא נוצרה בפרודקשן) - לא שוברים כלום, ה-mailto ממשיך לעבוד כרגיל.
+  const saveFeedback = async () => {
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          message: `${subject}\n\n${details}`,
+        }),
+      });
+      setSaveStatus(res.ok ? "success" : "error");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleSendClick = () => {
+    if (!canSend) return;
+    setSaveStatus("idle");
+    void saveFeedback();
+    // ה-mailto נפתח בכל מקרה דרך ה-href של הכפתור - לא מחכים לתשובת ה-API
   };
 
   return (
@@ -145,13 +173,13 @@ export default function AboutPage() {
       <section className="space-y-3">
         <h2 className="text-base font-bold text-gray-900 flex items-center gap-2.5">
           <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-orange-400 to-orange-600" />
-          דיווח באג או בקשת פיצ'ר
+          דיווח באג או בקשת פיצ&apos;ר
         </h2>
         <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
           {/* Type selector */}
           <div className="flex gap-2">
             <button
-              onClick={() => setType("bug")}
+              onClick={() => { setType("bug"); setSaveStatus("idle"); }}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
                 type === "bug"
                   ? "bg-gradient-to-br from-rose-500 to-rose-700 text-white border-transparent"
@@ -161,14 +189,14 @@ export default function AboutPage() {
               🐞 דיווח על באג
             </button>
             <button
-              onClick={() => setType("feature")}
+              onClick={() => { setType("feature"); setSaveStatus("idle"); }}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
                 type === "feature"
                   ? "bg-gradient-to-br from-pink-500 to-pink-700 text-white border-transparent"
                   : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
               }`}
             >
-              ✨ בקשת פיצ'ר
+              ✨ בקשת פיצ&apos;ר
             </button>
           </div>
 
@@ -177,7 +205,7 @@ export default function AboutPage() {
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => { setTitle(e.target.value); setSaveStatus("idle"); }}
               placeholder={type === "bug" ? "למשל: שגיאה בחישוב חוב" : "למשל: ייצוא דוח לאקסל"}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
             />
@@ -187,7 +215,7 @@ export default function AboutPage() {
             <label className="block text-xs font-semibold text-gray-500 mb-1">פירוט *</label>
             <textarea
               value={details}
-              onChange={(e) => setDetails(e.target.value)}
+              onChange={(e) => { setDetails(e.target.value); setSaveStatus("idle"); }}
               rows={4}
               placeholder={
                 type === "bug"
@@ -202,7 +230,7 @@ export default function AboutPage() {
             <a
               href={canSend ? mailtoHref : undefined}
               aria-disabled={!canSend}
-              onClick={(e) => { if (!canSend) e.preventDefault(); }}
+              onClick={(e) => { if (!canSend) { e.preventDefault(); return; } handleSendClick(); }}
               className={`flex-1 min-w-[160px] text-center py-2.5 rounded-xl font-semibold text-sm transition-all ${
                 canSend
                   ? "bg-gradient-to-br from-emerald-500 to-emerald-700 text-white hover:brightness-110"
@@ -219,6 +247,14 @@ export default function AboutPage() {
               {copied ? "✓ הועתק" : "📋 העתק"}
             </button>
           </div>
+          {saveStatus === "success" && (
+            <p className="text-xs text-emerald-600 font-semibold">✓ הפנייה נשמרה במערכת, ומייל נפתח לשליחה</p>
+          )}
+          {saveStatus === "error" && (
+            <p className="text-xs text-gray-400">
+              לא הצלחנו לשמור את הפנייה במערכת כרגע, אבל המייל נפתח כרגיל - אפשר לשלוח ממנו.
+            </p>
+          )}
           <p className="text-xs text-gray-400 leading-relaxed">
             הכפתור פותח את אפליקציית האימייל שלך עם הפנייה מוכנה ל-{DEV.email}. אם אין אצלך אימייל מוגדר — לחץ &quot;העתק&quot; ושלח ידנית.
           </p>

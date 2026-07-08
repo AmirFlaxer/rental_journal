@@ -33,6 +33,7 @@ interface RawPayment {
   paymentType: string;
   status: string;
   notes?: string | null;
+  partialPaidAmount?: number | null;
 }
 
 interface Property {

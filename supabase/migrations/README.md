@@ -14,3 +14,6 @@
 |------|---------------|
 | 20260708_tasks_source_payment_id.sql | ✅ 2026-07-08 |
 | 20260708_push_subscriptions_rls.sql | ✅ 2026-07-08 |
+| 20260708_payments_partial_amount.sql | ⬜ טרם |
+| 20260708_subscriptions.sql | ⬜ טרם |
+| 20260708_feedback.sql | ⬜ טרם |

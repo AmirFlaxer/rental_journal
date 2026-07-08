@@ -52,10 +52,21 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     delete body.id;
     const isFullUpdate = ["propertyId", "paymentType", "amount", "dueDate"].some((k) => k in body);
     const data = isFullUpdate ? paymentSchema.parse(body) : paymentSchema.partial().parse(body);
+    // partialPaidAmount לא ב-paymentSchema (paymentSchema.ts הוא בבעלות תחום אחר) -
+    // נקלט ישירות מה-body ומועבר בנפרד ל-update
+    const partialPaidAmount =
+      typeof body.partialPaidAmount === "number"
+        ? body.partialPaidAmount
+        : body.partialPaidAmount === null
+          ? null
+          : undefined;
 
     const { data: row, error } = await supabase
       .from("payments")
-      .update(snakeKeys(data) as object)
+      .update({
+        ...(snakeKeys(data) as object),
+        ...(partialPaidAmount !== undefined ? { partial_paid_amount: partialPaidAmount } : {}),
+      })
       .eq("id", id)
       .eq("user_id", session.user.id)
       .select("*, property:properties(*), lease:leases(*)")
@@ -96,6 +107,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         status: row.status,
         paid_date: row.paid_date,
         notes: row.notes,
+        partial_paid_amount: row.partial_paid_amount,
       });
     }
 

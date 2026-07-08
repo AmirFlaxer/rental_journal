@@ -32,6 +32,10 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const data = paymentSchema.parse(body);
+    // partialPaidAmount לא ב-paymentSchema (paymentSchema.ts הוא בבעלות תחום אחר) -
+    // נקלט ישירות מה-body ומועבר בנפרד ל-insert
+    const partialPaidAmount =
+      typeof body.partialPaidAmount === "number" ? body.partialPaidAmount : undefined;
 
     const supabase = await createClient();
 
@@ -58,7 +62,11 @@ export async function POST(request: NextRequest) {
 
     const { data: row, error } = await supabase
       .from("payments")
-      .insert({ ...(snakeKeys(data) as object), user_id: session.user.id })
+      .insert({
+        ...(snakeKeys(data) as object),
+        ...(partialPaidAmount !== undefined ? { partial_paid_amount: partialPaidAmount } : {}),
+        user_id: session.user.id,
+      })
       .select("*, property:properties(*), lease:leases(*)")
       .single();
 
@@ -74,6 +82,7 @@ export async function POST(request: NextRequest) {
         status: row.status,
         paid_date: row.paid_date,
         notes: row.notes,
+        partial_paid_amount: row.partial_paid_amount,
       });
 
       // סגירת תזכורת "הפקדת שק" רק כששולם במלואו (status "paid" בדיוק, לא partial) ובשיקים

@@ -151,7 +151,7 @@ export function PropertyForm({
           </label>
           <select
             value={formData.propertyType}
-            onChange={(e) => setFormData({ ...formData, propertyType: e.target.value as any })}
+            onChange={(e) => setFormData({ ...formData, propertyType: e.target.value as PropertyInput["propertyType"] })}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="Apartment">דירה</option>
@@ -252,7 +252,7 @@ export function PropertyForm({
         {/* מטרים רבועים */}
         <div>
           <label className="block text-gray-700 font-semibold mb-2">
-            שטח הדירה (מ"ר)
+            שטח הדירה (מ&quot;ר)
           </label>
           <input
             type="number"

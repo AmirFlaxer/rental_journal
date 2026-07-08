@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { propertySchema } from "@/lib/validations";
+import { ENFORCE_QUOTA, isOverPropertyQuota } from "@/lib/plan";
 import { z } from "zod";
 
 export async function GET() {
@@ -33,6 +34,16 @@ export async function POST(request: NextRequest) {
     const data = propertySchema.parse(body);
 
     const supabase = await createClient();
+
+    // נקודת אכיפה למכסת נכסים בתוכנית freemium - כבויה כרגע (ENFORCE_QUOTA=false
+    // ב-src/lib/plan.ts), no-op בפועל. תופעל כשמודל התשלום יעלה (ראו SPEC.md).
+    if (ENFORCE_QUOTA && (await isOverPropertyQuota(supabase, session.user.id))) {
+      return NextResponse.json(
+        { error: "הגעת למכסת הנכסים בתוכנית החינמית", code: "quota_exceeded" },
+        { status: 402 }
+      );
+    }
+
     const { data: row, error } = await supabase
       .from("properties")
       .insert({ ...(snakeKeys(data) as object), user_id: session.user.id })

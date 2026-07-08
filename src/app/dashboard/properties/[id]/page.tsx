@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import type { Lease, Expense, Payment, LeaseDocument } from "@/types/database";
@@ -88,7 +88,7 @@ export default function PropertyDetailPage() {
   const [termLoading, setTermLoading] = useState(false);
   const [termResult, setTermResult] = useState<{ effectiveDate: string; noticeMonths: number } | null>(null);
 
-  const loadProperty = () => {
+  const loadProperty = useCallback(() => {
     setIsLoading(true);
     fetch(`/api/properties/${propertyId}`)
       .then((r) => {
@@ -99,9 +99,15 @@ export default function PropertyDetailPage() {
       .then(setProperty)
       .catch((e) => setError(e.message))
       .finally(() => setIsLoading(false));
-  };
+  }, [propertyId]);
 
-  useEffect(() => { if (propertyId) loadProperty(); }, [propertyId]);
+  // טעינת הנכס בטעינה ראשונית ובכל שינוי propertyId. setIsLoading(true) בתוך
+  // loadProperty נקרא באופן סינכרוני בכוונה כדי להציג מצב טעינה מיידי; loadProperty
+  // גם נקרא ידנית (לא מ-effect) אחרי מחיקה/עדכון כדי לרענן את הנכס, ולכן לא ניתן
+  // להעביר את הלוגיקה לגמרי החוצה מה-effect בלי לשכפל קוד. הסיכון בשינוי הדפוס
+  // (לולאת רנדורים / איבוד מצב טעינה) גדול מהתועלת בהשתקת האזהרה.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (propertyId) loadProperty(); }, [propertyId, loadProperty]);
 
   const handleDelete = async () => {
     const res = await fetch(`/api/properties/${propertyId}`, { method: "DELETE" });
@@ -186,7 +192,7 @@ export default function PropertyDetailPage() {
                 <ul className="text-sm text-gray-700 mb-6 space-y-1 bg-gray-50 rounded-lg p-3">
                   <li>תאריך התחלה: <strong>{new Date(l.optionStart ?? l.endDate).toLocaleDateString("he-IL")}</strong></li>
                   <li>תאריך סיום: <strong>{l.optionEnd ? new Date(l.optionEnd).toLocaleDateString("he-IL") : "-"}</strong></li>
-                  {l.optionRent && <li>שכ"ד חדש: <strong>₪{Number(l.optionRent).toLocaleString()}</strong></li>}
+                  {l.optionRent && <li>שכ&quot;ד חדש: <strong>₪{Number(l.optionRent).toLocaleString()}</strong></li>}
                 </ul>
               );
             })()}
@@ -373,7 +379,7 @@ export default function PropertyDetailPage() {
             <div className="text-xl font-bold text-gray-800">{typeHe}</div>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-            <div className="text-xs font-semibold text-gray-400 uppercase mb-1">שכ"ד חודשי</div>
+            <div className="text-xs font-semibold text-gray-400 uppercase mb-1">שכ&quot;ד חודשי</div>
             <div className="text-xl font-bold text-green-600">
               {monthlyRent > 0 ? `₪${monthlyRent.toLocaleString()}` : "—"}
             </div>
@@ -413,7 +419,7 @@ export default function PropertyDetailPage() {
               )}
               {property.apartmentNumber && (
                 <div>
-                  <span className="text-gray-500">דירה מס': </span>
+                  <span className="text-gray-500">דירה מס&apos;: </span>
                   <span className="font-semibold text-gray-800">{property.apartmentNumber}</span>
                 </div>
               )}
@@ -432,7 +438,7 @@ export default function PropertyDetailPage() {
               {property.squareMeters != null && (
                 <div>
                   <span className="text-gray-500">שטח: </span>
-                  <span className="font-semibold text-gray-800">{property.squareMeters} מ"ר</span>
+                  <span className="font-semibold text-gray-800">{property.squareMeters} מ&quot;ר</span>
                 </div>
               )}
               {property.numBalconies != null && (
@@ -546,7 +552,7 @@ export default function PropertyDetailPage() {
                     <th className="px-6 py-3 text-right font-semibold text-gray-600">דייר</th>
                     <th className="px-6 py-3 text-right font-semibold text-gray-600">התחלה</th>
                     <th className="px-6 py-3 text-right font-semibold text-gray-600">סיום</th>
-                    <th className="px-6 py-3 text-right font-semibold text-gray-600">שכ"ד</th>
+                    <th className="px-6 py-3 text-right font-semibold text-gray-600">שכ&quot;ד</th>
                     <th className="px-6 py-3 text-right font-semibold text-gray-600">סטטוס</th>
                     <th className="px-6 py-3 text-right font-semibold text-gray-600">מסמכים</th>
                     <th className="px-6 py-3 text-right font-semibold text-gray-600">פעולות</th>

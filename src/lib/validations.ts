@@ -123,6 +123,13 @@ export const taskUpdateSchema = taskSchema.partial().extend({
   completedAt: z.coerce.date().nullish(),
 });
 
+// Feedback Validations
+export const feedbackSchema = z.object({
+  type: z.enum(["bug", "feature", "other"]).default("other"),
+  message: z.string().min(1, "Message is required"),
+  email: z.string().email("Invalid email").optional().or(z.literal("")),
+});
+
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 export type PropertyInput = z.infer<typeof propertySchema>;
@@ -132,3 +139,4 @@ export type ExpenseInput = z.infer<typeof expenseSchema>;
 export type PaymentInput = z.infer<typeof paymentSchema>;
 export type TaskInput = z.infer<typeof taskSchema>;
 export type TaskUpdateInput = z.infer<typeof taskUpdateSchema>;
+export type FeedbackInput = z.infer<typeof feedbackSchema>;

@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { NumberInput } from "@/components/number-input";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 import { listRentMonths, coveredPropertyMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
-import { encodePartial, parsePartialPaid, parsePartialReason, getDebtAmount } from "@/lib/domain/partial-payment";
+import { parsePartialPaid, parsePartialReason, getDebtAmount } from "@/lib/domain/partial-payment";
 import { apiGet, queryKeys } from "@/lib/api-client";
 
 const TYPE_HE: Record<string, string> = {
@@ -43,6 +43,7 @@ interface Payment {
   paidDate?: string;
   status: string;
   notes?: string;
+  partialPaidAmount?: number | null;
   property?: { id: string; title: string };
   lease?: { id: string };
   isVirtual?: boolean;
@@ -189,7 +190,7 @@ export default function PaymentsPage() {
   };
 
   const openPartial = (payment: Payment) => {
-    setPartialAmount(parsePartialPaid(payment.notes) || undefined);
+    setPartialAmount((payment.partialPaidAmount ?? parsePartialPaid(payment.notes)) || undefined);
     setPartialReason(parsePartialReason(payment.notes));
     setPartialOpenId(payment.id);
   };
@@ -199,7 +200,8 @@ export default function PaymentsPage() {
     if (!amt || amt <= 0 || amt >= payment.amount) return;
     setSavingPartial(true);
     try {
-      const notes = encodePartial(amt, partialReason);
+      // הסכום נשמר בעמודה ייעודית (partialPaidAmount) - notes מכיל רק את הסיבה
+      // כטקסט חופשי, בלי קידוד. תאימות לאחור לרשומות ישנות ב-getReceivedAmount.
       if (isVirtual) {
         const res = await fetch("/api/payments", {
           method: "POST",
@@ -212,7 +214,8 @@ export default function PaymentsPage() {
             dueDate: payment.dueDate,
             paidDate: new Date().toISOString(),
             status: "partial",
-            notes,
+            partialPaidAmount: amt,
+            notes: partialReason,
           }),
         });
         if (res.ok) {
@@ -222,7 +225,12 @@ export default function PaymentsPage() {
         const res = await fetch(`/api/payments/${payment.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "partial", paidDate: new Date().toISOString(), notes }),
+          body: JSON.stringify({
+            status: "partial",
+            paidDate: new Date().toISOString(),
+            partialPaidAmount: amt,
+            notes: partialReason,
+          }),
         });
         if (res.ok) {
           invalidateAfterPaymentChange();
@@ -263,7 +271,7 @@ export default function PaymentsPage() {
   const renderCard = (p: Payment) => {
     const propTitle = p.property?.title ?? p.propertyTitle ?? "";
     const isVirtual = p.isVirtual === true;
-    const partialPaid = parsePartialPaid(p.notes);
+    const partialPaid = p.partialPaidAmount ?? parsePartialPaid(p.notes);
     const partialReasonText = parsePartialReason(p.notes);
     const remaining = partialPaid != null ? p.amount - partialPaid : null;
     const isPartialOpen = partialOpenId === p.id;

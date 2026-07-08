@@ -38,6 +38,7 @@ export async function GET() {
         .filter((pay) => pay.payment_type === "Rent")
         .reduce((s, pay) => s + getReceivedAmount({
           amount: pay.amount, status: pay.status, paidDate: pay.paid_date, notes: pay.notes,
+          partialPaidAmount: pay.partial_paid_amount,
         }), 0);
       const totalPending = (p.payments ?? []).filter((pay) => !pay.paid_date && pay.payment_type === "Rent").reduce((s, pay) => s + pay.amount, 0);
 
@@ -84,6 +85,7 @@ export async function GET() {
       if (!monthlyMap[key]) monthlyMap[key] = { income: 0, expenses: 0 };
       monthlyMap[key].income += getReceivedAmount({
         amount: pay.amount, status: pay.status, paidDate: pay.paid_date, notes: pay.notes,
+        partialPaidAmount: pay.partial_paid_amount,
       });
     }
     for (const exp of allExpenses) {

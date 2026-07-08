@@ -233,7 +233,7 @@ export default function EditLeasePage() {
       d.setDate(d.getDate() + 1);
       setOptionStart(d.toISOString().slice(0, 10));
     }
-  }, [hasOption, endDate]);
+  }, [hasOption, endDate, optionStart]);
 
   // Auto-calculate option end from option start + 1 year - 1 day (default), or from months
   useEffect(() => {
@@ -540,7 +540,7 @@ export default function EditLeasePage() {
                     <div className="mt-3 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-xs text-blue-800 space-y-1">
                       <div className="flex gap-4 flex-wrap">
                         <span>
-                          <span className="font-semibold">שכ"ד בסיס: </span>
+                          <span className="font-semibold">שכ&quot;ד בסיס: </span>
                           ₪{effectiveBase?.toLocaleString("he-IL") ?? "—"}
                         </span>
                         <span>
@@ -841,7 +841,7 @@ export default function EditLeasePage() {
                     <><dt className="text-gray-500">תאריך סיום</dt><dd className="font-medium">{extractedData.lease.endDate}</dd></>
                   )}
                   {extractedData.lease.monthlyRent && (
-                    <><dt className="text-gray-500">שכ"ד חודשי</dt><dd className="font-medium">₪{extractedData.lease.monthlyRent.toLocaleString()}</dd></>
+                    <><dt className="text-gray-500">שכ&quot;ד חודשי</dt><dd className="font-medium">₪{extractedData.lease.monthlyRent.toLocaleString()}</dd></>
                   )}
                   {extractedData.lease.depositAmount && (
                     <><dt className="text-gray-500">פיקדון</dt><dd className="font-medium">₪{extractedData.lease.depositAmount.toLocaleString()}</dd></>

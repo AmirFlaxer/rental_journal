@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, queryKeys } from "@/lib/api-client";
@@ -165,10 +165,9 @@ export default function LinkageComparisonPage() {
     });
   }, [leasesData]);
 
-  // בוחר חוזה ראשון כברירת מחדל פעם אחת כשהחוזים נטענים
-  useEffect(() => {
-    if (!selectedId && leases.length > 0) setSelectedId(leases[0].id);
-  }, [leases, selectedId]);
+  // חוזה נבחר בפועל: selectedId אם נבחר במפורש, אחרת החוזה הראשון (ברירת מחדל) -
+  // מחושב בזמן רנדר במקום setState בתוך useEffect, כדי למנוע רנדר מדורג מיותר.
+  const effectiveSelectedId = selectedId || leases[0]?.id || "";
 
   const refreshRatesMutation = useMutation({
     mutationFn: async () => {
@@ -187,7 +186,7 @@ export default function LinkageComparisonPage() {
     onError: () => setRefreshMsg("שגיאה בעדכון המדדים"),
   });
 
-  const lease = leases.find((l) => l.id === selectedId);
+  const lease = leases.find((l) => l.id === effectiveSelectedId);
 
   const history: HistoryRow[] = lease && selectedType
     ? buildHistory(lease, selectedType, frequency, rates)
@@ -205,7 +204,7 @@ export default function LinkageComparisonPage() {
             <span className="text-gray-600">השוואת מסלולי הצמדה</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">השוואת מסלולי הצמדה</h1>
-          <p className="text-sm text-gray-500 mt-0.5">בחר חוזה ומסלול — תראה כיצד היה משתנה שכ"ד לאורך הזמן</p>
+          <p className="text-sm text-gray-500 mt-0.5">בחר חוזה ומסלול — תראה כיצד היה משתנה שכ&quot;ד לאורך הזמן</p>
         </div>
       </div>
 
@@ -242,7 +241,7 @@ export default function LinkageComparisonPage() {
                     className="w-full flex items-center justify-between px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right"
                   >
                     {(() => {
-                      const l = leases.find((x) => x.id === selectedId);
+                      const l = leases.find((x) => x.id === effectiveSelectedId);
                       if (!l) return <span className="text-gray-400">בחר חוזה...</span>;
                       const today = new Date(); today.setHours(0,0,0,0);
                       const isActive = new Date(l.startDate) <= today && new Date(l.endDate) >= today;
@@ -276,7 +275,7 @@ export default function LinkageComparisonPage() {
                           : "ללא שוכר";
                         const startY = new Date(l.startDate).getFullYear();
                         const endY = new Date(l.endDate).getFullYear();
-                        const isSelected = l.id === selectedId;
+                        const isSelected = l.id === effectiveSelectedId;
                         return (
                           <button
                             key={l.id}
@@ -437,7 +436,7 @@ export default function LinkageComparisonPage() {
                               {selectedType === "usd" ? "שער דולר" : "מדד"}
                             </th>
                           )}
-                          <th className="px-4 py-3 text-right">שכ"ד מחושב</th>
+                          <th className="px-4 py-3 text-right">שכ&quot;ד מחושב</th>
                           <th className="px-4 py-3 text-right">שינוי מהבסיס</th>
                         </tr>
                       </thead>
@@ -482,7 +481,7 @@ export default function LinkageComparisonPage() {
                               rates
                             ).toLocaleString("he-IL")}
                           </td>
-                          <td className="px-4 py-3 text-xs text-gray-400">שכ"ד נוכחי</td>
+                          <td className="px-4 py-3 text-xs text-gray-400">שכ&quot;ד נוכחי</td>
                         </tr>
                       </tfoot>
                     </table>

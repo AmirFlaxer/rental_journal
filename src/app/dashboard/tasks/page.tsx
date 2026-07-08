@@ -72,8 +72,6 @@ const PRIORITY_HE: Record<string, string> = { low: "נמוכה", normal: "רגי
 const PRIORITY_BG: Record<string, string> = { low: "#f1f5f9", normal: "#e0e7ff", high: "#fee2e2" };
 const PRIORITY_FG: Record<string, string> = { low: "#475569", normal: "#4338ca", high: "#b91c1c" };
 
-const CATEGORIES = ["Insurance", "Rent Collection", "Lease Renewal", "Maintenance", "Tax", "Gas", "Water", "Electricity", "Municipal Tax", "Other"];
-
 interface Task {
   id: string;
   title: string;
@@ -188,8 +186,8 @@ export default function TasksPage() {
   const queryClient = useQueryClient();
   const tasksQuery = useQuery({ queryKey: queryKeys.tasks, queryFn: () => apiGet<Task[]>("/api/tasks") });
   const leasesQuery = useQuery({ queryKey: queryKeys.leases, queryFn: () => apiGet<Lease[]>("/api/leases") });
-  const dbTasks = tasksQuery.data ?? [];
-  const leases = leasesQuery.data ?? [];
+  const dbTasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
+  const leases = useMemo(() => leasesQuery.data ?? [], [leasesQuery.data]);
   const isPending = tasksQuery.isPending || leasesQuery.isPending;
   const failedQuery = [tasksQuery, leasesQuery].find((q) => q.isError);
   const [completingId, setCompletingId] = useState<string | null>(null);

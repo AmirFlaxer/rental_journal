@@ -184,9 +184,12 @@ create table if not exists payments (
   check_date      timestamptz,
   deposit_reminder boolean    not null default false,
   notes           text,
+  partial_paid_amount float,
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );
+-- הרץ ALTER אם הטבלה כבר קיימת:
+--   ALTER TABLE payments ADD COLUMN IF NOT EXISTS partial_paid_amount float;
 
 -- ----------------------------------------------------------------
 -- TASKS
@@ -267,6 +270,40 @@ create table if not exists index_rates (
 -- index_rates נגישה לכולם לקריאה (ציבורי), כתיבה רק דרך service role (cron)
 alter table index_rates enable row level security;
 create policy "index_rates_read" on index_rates for select using (true);
+
+-- ----------------------------------------------------------------
+-- SUBSCRIPTIONS (תשתית freemium - כבויה כרגע, ENFORCE_QUOTA=false)
+-- ----------------------------------------------------------------
+create table if not exists subscriptions (
+  id                       serial      primary key,
+  user_id                  uuid        not null unique references auth.users(id) on delete cascade,
+  plan                     text        not null default 'free',
+  status                   text        not null default 'active',
+  current_period_end       timestamptz,
+  trial_end                timestamptz,
+  provider                 text,
+  provider_customer_id     text,
+  provider_subscription_id text,
+  created_at               timestamptz not null default now(),
+  updated_at               timestamptz not null default now()
+);
+alter table subscriptions enable row level security;
+create policy "subscriptions_read_own" on subscriptions for select using (user_id = auth.uid());
+
+-- ----------------------------------------------------------------
+-- FEEDBACK (פניות משתמשים מטופס האודות)
+-- ----------------------------------------------------------------
+create table if not exists feedback (
+  id         serial      primary key,
+  user_id    uuid        not null references auth.users(id) on delete cascade,
+  type       text        not null default 'other',
+  message    text        not null,
+  email      text,
+  created_at timestamptz not null default now()
+);
+alter table feedback enable row level security;
+create policy "feedback_insert_own" on feedback for insert with check (user_id = auth.uid());
+create policy "feedback_read_own" on feedback for select using (user_id = auth.uid());
 
 -- ----------------------------------------------------------------
 -- ROW LEVEL SECURITY (RLS)

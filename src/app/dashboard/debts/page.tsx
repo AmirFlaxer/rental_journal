@@ -16,6 +16,7 @@ interface Payment {
   paidDate?: string;
   status: string;
   notes?: string;
+  partialPaidAmount?: number | null;
   property?: { id: string; title: string };
   lease?: { id: string };
 }
@@ -37,6 +38,7 @@ interface DebtItem {
   debtAmount: number;
   status: string;
   notes?: string;
+  partialPaidAmount?: number | null;
   propertyId?: string;
   propertyTitle: string;
   isVirtual: boolean;
@@ -59,6 +61,7 @@ function buildDebtList(payments: Payment[], leases: Lease[]): DebtItem[] {
       debtAmount: getDebtAmount(p),
       status: p.status,
       notes: p.notes,
+      partialPaidAmount: p.partialPaidAmount,
       propertyTitle: p.property?.title ?? "",
       propertyId: p.property?.id,
       isVirtual: false,
@@ -196,7 +199,7 @@ export default function DebtsPage() {
               </div>
               <div className="divide-y divide-gray-100">
                 {group.items.map((d) => {
-                  const partialPaid = parsePartialPaid(d.notes);
+                  const partialPaid = d.partialPaidAmount ?? parsePartialPaid(d.notes);
                   const reason = parsePartialReason(d.notes);
                   return (
                     <div key={d.id} className="flex items-center gap-4 px-5 py-3">

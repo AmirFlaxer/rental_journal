@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
     try {
       const data = JSON.parse(text);
       // Response may be array of results or direct object
-      const results = Array.isArray(data) ? data : [data];
-      const first = results.find((r: any) => r.zip || r.Zip || r.zipcode || r.ZIPCODE);
+      const results: Record<string, unknown>[] = Array.isArray(data) ? data : [data];
+      const first = results.find((r) => r.zip || r.Zip || r.zipcode || r.ZIPCODE);
       const zip =
         first?.zip || first?.Zip || first?.zipcode || first?.ZIPCODE || null;
 
@@ -53,8 +53,8 @@ export async function GET(request: NextRequest) {
       }
       return NextResponse.json({ zipCode: null, message: "מיקוד לא נמצא" });
     }
-  } catch (error: any) {
-    if (error?.name === "TimeoutError") {
+  } catch (error) {
+    if (error instanceof Error && error.name === "TimeoutError") {
       return NextResponse.json(
         { error: "פג זמן החיבור לדואר ישראל" },
         { status: 504 }

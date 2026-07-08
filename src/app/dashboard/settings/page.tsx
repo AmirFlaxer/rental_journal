@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type LLMProvider = "gemini" | "anthropic" | "ollama";
@@ -421,10 +422,10 @@ export default function SettingsPage() {
         <p className="text-xs text-gray-400">
           בחרת במסלול אחר (מסלול רגיל / 10% בעל הכנסות)? כבה את האפשרות הזו ונהל את המס בעצמך.
         </p>
-        <a href="/dashboard/reports/tax"
+        <Link href="/dashboard/reports/tax"
           className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-xl text-sm font-semibold hover:bg-orange-100 transition-colors">
           📋 פתח דוח מס שנתי
-        </a>
+        </Link>
         {taxError && <p className="text-sm text-red-600">{taxError}</p>}
         {taxSuccess && <p className="text-sm text-green-600">{taxSuccess}</p>}
       </div>
@@ -488,7 +489,7 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-gray-50">
             <div>
               <p className="text-sm font-semibold text-gray-800">ניקוי תזכורות שק יתומות / כפולות</p>
-              <p className="text-xs text-gray-500 mt-0.5">מוחק משימות "הפקדת שק" שהחוזה שלהן נמחק או שנוצרו כפולות בריצות ישנות</p>
+              <p className="text-xs text-gray-500 mt-0.5">מוחק משימות &quot;הפקדת שק&quot; שהחוזה שלהן נמחק או שנוצרו כפולות בריצות ישנות</p>
             </div>
             <button
               type="button"

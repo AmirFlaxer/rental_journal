@@ -219,7 +219,7 @@ export default function PropertyReportPage() {
                     </div>
                   ))}
                 <div className="pt-2 border-t border-gray-100 flex justify-between text-sm font-bold">
-                  <span>סה"כ</span>
+                  <span>סה&quot;כ</span>
                   <span className="text-red-600">{fmt(report.totalExpenses)}</span>
                 </div>
               </div>
@@ -315,7 +315,6 @@ export default function PropertyReportPage() {
                   const isPaid = match?.status === "paid";
                   const isPartial = match?.status === "partial";
                   const isFuture = due > today;
-                  const isOverdue = !isPaid && !isPartial && !isFuture;
                   return (
                     <div key={key} className={`flex flex-col items-center px-3 py-2 rounded-lg border text-xs font-semibold min-w-[68px] ${
                       isPaid ? "bg-green-50 border-green-300 text-green-700" :

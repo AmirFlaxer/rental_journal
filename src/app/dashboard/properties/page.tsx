@@ -124,8 +124,8 @@ export default function PropertiesPage() {
                       <p className="text-sm text-gray-400 truncate">{p.address}, {p.city}</p>
                       <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
                         <span>{TYPE_HE[p.propertyType]}</span>
-                        {p.bedrooms && <span>· {p.bedrooms} חד'</span>}
-                        {p.squareMeters && <span>· {p.squareMeters} מ"ר</span>}
+                        {p.bedrooms && <span>· {p.bedrooms} חד&apos;</span>}
+                        {p.squareMeters && <span>· {p.squareMeters} מ&quot;ר</span>}
                       </div>
                     </div>
                   </div>

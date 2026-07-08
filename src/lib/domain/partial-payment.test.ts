@@ -37,6 +37,26 @@ describe("getReceivedAmount", () => {
     expect(getReceivedAmount({ amount: 1000, status: "partial", notes: "משהו לא מקודד" })).toBe(0);
   });
 
+  it("partial עם partialPaidAmount - מעדיף את העמודה על פני notes", () => {
+    const notes = encodePartial(400, "תשלום חלקי");
+    expect(
+      getReceivedAmount({ amount: 1000, status: "partial", notes, partialPaidAmount: 700 })
+    ).toBe(700);
+  });
+
+  it("partial עם partialPaidAmount ו-notes רגיל (לא מקודד) - העמודה מספיקה", () => {
+    expect(
+      getReceivedAmount({ amount: 1000, status: "partial", notes: "סיבה חופשית", partialPaidAmount: 250 })
+    ).toBe(250);
+  });
+
+  it("partial עם partialPaidAmount=null (רשומה ישנה) - נופל לפענוח notes", () => {
+    const notes = encodePartial(400, "תשלום חלקי");
+    expect(
+      getReceivedAmount({ amount: 1000, status: "partial", notes, partialPaidAmount: null })
+    ).toBe(400);
+  });
+
   it("pending / overdue - מחזירים 0", () => {
     expect(getReceivedAmount({ amount: 1000, status: "pending" })).toBe(0);
     expect(getReceivedAmount({ amount: 1000, status: "overdue" })).toBe(0);
@@ -62,5 +82,10 @@ describe("getDebtAmount", () => {
   it("לא-שלילי - אם הסכום שהתקבל (לפי הקידוד) גדול מ-amount, החוב נשאר 0", () => {
     const notes = encodePartial(1200, "תשלום ביתר");
     expect(getDebtAmount({ amount: 1000, status: "partial", notes })).toBe(0);
+  });
+
+  it("מעדיף את partialPaidAmount על פני הקידוד ב-notes", () => {
+    const notes = encodePartial(400, "תשלום חלקי");
+    expect(getDebtAmount({ amount: 1000, status: "partial", notes, partialPaidAmount: 600 })).toBe(400);
   });
 });

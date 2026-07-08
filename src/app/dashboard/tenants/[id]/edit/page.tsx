@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import Link from "next/link";
 import { PhoneInput } from "@/components/phone-input";
 import { formatPhone } from "@/lib/phone";
 

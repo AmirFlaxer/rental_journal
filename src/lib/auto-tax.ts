@@ -17,6 +17,7 @@ export interface AutoTaxPaymentState {
   status: string;
   paid_date?: string | null;
   notes?: string | null;
+  partial_paid_amount?: number | null;
 }
 
 /**
@@ -40,6 +41,7 @@ export async function reconcileAutoTax(
           status: payment.status,
           paidDate: payment.paid_date,
           notes: payment.notes,
+          partialPaidAmount: payment.partial_paid_amount,
         })
       : 0;
 
@@ -121,7 +123,7 @@ export async function backfillAutoTaxForYear(
 ): Promise<number> {
   const { data: payments } = await supabase
     .from("payments")
-    .select("id, property_id, amount, status, paid_date, notes")
+    .select("id, property_id, amount, status, paid_date, notes, partial_paid_amount")
     .eq("user_id", userId)
     .eq("payment_type", "Rent")
     .not("paid_date", "is", null);
@@ -142,6 +144,7 @@ export async function backfillAutoTaxForYear(
         status: p.status,
         paidDate: p.paid_date,
         notes: p.notes,
+        partialPaidAmount: p.partial_paid_amount,
       });
       if (received <= 0) return null;
       return {

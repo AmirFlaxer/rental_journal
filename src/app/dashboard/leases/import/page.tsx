@@ -643,7 +643,7 @@ export default function ImportLeasePage() {
             <div className="p-4 rounded-xl text-sm" style={{ background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--text-1)" }}>
               <div className="font-bold mb-1" style={{ color: "var(--accent)" }}>📋 זוהה נספח הארכת שכירות</div>
               <p>המסמך זוהה כנספח הארכה. תאריכי ההארכה מולאו אוטומטית בסעיף <strong>אופציה / הארכה</strong> — אנא בדוק ואשר את הנתונים.</p>
-              <p className="mt-1" style={{ color: "var(--text-2)" }}>תאריכי "תחילה" ו"סיום" למטה הם תאריכי החוזה המקורי — עדכן אותם אם הם לא מולאו נכון.</p>
+              <p className="mt-1" style={{ color: "var(--text-2)" }}>תאריכי &quot;תחילה&quot; ו&quot;סיום&quot; למטה הם תאריכי החוזה המקורי — עדכן אותם אם הם לא מולאו נכון.</p>
             </div>
           )}
           {saveError && (

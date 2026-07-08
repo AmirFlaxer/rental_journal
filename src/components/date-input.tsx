@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, useRef } from "react";
+import { useId, useState } from "react";
 
 interface DateInputProps {
   value?: string; // YYYY-MM-DD
@@ -34,11 +34,14 @@ export function DateInput({ value, onChange, required, min, className, id }: Dat
   // Local state so partial input (e.g. day only) isn't reset while typing
   const [local, setLocal] = useState(() => parseDate(value));
 
-  // Sync external value → local during render (getDerivedStateFromProps pattern).
-  // Avoids setState-in-effect and the extra render cycle it causes.
-  const prevValue = useRef(value);
-  if (prevValue.current !== value) {
-    prevValue.current = value;
+  // סנכרון value חיצוני ל-local תוך כדי render (הדפוס המתועד ב-React
+  // "adjusting state when a prop changes" - עם useState ולא ref, כי עדכון
+  // ref בזמן render אסור בכללי react-hooks/refs; עדכון state בזמן render
+  // כאן מותר ותקני, כי React בולם את הרנדר הנוסף לפני הציור).
+  // מונע setState-in-effect ואת מחזור הרנדר הנוסף שהוא היה גורם לו.
+  const [prevValue, setPrevValue] = useState(value);
+  if (prevValue !== value) {
+    setPrevValue(value);
     const iso = toIso(local.d, local.m, local.y);
     if (iso !== (value || "")) {
       setLocal(parseDate(value));

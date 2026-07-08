@@ -165,6 +165,9 @@ export interface Payment {
   method?: string | null;
   referenceNum?: string | null;
   notes?: string | null;
+  // תשלום חלקי: הסכום שהתקבל בפועל. undefined/null ברשומות ישנות - נופל
+  // חזרה לפענוח הקידוד ב-notes דרך getReceivedAmount/getDebtAmount.
+  partialPaidAmount?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -319,6 +322,7 @@ export interface PaymentRow {
   method?: string | null;
   reference_num?: string | null;
   notes?: string | null;
+  partial_paid_amount?: number | null;
   created_at: string;
   updated_at: string;
 }
