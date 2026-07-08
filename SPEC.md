@@ -2,6 +2,17 @@
 
 > מצב נוכחי, החלטות, והצעד הבא. מתעדכן בכל session.
 
+## גל שיפורים שני (2026-07-08) - חוב-טכני, freemium, משוב, לינט
+
+- **תשלום חלקי כעמודת DB**: עמודת `payments.partial_paid_amount` אמיתית במקום הקידוד `__partial__` ב-notes. getReceivedAmount מעדיף אותה ונופל לפענוח notes לרשומות ישנות (backfill במיגרציה, notes לא נמחק). רשומות חדשות: הסיבה ב-notes כטקסט נקי, הסכום בעמודה.
+- **תשתית freemium (כבויה)**: טבלת `subscriptions` + RLS; `src/lib/plan.ts` (getPlan, isOverPropertyQuota, `ENFORCE_QUOTA=false`); נקודת אכיפת מכסה ב-POST /api/properties - no-op עד שיופעל. **כשמפעילים**: לשנות ENFORCE_QUOTA ל-true.
+- **טופס משוב ל-DB**: טבלת `feedback` + RLS; POST /api/feedback; טופס האודות שולח ל-DB (best-effort) + fallback ל-mailto.
+- **לינט חוסם**: כל 38 בעיות הלינט תוקנו; הוסר `continue-on-error` - כשל לינט חוסם פריסה. date-input עבר מ-ref-during-render ל-setState-during-render.
+- **פריסה אוטומטית פעילה**: GitHub Actions (secrets מוגדרים) - כל push ל-main בודק ופורס. אין צורך ב-vercel deploy ידני.
+- **3 מיגרציות חדשות טרם הורצו בפרודקשן** (ראו supabase/migrations/README.md): payments_partial_amount, subscriptions, feedback.
+
+**נדחה מפורשות (לסשן ייעודי):** Server Components לדוחות (מנוגד ל-TanStack שנעשה), supabase gen types (דורש token), פיצ'רים גדולים (חשבונות שירות, שחזור תזכורות, חוברת הסברים).
+
 ## שדרוג רוחבי (2026-07-08) - ביקורת עומק + גל שיפורים
 
 ביקורת רב-סוכנית (אבטחה/נכונות/איכות/UX/ביצועים + רוויזיה ארכיטקטונית) ויישום מלא של גל 1+2:
