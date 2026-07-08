@@ -4,10 +4,14 @@
 
 export type EffectiveLeaseStatus = "active" | "future" | "expired" | "ended";
 
+// start_date/end_date חובה (required) בכוונה - בסכימה הם NOT NULL, וקורא שטרם
+// הומר ל-snake_case (מעביר startDate/endDate) ייכשל בקומפילציה במקום להתדרדר
+// בשקט ל"הכל active". status נשאר string רחב - הקוד משווה גם "ended"/"paused"
+// ההיסטוריים שאינם ב-enum LeaseStatus המצומצם.
 interface LeaseForStatus {
   status: string;
-  start_date?: string | null;
-  end_date?: string | null;
+  start_date: string;
+  end_date: string;
 }
 
 export function effectiveLeaseStatus(lease: LeaseForStatus): EffectiveLeaseStatus {

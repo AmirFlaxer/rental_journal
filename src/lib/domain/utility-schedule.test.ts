@@ -161,7 +161,7 @@ describe("generateVirtualUtilityTasks", () => {
 
   it("dedup - task קיים בחודש אחר לא חוסם", () => {
     const dbTasks: DbTaskLike[] = [
-      { category: "Water", related_entity_type: "property_utility", related_entity_id: "u1", due_date: "2026-06-01" },
+      { category: "Water", related_entity_type: "property_utility", related_entity_id: "u1", due_date: "2026-06-01", completed_at: null },
     ];
     const tasks = generateVirtualUtilityTasks([makeUtility({ id: "u1" })], dbTasks, new Date());
     expect(tasks).toHaveLength(1);

@@ -4,6 +4,7 @@
 // בכל טעינה, וסימון "בוצע" יוצר שורת tasks אמיתית שחוסמת את התקופה (dedup).
 
 import { localMonthKey } from "./dates";
+import type { Task } from "@/types/database";
 
 export type UtilityType =
   | "water"
@@ -31,14 +32,10 @@ export interface PropertyUtilityLike {
 }
 
 /** תזכורת קיימת ב-DB (אמיתית) - לצורך dedup מול תזכורות וירטואליות */
-export interface DbTaskLike {
-  category: string;
-  related_entity_type?: string;
-  related_entity_id?: string;
-  /** YYYY-MM-DD */
-  due_date: string;
-  completed_at?: string;
-}
+export type DbTaskLike = Pick<
+  Task,
+  "category" | "related_entity_type" | "related_entity_id" | "due_date" | "completed_at"
+>;
 
 /** תואם ל-interface Task בדף התזכורות (src/app/dashboard/tasks/page.tsx) */
 export interface VirtualTask {
