@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
-import { camelKeys } from "@/lib/supabase/case";
 
 export async function GET(
   _request: NextRequest,
@@ -30,7 +29,7 @@ export async function GET(
     .single();
 
   if (error || !data) return NextResponse.json({ error: "הנכס לא נמצא" }, { status: 404 });
-  return NextResponse.json(camelKeys(data));
+  return NextResponse.json(data);
 }
 
 export async function DELETE(
