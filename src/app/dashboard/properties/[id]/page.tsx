@@ -71,18 +71,18 @@ interface Property {
   description?: string;
   address: string;
   city: string;
-  zipCode?: string;
-  propertyType: string;
+  zip_code?: string;
+  property_type: string;
   bedrooms?: number;
   bathrooms?: number;
-  squareMeters?: number;
+  square_meters?: number;
   floor?: number;
-  apartmentNumber?: string;
-  numBalconies?: number;
-  numParkingSpots?: number;
-  purchasePrice?: number;
-  createdAt: string;
-  leases: (Lease & { tenant?: { firstName: string; lastName: string }; leaseDocuments?: LeaseDocument[] })[];
+  apartment_number?: string;
+  num_balconies?: number;
+  num_parking_spots?: number;
+  purchase_price?: number;
+  created_at: string;
+  leases: (Lease & { tenant?: { first_name: string; last_name: string }; lease_documents?: LeaseDocument[] })[];
   expenses: Expense[];
   payments: Payment[];
 }
@@ -122,7 +122,7 @@ export default function PropertyDetailPage() {
   const [activateLoading, setActivateLoading] = useState(false);
 
   // Early termination modal
-  const [terminateLease, setTerminateLease] = useState<(Lease & { tenant?: { firstName: string; lastName: string } }) | null>(null);
+  const [terminateLease, setTerminateLease] = useState<(Lease & { tenant?: { first_name: string; last_name: string } }) | null>(null);
   const [termBy, setTermBy] = useState<"tenant" | "landlord">("tenant");
   const [termDate, setTermDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [termReason, setTermReason] = useState("");
@@ -191,7 +191,7 @@ export default function PropertyDetailPage() {
     const res = await fetch(`/api/leases/${terminateLease.id}/terminate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestedBy: termBy, requestDate: termDate, reason: termReason }),
+      body: JSON.stringify({ requested_by: termBy, request_date: termDate, reason: termReason }),
     });
     const d = await res.json();
     setTermLoading(false);
@@ -228,17 +228,17 @@ export default function PropertyDetailPage() {
   // Leases with urgency indicators
   const alertLeases = property.leases.filter((l) => {
     if (!isLeaseCurrentlyActive(l)) return false;
-    const days = daysUntil(l.endDate);
+    const days = daysUntil(l.end_date);
     return days <= 90;
   });
 
   const activeLeases = property.leases.filter((l) => isLeaseCurrentlyActive(l));
-  const monthlyRent = activeLeases.reduce((s, l) => s + (l.monthlyRent || 0), 0);
+  const monthlyRent = activeLeases.reduce((s, l) => s + (l.monthly_rent || 0), 0);
   const totalExpenses = property.expenses.reduce((s, e) => s + (e.amount || 0), 0);
-  const typeHe = PROPERTY_TYPE_HE[property.propertyType] ?? property.propertyType;
+  const typeHe = PROPERTY_TYPE_HE[property.property_type] ?? property.property_type;
 
   // חשבונות שירות של הנכס הנוכחי בלבד (ה-query מחזיר את כל החשבונות של המשתמש)
-  const propertyUtilities = (utilitiesQuery.data ?? []).filter((u) => u.propertyId === property.id);
+  const propertyUtilities = (utilitiesQuery.data ?? []).filter((u) => u.property_id === property.id);
 
   const showUtilityListError = (msg: string) => {
     if (utilityListErrorTimer.current) clearTimeout(utilityListErrorTimer.current);
@@ -263,9 +263,9 @@ export default function PropertyDetailPage() {
     setUtilityForm({
       id: u.id,
       type: u.type,
-      customLabel: u.customLabel ?? "",
+      customLabel: u.custom_label ?? "",
       frequency: u.frequency,
-      anchorMonth: u.anchorMonth ?? new Date().getMonth() + 1,
+      anchorMonth: u.anchor_month ?? new Date().getMonth() + 1,
       responsibility: u.responsibility,
     });
   };
@@ -277,11 +277,11 @@ export default function PropertyDetailPage() {
     setUtilitySaving(true);
     try {
       const payload = {
-        propertyId: property.id,
+        property_id: property.id,
         type: utilityForm.type,
-        customLabel: utilityForm.type === "other" ? (utilityForm.customLabel.trim() || null) : null,
+        custom_label: utilityForm.type === "other" ? (utilityForm.customLabel.trim() || null) : null,
         frequency: utilityForm.frequency,
-        anchorMonth: utilityForm.frequency === "bimonthly" ? utilityForm.anchorMonth : null,
+        anchor_month: utilityForm.frequency === "bimonthly" ? utilityForm.anchorMonth : null,
         responsibility: utilityForm.responsibility,
       };
       const res = await fetch(
@@ -334,9 +334,9 @@ export default function PropertyDetailPage() {
               if (!l) return null;
               return (
                 <ul className="text-sm text-gray-700 mb-6 space-y-1 bg-gray-50 rounded-lg p-3">
-                  <li>תאריך התחלה: <strong>{new Date(l.optionStart ?? l.endDate).toLocaleDateString("he-IL")}</strong></li>
-                  <li>תאריך סיום: <strong>{l.optionEnd ? new Date(l.optionEnd).toLocaleDateString("he-IL") : "-"}</strong></li>
-                  {l.optionRent && <li>שכ&quot;ד חדש: <strong>₪{Number(l.optionRent).toLocaleString()}</strong></li>}
+                  <li>תאריך התחלה: <strong>{new Date(l.option_start ?? l.end_date).toLocaleDateString("he-IL")}</strong></li>
+                  <li>תאריך סיום: <strong>{l.option_end ? new Date(l.option_end).toLocaleDateString("he-IL") : "-"}</strong></li>
+                  {l.option_rent && <li>שכ&quot;ד חדש: <strong>₪{Number(l.option_rent).toLocaleString()}</strong></li>}
                 </ul>
               );
             })()}
@@ -376,7 +376,7 @@ export default function PropertyDetailPage() {
           <div className="bg-white rounded-xl shadow-xl p-8 max-w-sm w-full mx-4">
             <h3 className="text-xl font-bold text-gray-900 mb-1">סיום מוקדם</h3>
             <p className="text-gray-500 text-sm mb-4">
-              {terminateLease.tenant?.firstName} {terminateLease.tenant?.lastName}
+              {terminateLease.tenant?.first_name} {terminateLease.tenant?.last_name}
             </p>
             <div className="space-y-4">
               <div>
@@ -392,7 +392,7 @@ export default function PropertyDetailPage() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  תקופת הודעה: {termBy === "tenant" ? (terminateLease.tenantNoticeMonths ?? 1) : (terminateLease.landlordNoticeMonths ?? 1)} חודשים
+                  תקופת הודעה: {termBy === "tenant" ? (terminateLease.tenant_notice_months ?? 1) : (terminateLease.landlord_notice_months ?? 1)} חודשים
                 </p>
               </div>
               <div>
@@ -558,7 +558,7 @@ export default function PropertyDetailPage() {
                 <span className="text-gray-600 text-sm">נכסים</span>
               </div>
               <h1 className="text-2xl font-bold text-gray-900">{property.title}</h1>
-              <p className="text-gray-500 mt-1">{property.address}, {property.city}{property.zipCode ? ` ${property.zipCode}` : ""}</p>
+              <p className="text-gray-500 mt-1">{property.address}, {property.city}{property.zip_code ? ` ${property.zip_code}` : ""}</p>
             </div>
             <div className="flex gap-2 flex-shrink-0">
               <Link
@@ -584,16 +584,16 @@ export default function PropertyDetailPage() {
         {alertLeases.length > 0 && (
           <div className="space-y-2">
             {alertLeases.map((l) => {
-              const days = daysUntil(l.endDate);
+              const days = daysUntil(l.end_date);
               const isExpired = days <= 0;
-              const canActivate = l.hasOption && !l.optionActivated && l.optionEnd;
+              const canActivate = l.has_option && !l.option_activated && l.option_end;
               return (
                 <div key={l.id} className={`flex items-center justify-between px-5 py-3 rounded-xl border text-sm font-semibold ${
                   isExpired ? "bg-red-50 border-red-300 text-red-800" : days <= 30 ? "bg-orange-50 border-orange-300 text-orange-800" : "bg-yellow-50 border-yellow-300 text-yellow-800"
                 }`}>
                   <span>
                     {isExpired ? "⛔" : days <= 30 ? "🔴" : "🟡"}&nbsp;
-                    חוזה {l.tenant?.firstName} {l.tenant?.lastName} —&nbsp;
+                    חוזה {l.tenant?.first_name} {l.tenant?.last_name} —&nbsp;
                     {isExpired ? "פג תוקף לפני " + Math.abs(days) + " ימים" : `מסתיים בעוד ${days} ימים`}
                   </span>
                   <div className="flex gap-2">
@@ -603,7 +603,7 @@ export default function PropertyDetailPage() {
                         הפעל אופציה
                       </button>
                     )}
-                    {!l.earlyTermProtection && (
+                    {!l.early_term_protection && (
                       <button onClick={() => { setTerminateLease(l); setTermBy("tenant"); setTermDate(new Date().toISOString().slice(0,10)); setTermReason(""); }}
                         className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs font-bold">
                         סיום מוקדם
@@ -661,10 +661,10 @@ export default function PropertyDetailPage() {
                   <span className="font-semibold text-gray-800">{property.floor}</span>
                 </div>
               )}
-              {property.apartmentNumber && (
+              {property.apartment_number && (
                 <div>
                   <span className="text-gray-500">דירה מס&apos;: </span>
-                  <span className="font-semibold text-gray-800">{property.apartmentNumber}</span>
+                  <span className="font-semibold text-gray-800">{property.apartment_number}</span>
                 </div>
               )}
               {property.bedrooms != null && (
@@ -679,34 +679,34 @@ export default function PropertyDetailPage() {
                   <span className="font-semibold text-gray-800">{property.bathrooms}</span>
                 </div>
               )}
-              {property.squareMeters != null && (
+              {property.square_meters != null && (
                 <div>
                   <span className="text-gray-500">שטח: </span>
-                  <span className="font-semibold text-gray-800">{property.squareMeters} מ&quot;ר</span>
+                  <span className="font-semibold text-gray-800">{property.square_meters} מ&quot;ר</span>
                 </div>
               )}
-              {property.numBalconies != null && (
+              {property.num_balconies != null && (
                 <div>
                   <span className="text-gray-500">מרפסות: </span>
-                  <span className="font-semibold text-gray-800">{property.numBalconies}</span>
+                  <span className="font-semibold text-gray-800">{property.num_balconies}</span>
                 </div>
               )}
-              {property.numParkingSpots != null && (
+              {property.num_parking_spots != null && (
                 <div>
                   <span className="text-gray-500">חניות: </span>
-                  <span className="font-semibold text-gray-800">{property.numParkingSpots}</span>
+                  <span className="font-semibold text-gray-800">{property.num_parking_spots}</span>
                 </div>
               )}
-              {property.purchasePrice != null && (
+              {property.purchase_price != null && (
                 <div className="col-span-2">
                   <span className="text-gray-500">מחיר רכישה: </span>
-                  <span className="font-semibold text-gray-800">₪{property.purchasePrice.toLocaleString()}</span>
+                  <span className="font-semibold text-gray-800">₪{property.purchase_price.toLocaleString()}</span>
                 </div>
               )}
-              {property.zipCode && (
+              {property.zip_code && (
                 <div>
                   <span className="text-gray-500">מיקוד: </span>
-                  <span className="font-semibold text-gray-800">{property.zipCode}</span>
+                  <span className="font-semibold text-gray-800">{property.zip_code}</span>
                 </div>
               )}
             </div>
@@ -808,16 +808,16 @@ export default function PropertyDetailPage() {
                       onClick={() => router.push(`/dashboard/leases/${lease.id}/edit`)}
                       className="hover:bg-blue-50 cursor-pointer transition-colors">
                       <td className="px-6 py-4 font-medium text-gray-900">
-                        {lease.tenant?.firstName} {lease.tenant?.lastName}
+                        {lease.tenant?.first_name} {lease.tenant?.last_name}
                       </td>
                       <td className="px-6 py-4 text-gray-600">
-                        {new Date(lease.startDate).toLocaleDateString("he-IL")}
+                        {new Date(lease.start_date).toLocaleDateString("he-IL")}
                       </td>
                       <td className="px-6 py-4 text-gray-600">
-                        {new Date(lease.endDate).toLocaleDateString("he-IL")}
+                        {new Date(lease.end_date).toLocaleDateString("he-IL")}
                       </td>
                       <td className="px-6 py-4 font-semibold text-gray-900">
-                        ₪{Number(lease.monthlyRent).toLocaleString()}
+                        ₪{Number(lease.monthly_rent).toLocaleString()}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -828,21 +828,21 @@ export default function PropertyDetailPage() {
                             : "bg-yellow-100 text-yellow-700"
                         }`}>
                           {LEASE_STATUS_HE[lease.status] ?? lease.status}
-                          {lease.hasOption && " | אופציה"}
+                          {lease.has_option && " | אופציה"}
                         </span>
                       </td>
                       <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                        {(lease.leaseDocuments?.length ?? 0) > 0 ? (
+                        {(lease.lease_documents?.length ?? 0) > 0 ? (
                           <div className="flex flex-col gap-1">
-                            {lease.leaseDocuments?.map((doc) => (
+                            {lease.lease_documents?.map((doc) => (
                               <a
                                 key={doc.id}
                                 href={`/api/documents/${doc.id}`}
                                 className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-medium"
-                                title={doc.fileName}
+                                title={doc.file_name}
                               >
                                 <span>📎</span>
-                                <span className="truncate max-w-[120px]">{doc.fileName}</span>
+                                <span className="truncate max-w-[120px]">{doc.file_name}</span>
                               </a>
                             ))}
                           </div>
@@ -852,13 +852,13 @@ export default function PropertyDetailPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2 flex-wrap items-center">
-                          {lease.hasOption && !lease.optionActivated && lease.optionEnd && isLeaseCurrentlyActive(lease) && (
+                          {lease.has_option && !lease.option_activated && lease.option_end && isLeaseCurrentlyActive(lease) && (
                             <button onClick={(e) => { e.stopPropagation(); setActivatingLeaseId(lease.id); }}
                               className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold hover:bg-blue-200">
                               🔄 אופציה
                             </button>
                           )}
-                          {!lease.earlyTermProtection && isLeaseCurrentlyActive(lease) && (
+                          {!lease.early_term_protection && isLeaseCurrentlyActive(lease) && (
                             <button onClick={(e) => { e.stopPropagation(); setTerminateLease(lease); setTermBy("tenant"); setTermDate(new Date().toISOString().slice(0,10)); setTermReason(""); }}
                               className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-semibold hover:bg-red-200">
                               🚪 סיום
@@ -902,7 +902,7 @@ export default function PropertyDetailPage() {
           ) : (
             <div className="divide-y divide-gray-100">
               {propertyUtilities.map((u) => {
-                const label = utilityTypeLabel(u.type, u.customLabel);
+                const label = utilityTypeLabel(u.type, u.custom_label);
                 const isConfirmingDelete = confirmDeleteUtilityId === u.id;
                 return (
                   <div key={u.id} className="flex items-center justify-between px-6 py-3 gap-3 flex-wrap">
@@ -912,7 +912,7 @@ export default function PropertyDetailPage() {
                       </span>
                       <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-semibold">
                         {UTILITY_FREQUENCY_HE[u.frequency]}
-                        {u.frequency === "bimonthly" && u.anchorMonth ? ` · עוגן ${UTILITY_MONTH_HE[u.anchorMonth - 1]}` : ""}
+                        {u.frequency === "bimonthly" && u.anchor_month ? ` · עוגן ${UTILITY_MONTH_HE[u.anchor_month - 1]}` : ""}
                       </span>
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">
                         {UTILITY_RESPONSIBILITY_HE[u.responsibility] ?? u.responsibility}
@@ -943,7 +943,7 @@ export default function PropertyDetailPage() {
 
         {/* Check payment reminders */}
         {(() => {
-          const checkLeases = activeLeases.filter((l) => ["checks", "check"].includes((l.paymentMethod ?? "").toLowerCase()));
+          const checkLeases = activeLeases.filter((l) => ["checks", "check"].includes((l.payment_method ?? "").toLowerCase()));
           if (!checkLeases.length) return null;
 
           const today = new Date();
@@ -960,14 +960,14 @@ export default function PropertyDetailPage() {
             // בלי הסטת יום/חודש מ-toISOString) - במקום לבנות ידנית מ-Date מקומי
             listRentMonths(lease).forEach((slot) => {
               if (!windowKeys.has(slot.monthKey)) return;
-              const { year, month, day } = isoDateParts(slot.dueDate);
+              const { year, month, day } = isoDateParts(slot.due_date);
               const due = new Date(year, month - 1, day);
               const monthLabel = due.toLocaleDateString("he-IL", { month: "long", year: "numeric" });
               const match = property.payments.find((p) =>
-                p.leaseId === lease.id &&
-                p.paymentType === "Rent" &&
-                p.dueDate &&
-                isoMonthKey(p.dueDate) === slot.monthKey
+                p.lease_id === lease.id &&
+                p.payment_type === "Rent" &&
+                p.due_date &&
+                isoMonthKey(p.due_date) === slot.monthKey
               );
               // תשלום חלקי הוא מצב שלישי - לא "התקבל"
               const status: "paid" | "partial" | "unpaid" =
@@ -990,11 +990,11 @@ export default function PropertyDetailPage() {
                     "bg-white border-amber-200 text-amber-800"
                   }`}>
                     <div>
-                      <span className="font-semibold">{r.lease.tenant?.firstName} {r.lease.tenant?.lastName}</span>
+                      <span className="font-semibold">{r.lease.tenant?.first_name} {r.lease.tenant?.last_name}</span>
                       <span className="mx-2 text-gray-400">·</span>
                       <span>{r.month}</span>
                       <span className="mx-2 text-gray-400">·</span>
-                      <span>₪{Number(r.lease.monthlyRent).toLocaleString()}</span>
+                      <span>₪{Number(r.lease.monthly_rent).toLocaleString()}</span>
                     </div>
                     <span className="font-bold text-xs px-2 py-1 rounded-full">
                       {r.status === "paid" ? "✅ התקבל" : r.status === "partial" ? "🔶 חלקי" : r.dueDate <= today ? "⚠️ לא התקבל" : "📅 עתידי"}
@@ -1124,10 +1124,10 @@ export default function PropertyDetailPage() {
                 <tbody className="divide-y divide-gray-100">
                   {property.payments.map((payment) => (
                     <tr key={payment.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium">{PAYMENT_TYPE_HE[payment.paymentType] ?? payment.paymentType}</td>
+                      <td className="px-4 py-3 font-medium">{PAYMENT_TYPE_HE[payment.payment_type] ?? payment.payment_type}</td>
                       <td className="px-4 py-3 font-semibold text-green-700">₪{payment.amount.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-gray-500">{new Date(payment.dueDate).toLocaleDateString("he-IL")}</td>
-                      <td className="px-4 py-3 text-gray-500">{payment.paidDate ? new Date(payment.paidDate).toLocaleDateString("he-IL") : "—"}</td>
+                      <td className="px-4 py-3 text-gray-500">{new Date(payment.due_date).toLocaleDateString("he-IL")}</td>
+                      <td className="px-4 py-3 text-gray-500">{payment.paid_date ? new Date(payment.paid_date).toLocaleDateString("he-IL") : "—"}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
                           payment.status === "paid" ? "bg-green-100 text-green-700" :

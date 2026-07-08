@@ -14,10 +14,10 @@ interface Property {
   title: string;
   address: string;
   city: string;
-  propertyType: string;
+  property_type: string;
   bedrooms?: number;
-  squareMeters?: number;
-  leases?: { status: string; monthlyRent: number }[];
+  square_meters?: number;
+  leases?: { status: string; monthly_rent: number; start_date: string; end_date: string }[];
 }
 
 export default function PropertiesPage() {
@@ -110,22 +110,22 @@ export default function PropertiesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {properties.map((p) => {
             const active = (p.leases || []).filter((l) => isLeaseCurrentlyActive(l));
-            const rent = active.reduce((s, l) => s + l.monthlyRent, 0);
+            const rent = active.reduce((s, l) => s + l.monthly_rent, 0);
             const isDeleting = deleteMutation.isPending && deleteMutation.variables === p.id;
             return (
               <div key={p.id} className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-md hover:border-indigo-200 transition-all">
                 <Link href={`/dashboard/properties/${p.id}`} className="block">
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 grad-accent-diag text-white rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
-                      {TYPE_ICON[p.propertyType] || "🏠"}
+                      {TYPE_ICON[p.property_type] || "🏠"}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-gray-900 truncate">{p.title}</p>
                       <p className="text-sm text-gray-400 truncate">{p.address}, {p.city}</p>
                       <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                        <span>{TYPE_HE[p.propertyType]}</span>
+                        <span>{TYPE_HE[p.property_type]}</span>
                         {p.bedrooms && <span>· {p.bedrooms} חד&apos;</span>}
-                        {p.squareMeters && <span>· {p.squareMeters} מ&quot;ר</span>}
+                        {p.square_meters && <span>· {p.square_meters} מ&quot;ר</span>}
                       </div>
                     </div>
                   </div>

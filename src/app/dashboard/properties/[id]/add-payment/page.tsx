@@ -9,9 +9,11 @@ import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 
 interface Lease {
   id: string;
-  tenant?: { firstName: string; lastName: string };
-  monthlyRent: number;
+  tenant?: { first_name: string; last_name: string };
+  monthly_rent: number;
   status: string;
+  start_date: string;
+  end_date: string;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -43,7 +45,7 @@ export default function AddPaymentPage() {
         setLeases(active);
         if (active.length === 1) {
           setLeaseId(active[0].id);
-          setAmount(active[0].monthlyRent);
+          setAmount(active[0].monthly_rent);
         }
       });
   }, [propertyId]);
@@ -52,7 +54,7 @@ export default function AddPaymentPage() {
   const handleLeaseChange = (id: string) => {
     setLeaseId(id);
     const lease = leases.find((l) => l.id === id);
-    if (lease && paymentType === "Rent") setAmount(lease.monthlyRent);
+    if (lease && paymentType === "Rent") setAmount(lease.monthly_rent);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,15 +66,15 @@ export default function AddPaymentPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          propertyId,
-          leaseId: leaseId || undefined,
-          paymentType,
+          property_id: propertyId,
+          lease_id: leaseId || undefined,
+          payment_type: paymentType,
           amount: amount ?? 0,
-          dueDate,
-          paidDate: isPaid ? paidDate : undefined,
+          due_date: dueDate,
+          paid_date: isPaid ? paidDate : undefined,
           status: isPaid ? "paid" : "pending",
           method: method || undefined,
-          referenceNum: referenceNum || undefined,
+          reference_num: referenceNum || undefined,
           notes: notes || undefined,
         }),
       });
@@ -118,7 +120,7 @@ export default function AddPaymentPage() {
                   <option value="">— ללא חוזה ספציפי —</option>
                   {leases.map((l) => (
                     <option key={l.id} value={l.id}>
-                      {l.tenant?.firstName} {l.tenant?.lastName} — ₪{Number(l.monthlyRent).toLocaleString()}
+                      {l.tenant?.first_name} {l.tenant?.last_name} — ₪{Number(l.monthly_rent).toLocaleString()}
                     </option>
                   ))}
                 </select>
