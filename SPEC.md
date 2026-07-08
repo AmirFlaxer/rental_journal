@@ -2,6 +2,14 @@
 
 > מצב נוכחי, החלטות, והצעד הבא. מתעדכן בכל session.
 
+## רפקטור: gen types + snake_case מקצה לקצה (2026-07-08, מוזג ופרוס)
+
+- **הושלם שלב 2 של docs/gen-types.md** (סשן ייעודי, 8 משימות subagent-driven + סקירת Opus סופית): `src/types/supabase.ts` מיוצר מהסכימה (`npm run gen:types`), `src/types/database.ts` גוזר ממנו את כל הישויות (צמצומי enum דרך Omit בלבד), **שכבת ההמרה camelKeys/snakeKeys נמחקה** - כל ה-API והדפים עובדים snake_case כמו ה-DB.
+- **תחזוקה שוטפת**: אחרי כל שינוי סכימה להריץ `npm run gen:types` ואז `npx tsc --noEmit`.
+- **שני איי camelCase מכוונים** (מתועדים ב-docs/gen-types.md): JSON של חילוץ-AI (extract routes; מומר בגבול ה-POST בדף הייבוא) ותשובת terminate (noticeMonths/effectiveDate).
+- **באגים אמיתיים שתוקנו אגב הרפקטור**: פרטי שק (check_bank/branch/account/deposit_reminder) נחתכו בשקט מ-leaseSchema ולא נשמרו מעולם - נוספו לסכמה; 3 מפתחות join/שדה שגויים בדף נכס (lease_documents/file_name/due_date); LeaseStatus יושר למציאות (5 ערכים: active/ended נכתבים היום, paused/terminated/expired מורשת).
+- שערים בעת המיזוג: tsc 0 שגיאות, vitest 77/77, lint נקי, build עובר, CI+deploy ירוקים. merge commit `7f5233c`.
+
 ## פיצ'ר: חשבונות שירות + תזכורות מחזוריות (2026-07-08)
 
 - **טבלה חדשה `property_utilities`** (על הנכס): type (מים/גז/חשמל/ארנונה/ועד בית/אחר), frequency (monthly/bimonthly + anchor_month), responsibility (owner_pays/owner_forwards/tenant_pays), active. CRUD ב-/api/property-utilities. סעיף UI בעמוד הנכס.
@@ -219,5 +227,5 @@ CREATE POLICY "index_rates_read" ON index_rates FOR SELECT USING (true);
 1. להריץ את ה-SQL למעלה ב-Supabase Dashboard
 2. להגדיר `CRON_SECRET` ב-Vercel env vars
 3. לבדוק PWA על נייד (Chrome Android / Safari iOS)
-4. לשקול `supabase gen types typescript` להסיר שגיאות `any`
+4. ~~לשקול `supabase gen types typescript`~~ - **בוצע במלואו 2026-07-08** (כולל snake_case מקצה לקצה)
 5. 📚 להכין חוברת הסברים (ראה סעיף למעלה)
