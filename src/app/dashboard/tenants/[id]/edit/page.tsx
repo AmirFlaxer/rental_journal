@@ -24,14 +24,14 @@ export default function EditTenantPage() {
     fetch(`/api/tenants/${id}`)
       .then((r) => { if (!r.ok) throw new Error("שגיאה בטעינת השוכר"); return r.json(); })
       .then((tenant) => {
-        setFirstName(tenant.firstName || "");
-        setLastName(tenant.lastName || "");
+        setFirstName(tenant.first_name || "");
+        setLastName(tenant.last_name || "");
         setEmail(tenant.email || "");
         setPhone(formatPhone(tenant.phone) || "");
-        setIdNumber(tenant.idNumber || "");
+        setIdNumber(tenant.id_number || "");
         // Find property to redirect back
         if (tenant.leases?.length > 0) {
-          setLeasePropertyId(tenant.leases[0].propertyId || "");
+          setLeasePropertyId(tenant.leases[0].property_id || "");
         }
       })
       .catch((e) => setError(e.message))
@@ -47,11 +47,11 @@ export default function EditTenantPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          firstName,
-          lastName,
+          first_name: firstName,
+          last_name: lastName,
           email: email || undefined,
           phone: phone || undefined,
-          idNumber: idNumber || undefined,
+          id_number: idNumber || undefined,
         }),
       });
       if (!res.ok) {

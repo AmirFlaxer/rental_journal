@@ -22,17 +22,17 @@ const EXPENSE_CAT_HE: Record<string, string> = {
 
 const MONTH_HE = ["ינו'", "פבר'", "מרץ", "אפר'", "מאי", "יוני", "יולי", "אוג'", "ספט'", "אוק'", "נוב'", "דצמ'"];
 
-interface RawPayment { id: string; amount: number; paidDate?: string; paymentType: string; dueDate: string; }
+interface RawPayment { id: string; amount: number; paid_date?: string; payment_type: string; due_date: string; }
 interface RawExpense { id: string; amount: number; date: string; category: string; }
 
 interface PropertyRaw {
   id: string;
   title: string;
   city: string;
-  propertyType: string;
-  activeLeases: number;
-  monthlyRent: number;
-  lastMonthlyRent: number;
+  property_type: string;
+  active_leases: number;
+  monthly_rent: number;
+  last_monthly_rent: number;
   payments: RawPayment[];
   expenses: RawExpense[];
 }
@@ -65,7 +65,7 @@ interface Totals {
 
 interface MonthlyEntry { month: string; income: number; expenses: number; net: number; }
 
-interface ReportsResponse { propertyStats: PropertyRaw[]; }
+interface ReportsResponse { property_stats: PropertyRaw[]; }
 
 const EMPTY_PROPERTIES: PropertyRaw[] = [];
 
@@ -89,8 +89,8 @@ function deriveYears(properties: PropertyRaw[]): number[] {
   const years = new Set<number>();
   for (const p of properties) {
     for (const pay of p.payments) {
-      // Use dueDate (rent month) for year derivation, consistent with the grouping below.
-      const key = pay.dueDate || pay.paidDate;
+      // Use due_date (rent month) for year derivation, consistent with the grouping below.
+      const key = pay.due_date || pay.paid_date;
       if (key) years.add(new Date(key).getFullYear());
     }
     for (const exp of p.expenses) {
@@ -107,15 +107,15 @@ function computeStats(properties: PropertyRaw[], year: number | null): {
   expensesByCategory: Record<string, number>;
 } {
   const propertyStats: PropertyStat[] = properties.map((p) => {
-    // Filter by rent month (dueDate) — consistent with the backend (/api/reports) and the monthly chart below.
+    // Filter by rent month (due_date) — consistent with the backend (/api/reports) and the monthly chart below.
     const payments = year
-      ? p.payments.filter((pay) => pay.dueDate && new Date(pay.dueDate).getFullYear() === year)
+      ? p.payments.filter((pay) => pay.due_date && new Date(pay.due_date).getFullYear() === year)
       : p.payments;
     const expenses = year
       ? p.expenses.filter((exp) => exp.date && new Date(exp.date).getFullYear() === year)
       : p.expenses;
 
-    const totalPaid = payments.filter((pay) => pay.paidDate).reduce((s, pay) => s + pay.amount, 0);
+    const totalPaid = payments.filter((pay) => pay.paid_date).reduce((s, pay) => s + pay.amount, 0);
     const totalExpenses = expenses.reduce((s, exp) => s + exp.amount, 0);
 
     const tax10 = Math.round(totalPaid * 0.1);
@@ -123,10 +123,10 @@ function computeStats(properties: PropertyRaw[], year: number | null): {
       id: p.id,
       title: p.title,
       city: p.city,
-      propertyType: p.propertyType,
-      activeLeases: p.activeLeases,
-      monthlyRent: p.monthlyRent,
-      lastMonthlyRent: p.lastMonthlyRent,
+      propertyType: p.property_type,
+      activeLeases: p.active_leases,
+      monthlyRent: p.monthly_rent,
+      lastMonthlyRent: p.last_monthly_rent,
       totalPaid,
       totalExpenses,
       netIncome: totalPaid - totalExpenses,
@@ -150,7 +150,7 @@ function computeStats(properties: PropertyRaw[], year: number | null): {
   // not by the date the money was actually received. This is what matches the backend and
   // what users mean when they ask "how much rent came in for March?".
   const allPayments = properties.flatMap((p) =>
-    p.payments.filter((pay) => pay.paidDate && pay.dueDate && (!year || new Date(pay.dueDate).getFullYear() === year))
+    p.payments.filter((pay) => pay.paid_date && pay.due_date && (!year || new Date(pay.due_date).getFullYear() === year))
   );
   const allExpenses = properties.flatMap((p) =>
     p.expenses.filter((exp) => exp.date && (!year || new Date(exp.date).getFullYear() === year))
@@ -158,7 +158,7 @@ function computeStats(properties: PropertyRaw[], year: number | null): {
 
   const monthlyMap: Record<string, { income: number; expenses: number }> = {};
   for (const pay of allPayments) {
-    const key = new Date(pay.dueDate).toISOString().slice(0, 7);
+    const key = new Date(pay.due_date).toISOString().slice(0, 7);
     if (!monthlyMap[key]) monthlyMap[key] = { income: 0, expenses: 0 };
     monthlyMap[key].income += pay.amount;
   }
@@ -189,7 +189,7 @@ export default function ReportsPage() {
     queryFn: () => apiGet<ReportsResponse>("/api/reports"),
   });
 
-  const rawProperties = data?.propertyStats ?? EMPTY_PROPERTIES;
+  const rawProperties = data?.property_stats ?? EMPTY_PROPERTIES;
 
   const availableYears = useMemo(() => deriveYears(rawProperties), [rawProperties]);
 

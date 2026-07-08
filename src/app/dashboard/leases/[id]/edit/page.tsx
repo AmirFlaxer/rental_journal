@@ -11,10 +11,10 @@ import { pickRate, type IndexRate } from "@/lib/linkage";
 
 interface LeaseDocument {
   id: string;
-  fileName: string;
-  mimeType: string;
-  sizeBytes: number;
-  uploadedAt: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  uploaded_at: string;
 }
 
 interface ExtractedData {
@@ -163,36 +163,36 @@ export default function EditLeasePage() {
     fetch(`/api/leases/${id}`)
       .then((r) => { if (!r.ok) throw new Error("שגיאה בטעינת החוזה"); return r.json(); })
       .then((lease) => {
-        setPropertyId(lease.propertyId);
-        setTenantId(lease.tenantId);
-        setStartDate(toDateInput(lease.startDate));
-        setEndDate(toDateInput(lease.endDate));
-        setMonthlyRent(lease.monthlyRent);
-        setDepositAmount(lease.depositAmount || undefined);
-        setLeaseTerm(String(lease.leaseTerm));
+        setPropertyId(lease.property_id);
+        setTenantId(lease.tenant_id);
+        setStartDate(toDateInput(lease.start_date));
+        setEndDate(toDateInput(lease.end_date));
+        setMonthlyRent(lease.monthly_rent);
+        setDepositAmount(lease.deposit_amount || undefined);
+        setLeaseTerm(String(lease.lease_term));
         setTerms(lease.terms || "");
         setStatus(lease.status || "active");
-        setHasOption(lease.hasOption || false);
-        const months = lease.optionMonths ? String(lease.optionMonths) : "12";
-        setOptionMonths(lease.optionMonths ? String(lease.optionMonths) : "");
-        setOptionRent(lease.optionRent || undefined);
-        setOptionTerms(lease.optionTerms || "");
+        setHasOption(lease.has_option || false);
+        const months = lease.option_months ? String(lease.option_months) : "12";
+        setOptionMonths(lease.option_months ? String(lease.option_months) : "");
+        setOptionRent(lease.option_rent || undefined);
+        setOptionTerms(lease.option_terms || "");
 
         // חישוב תאריכי אופציה: אם null בDB או לא הגיוניים — חשב מתאריך הסיום
-        const endStr = toDateInput(lease.endDate);
-        let optStart = toDateInput(lease.optionStart);
-        let optEnd   = toDateInput(lease.optionEnd);
+        const endStr = toDateInput(lease.end_date);
+        let optStart = toDateInput(lease.option_start);
+        let optEnd   = toDateInput(lease.option_end);
         // אופציה חייבת להתחיל אחרי סיום החוזה — אם לא, מאפסים
-        if (lease.hasOption && optStart && endStr && optStart <= endStr) {
+        if (lease.has_option && optStart && endStr && optStart <= endStr) {
           optStart = "";
           optEnd = "";
         }
-        if (lease.hasOption && !optStart && endStr) {
+        if (lease.has_option && !optStart && endStr) {
           const d = new Date(endStr);
           d.setDate(d.getDate() + 1);
           optStart = d.toISOString().slice(0, 10);
         }
-        if (lease.hasOption && !optEnd && optStart) {
+        if (lease.has_option && !optEnd && optStart) {
           const d = new Date(optStart);
           const m = parseInt(months) || 12;
           d.setMonth(d.getMonth() + m);
@@ -201,27 +201,27 @@ export default function EditLeasePage() {
         }
         setOptionStart(optStart);
         setOptionEnd(optEnd);
-        setPaymentMethod(normalizePaymentMethod(lease.paymentMethod));
-        setCheckBank(lease.checkBank || "");
-        setCheckBranch(lease.checkBranch || "");
-        setCheckAccount(lease.checkAccount || "");
-        setLinkageType(lease.linkageType || "none");
-        setLinkageFrequency(lease.linkageFrequency || "monthly");
-        setBaseAmount(lease.baseAmount || undefined);
-        setBaseDate(lease.baseDate ? toDateInput(lease.baseDate) : undefined);
-        setEarlyTermProtection(lease.earlyTermProtection || false);
-        setTenantNoticeMonths(lease.tenantNoticeMonths ? String(lease.tenantNoticeMonths) : "1");
-        setLandlordNoticeMonths(lease.landlordNoticeMonths ? String(lease.landlordNoticeMonths) : "1");
-        if (lease.tenant) setTenantName(`${lease.tenant.firstName} ${lease.tenant.lastName}`);
-        if (lease.secondTenantFirstName) {
+        setPaymentMethod(normalizePaymentMethod(lease.payment_method));
+        setCheckBank(lease.check_bank || "");
+        setCheckBranch(lease.check_branch || "");
+        setCheckAccount(lease.check_account || "");
+        setLinkageType(lease.linkage_type || "none");
+        setLinkageFrequency(lease.linkage_frequency || "monthly");
+        setBaseAmount(lease.base_amount || undefined);
+        setBaseDate(lease.base_date ? toDateInput(lease.base_date) : undefined);
+        setEarlyTermProtection(lease.early_term_protection || false);
+        setTenantNoticeMonths(lease.tenant_notice_months ? String(lease.tenant_notice_months) : "1");
+        setLandlordNoticeMonths(lease.landlord_notice_months ? String(lease.landlord_notice_months) : "1");
+        if (lease.tenant) setTenantName(`${lease.tenant.first_name} ${lease.tenant.last_name}`);
+        if (lease.second_tenant_first_name) {
           setHasSecondTenant(true);
-          setSecondTenantFirstName(lease.secondTenantFirstName || "");
-          setSecondTenantLastName(lease.secondTenantLastName || "");
-          setSecondTenantIdNumber(lease.secondTenantIdNumber || "");
-          setSecondTenantPhone(formatPhone(lease.secondTenantPhone) || "");
-          setSecondTenantEmail(lease.secondTenantEmail || "");
+          setSecondTenantFirstName(lease.second_tenant_first_name || "");
+          setSecondTenantLastName(lease.second_tenant_last_name || "");
+          setSecondTenantIdNumber(lease.second_tenant_id_number || "");
+          setSecondTenantPhone(formatPhone(lease.second_tenant_phone) || "");
+          setSecondTenantEmail(lease.second_tenant_email || "");
         }
-        if (lease.leaseDocuments) setDocuments(lease.leaseDocuments);
+        if (lease.lease_documents) setDocuments(lease.lease_documents);
       })
       .catch((e) => setError(e.message))
       .finally(() => setIsFetching(false));
@@ -259,7 +259,7 @@ export default function EditLeasePage() {
 
   const handleExtract = async (doc: LeaseDocument) => {
     setExtractingDocId(doc.id);
-    setExtractDocName(doc.fileName);
+    setExtractDocName(doc.file_name);
     setExtractedData(null);
     setExtractError("");
     try {
@@ -348,37 +348,37 @@ export default function EditLeasePage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          propertyId,
-          tenantId,
-          startDate,
-          endDate,
-          monthlyRent: monthlyRent ?? 0,
-          depositAmount: depositAmount || undefined,
-          leaseTerm: parseInt(leaseTerm),
+          property_id: propertyId,
+          tenant_id: tenantId,
+          start_date: startDate,
+          end_date: endDate,
+          monthly_rent: monthlyRent ?? 0,
+          deposit_amount: depositAmount || undefined,
+          lease_term: parseInt(leaseTerm),
           terms: terms || undefined,
           status,
-          paymentMethod,
-          checkBank: paymentMethod === "standing_order" ? checkBank || undefined : undefined,
-          checkBranch: paymentMethod === "standing_order" ? checkBranch || undefined : undefined,
-          checkAccount: paymentMethod === "standing_order" ? checkAccount || undefined : undefined,
-          hasOption,
-          optionMonths: hasOption && optionMonths ? parseInt(optionMonths) : undefined,
-          optionRent: hasOption && optionRent ? optionRent : undefined,
-          optionStart: hasOption && optionStart ? optionStart : undefined,
-          optionEnd: hasOption && optionEnd ? optionEnd : undefined,
-          optionTerms: hasOption && optionTerms ? optionTerms : undefined,
-          earlyTermProtection,
-          tenantNoticeMonths: !earlyTermProtection && tenantNoticeMonths ? parseInt(tenantNoticeMonths) : undefined,
-          landlordNoticeMonths: !earlyTermProtection && landlordNoticeMonths ? parseInt(landlordNoticeMonths) : undefined,
-          secondTenantFirstName: hasSecondTenant && secondTenantFirstName ? secondTenantFirstName : null,
-          secondTenantLastName: hasSecondTenant && secondTenantLastName ? secondTenantLastName : null,
-          secondTenantIdNumber: hasSecondTenant && secondTenantIdNumber ? secondTenantIdNumber : null,
-          secondTenantPhone: hasSecondTenant && secondTenantPhone ? secondTenantPhone : null,
-          secondTenantEmail: hasSecondTenant && secondTenantEmail ? secondTenantEmail : null,
-          linkageType,
-          linkageFrequency,
-          baseAmount: linkageType !== "none" ? (baseAmount || monthlyRent) : undefined,
-          baseDate: linkageType !== "none" ? (baseDate || startDate) : undefined,
+          payment_method: paymentMethod,
+          check_bank: paymentMethod === "standing_order" ? checkBank || undefined : undefined,
+          check_branch: paymentMethod === "standing_order" ? checkBranch || undefined : undefined,
+          check_account: paymentMethod === "standing_order" ? checkAccount || undefined : undefined,
+          has_option: hasOption,
+          option_months: hasOption && optionMonths ? parseInt(optionMonths) : undefined,
+          option_rent: hasOption && optionRent ? optionRent : undefined,
+          option_start: hasOption && optionStart ? optionStart : undefined,
+          option_end: hasOption && optionEnd ? optionEnd : undefined,
+          option_terms: hasOption && optionTerms ? optionTerms : undefined,
+          early_term_protection: earlyTermProtection,
+          tenant_notice_months: !earlyTermProtection && tenantNoticeMonths ? parseInt(tenantNoticeMonths) : undefined,
+          landlord_notice_months: !earlyTermProtection && landlordNoticeMonths ? parseInt(landlordNoticeMonths) : undefined,
+          second_tenant_first_name: hasSecondTenant && secondTenantFirstName ? secondTenantFirstName : null,
+          second_tenant_last_name: hasSecondTenant && secondTenantLastName ? secondTenantLastName : null,
+          second_tenant_id_number: hasSecondTenant && secondTenantIdNumber ? secondTenantIdNumber : null,
+          second_tenant_phone: hasSecondTenant && secondTenantPhone ? secondTenantPhone : null,
+          second_tenant_email: hasSecondTenant && secondTenantEmail ? secondTenantEmail : null,
+          linkage_type: linkageType,
+          linkage_frequency: linkageFrequency,
+          base_amount: linkageType !== "none" ? (baseAmount || monthlyRent) : undefined,
+          base_date: linkageType !== "none" ? (baseDate || startDate) : undefined,
         }),
       });
 
@@ -755,7 +755,7 @@ export default function EditLeasePage() {
                 {documents.map((doc) => (
                   <li key={doc.id} className="flex items-center justify-between py-2.5 gap-2">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="text-lg flex-shrink-0">{doc.mimeType === "application/pdf" ? "📄" : "📝"}</span>
+                      <span className="text-lg flex-shrink-0">{doc.mime_type === "application/pdf" ? "📄" : "📝"}</span>
                       <div className="min-w-0">
                         <a
                           href={`/api/documents/${doc.id}`}
@@ -763,10 +763,10 @@ export default function EditLeasePage() {
                           rel="noopener noreferrer"
                           className="text-blue-700 hover:underline text-sm font-medium truncate block"
                         >
-                          {doc.fileName}
+                          {doc.file_name}
                         </a>
                         <span className="text-xs text-gray-400">
-                          {formatBytes(doc.sizeBytes)} · {new Date(doc.uploadedAt).toLocaleDateString("he-IL")}
+                          {formatBytes(doc.size_bytes)} · {new Date(doc.uploaded_at).toLocaleDateString("he-IL")}
                         </span>
                       </div>
                     </div>
