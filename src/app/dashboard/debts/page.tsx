@@ -10,40 +10,40 @@ import { apiGet, queryKeys } from "@/lib/api-client";
 
 interface Payment {
   id: string;
-  paymentType: string;
+  payment_type: string;
   amount: number;
-  dueDate: string;
-  paidDate?: string;
+  due_date: string;
+  paid_date?: string;
   status: string;
   notes?: string;
-  partialPaidAmount?: number | null;
+  partial_paid_amount?: number | null;
   property?: { id: string; title: string };
   lease?: { id: string };
 }
 
 interface Lease {
   id: string;
-  startDate: string;
-  endDate: string;
-  monthlyRent: number;
+  start_date: string;
+  end_date: string;
+  monthly_rent: number;
   status: string;
   properties?: { id: string; title: string };
-  tenant?: { firstName: string; lastName: string };
+  tenant?: { first_name: string; last_name: string };
 }
 
 interface DebtItem {
   id: string;
-  dueDate: string;
+  due_date: string;
   amount: number;
   debtAmount: number;
   status: string;
   notes?: string;
-  partialPaidAmount?: number | null;
-  propertyId?: string;
-  propertyTitle: string;
+  partial_paid_amount?: number | null;
+  property_id?: string;
+  property_title: string;
   isVirtual: boolean;
-  leaseId?: string;
-  propertyIdForCreate?: string;
+  lease_id?: string;
+  property_id_for_create?: string;
 }
 
 function buildDebtList(payments: Payment[], leases: Lease[]): DebtItem[] {
@@ -53,17 +53,17 @@ function buildDebtList(payments: Payment[], leases: Lease[]): DebtItem[] {
   // Existing payments with debt (only past-due)
   for (const p of payments) {
     if (p.status === "paid") continue;
-    if (p.dueDate.slice(0, 10) > today) continue;
+    if (p.due_date.slice(0, 10) > today) continue;
     items.push({
       id: p.id,
-      dueDate: p.dueDate,
+      due_date: p.due_date,
       amount: p.amount,
       debtAmount: getDebtAmount(p),
       status: p.status,
       notes: p.notes,
-      partialPaidAmount: p.partialPaidAmount,
-      propertyTitle: p.property?.title ?? "",
-      propertyId: p.property?.id,
+      partial_paid_amount: p.partial_paid_amount,
+      property_title: p.property?.title ?? "",
+      property_id: p.property?.id,
       isVirtual: false,
     });
   }
@@ -77,27 +77,27 @@ function buildDebtList(payments: Payment[], leases: Lease[]): DebtItem[] {
     const propId = lease.properties?.id;
     if (!propId) continue;
 
-    for (const { monthKey, dueDate } of listRentMonths(lease)) {
-      if (dueDate > today) continue;
+    for (const { monthKey, due_date } of listRentMonths(lease)) {
+      if (due_date > today) continue;
       const key = propertyMonthKey(propId, monthKey);
       if (covered.has(key)) continue;
       items.push({
         id: `virtual-${lease.id}-${monthKey}`,
-        dueDate,
-        amount: lease.monthlyRent,
-        debtAmount: lease.monthlyRent,
+        due_date,
+        amount: lease.monthly_rent,
+        debtAmount: lease.monthly_rent,
         status: "due",
-        propertyTitle: lease.properties?.title ?? "",
-        propertyId: propId,
+        property_title: lease.properties?.title ?? "",
+        property_id: propId,
         isVirtual: true,
-        leaseId: lease.id,
-        propertyIdForCreate: propId,
+        lease_id: lease.id,
+        property_id_for_create: propId,
       });
       covered.add(key);
     }
   }
 
-  return items.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  return items.sort((a, b) => a.due_date.localeCompare(b.due_date));
 }
 
 const STATUS_HE: Record<string, string> = {
@@ -132,8 +132,8 @@ export default function DebtsPage() {
   const byProperty = useMemo(() => {
     const grouped: Record<string, { title: string; items: DebtItem[]; total: number }> = {};
     for (const d of debts) {
-      const key = d.propertyId ?? d.propertyTitle;
-      if (!grouped[key]) grouped[key] = { title: d.propertyTitle, items: [], total: 0 };
+      const key = d.property_id ?? d.property_title;
+      if (!grouped[key]) grouped[key] = { title: d.property_title, items: [], total: 0 };
       grouped[key].items.push(d);
       grouped[key].total += d.debtAmount;
     }
@@ -201,14 +201,14 @@ export default function DebtsPage() {
               </div>
               <div className="divide-y divide-gray-100">
                 {group.items.map((d) => {
-                  const partialPaid = d.partialPaidAmount ?? parsePartialPaid(d.notes);
+                  const partialPaid = d.partial_paid_amount ?? parsePartialPaid(d.notes);
                   const reason = parsePartialReason(d.notes);
                   return (
                     <div key={d.id} className="flex items-center gap-4 px-5 py-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-800">
                           שכ״ד{" "}
-                          {new Date(d.dueDate).toLocaleDateString("he-IL", { month: "long", year: "numeric" })}
+                          {new Date(d.due_date).toLocaleDateString("he-IL", { month: "long", year: "numeric" })}
                           {d.isVirtual && <span className="text-xs font-normal text-gray-400 mr-1"> · לא נרשם</span>}
                         </p>
                         {d.status === "partial" && partialPaid != null && (
@@ -218,9 +218,9 @@ export default function DebtsPage() {
                           </p>
                         )}
                         <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-2">
-                          <span>מועד: {new Date(d.dueDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</span>
+                          <span>מועד: {new Date(d.due_date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</span>
                           {(() => {
-                            const days = diffDays(todayStr(), d.dueDate);
+                            const days = diffDays(todayStr(), d.due_date);
                             if (days <= 0) return null;
                             return (
                               <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${days > 60 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>

@@ -15,31 +15,31 @@ export default function MaintenancePage() {
       ]);
       if (!Array.isArray(tasksRes) || !Array.isArray(leasesRes)) throw new Error("שגיאה בטעינת נתונים");
 
-      const leaseMap = new Map((leasesRes as { id: string; startDate: string }[]).map((l) => [l.id, l]));
+      const leaseMap = new Map((leasesRes as { id: string; start_date: string }[]).map((l) => [l.id, l]));
       const toDelete: string[] = [];
       const seen = new Map<string, string>();
 
-      for (const task of tasksRes as { id: string; category: string; relatedEntityType?: string; relatedEntityId?: string; dueDate: string; completedAt?: string }[]) {
-        if (task.category !== "Rent Collection" || task.relatedEntityType !== "lease" || !task.relatedEntityId) continue;
+      for (const task of tasksRes as { id: string; category: string; related_entity_type?: string; related_entity_id?: string; due_date: string; completed_at?: string }[]) {
+        if (task.category !== "Rent Collection" || task.related_entity_type !== "lease" || !task.related_entity_id) continue;
 
-        if (!leaseMap.has(task.relatedEntityId)) {
+        if (!leaseMap.has(task.related_entity_id)) {
           toDelete.push(task.id);
           continue;
         }
 
-        const lease = leaseMap.get(task.relatedEntityId)!;
-        const expectedDay = parseInt((lease.startDate ?? "").slice(8, 10));
-        const taskDay = parseInt((task.dueDate ?? "").slice(8, 10));
-        if (!task.completedAt && expectedDay > 0 && taskDay !== expectedDay) {
+        const lease = leaseMap.get(task.related_entity_id)!;
+        const expectedDay = parseInt((lease.start_date ?? "").slice(8, 10));
+        const taskDay = parseInt((task.due_date ?? "").slice(8, 10));
+        if (!task.completed_at && expectedDay > 0 && taskDay !== expectedDay) {
           toDelete.push(task.id);
           continue;
         }
 
-        const key = `${task.relatedEntityId}-${task.dueDate.slice(0, 7)}`;
+        const key = `${task.related_entity_id}-${task.due_date.slice(0, 7)}`;
         if (seen.has(key)) {
           const prevId = seen.get(key)!;
-          const prevTask = (tasksRes as { id: string; completedAt?: string }[]).find((t) => t.id === prevId);
-          if (task.completedAt && !prevTask?.completedAt) {
+          const prevTask = (tasksRes as { id: string; completed_at?: string }[]).find((t) => t.id === prevId);
+          if (task.completed_at && !prevTask?.completed_at) {
             toDelete.push(prevId);
             seen.set(key, task.id);
           } else {
@@ -87,12 +87,12 @@ export default function MaintenancePage() {
       if (!Array.isArray(leasesRes) || !Array.isArray(propsRes)) throw new Error("שגיאה");
 
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const isActive = (l: { startDate: string; endDate: string; status?: string | null }) => {
+      const isActive = (l: { start_date: string; end_date: string; status?: string | null }) => {
         if (l.status === "ended" || l.status === "paused") return false;
-        return new Date(l.startDate) <= today && new Date(l.endDate) >= today;
+        return new Date(l.start_date) <= today && new Date(l.end_date) >= today;
       };
 
-      type Lease = { id: string; startDate: string; endDate: string; status?: string | null; properties?: { id: string; title: string } };
+      type Lease = { id: string; start_date: string; end_date: string; status?: string | null; properties?: { id: string; title: string } };
       const activeByProp = new Map<string, Lease[]>();
       for (const l of leasesRes as Lease[]) {
         if (!isActive(l) || !l.properties?.id) continue;

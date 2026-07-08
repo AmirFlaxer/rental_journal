@@ -74,28 +74,42 @@ const PRIORITY_HE: Record<string, string> = { low: "נמוכה", normal: "רגי
 const PRIORITY_BG: Record<string, string> = { low: "#f1f5f9", normal: "#e0e7ff", high: "#fee2e2" };
 const PRIORITY_FG: Record<string, string> = { low: "#475569", normal: "#4338ca", high: "#b91c1c" };
 
+/** שורה גולמית מ-/api/tasks - כל השדות תמיד קיימים בפועל (חלקם יכולים להיות null) */
+interface DbTask {
+  id: string;
+  title: string;
+  description?: string | null;
+  category: string;
+  due_date: string;
+  completed_at: string | null;
+  priority: string;
+  related_entity_type: string | null;
+  related_entity_id: string | null;
+}
+
+/** תואם ל-UI - משלב DbTask אמיתיים עם VirtualTask מיובאים (שאין להם completed_at) */
 interface Task {
   id: string;
   title: string;
-  description?: string;
+  description?: string | null;
   category: string;
-  dueDate: string;
-  completedAt?: string;
+  due_date: string;
+  completed_at?: string | null;
   priority: string;
-  relatedEntityType?: string;
-  relatedEntityId?: string;
+  related_entity_type?: string | null;
+  related_entity_id?: string | null;
   isVirtual?: boolean;
 }
 
 interface Lease {
   id: string;
-  startDate: string;
-  endDate: string;
-  monthlyRent: number;
+  start_date: string;
+  end_date: string;
+  monthly_rent: number;
   status?: string | null;
-  paymentMethod?: string;
+  payment_method?: string;
   properties?: { id: string; title: string };
-  tenant?: { firstName: string; lastName: string };
+  tenant?: { first_name: string; last_name: string };
 }
 
 interface Property {
@@ -103,14 +117,14 @@ interface Property {
   title: string;
 }
 
-/** שורה גולמית מ-/api/property-utilities - בלי propertyTitle (מצטרף מ-/api/properties בצד לקוח) */
+/** שורה גולמית מ-/api/property-utilities - בלי property_title (מצטרף מ-/api/properties בצד לקוח) */
 interface PropertyUtilityRow {
   id: string;
-  propertyId: string;
+  property_id: string;
   type: PropertyUtilityLike["type"];
-  customLabel?: string | null;
+  custom_label?: string | null;
   frequency: PropertyUtilityLike["frequency"];
-  anchorMonth?: number | null;
+  anchor_month?: number | null;
   responsibility: PropertyUtilityLike["responsibility"];
   active: boolean;
 }
@@ -135,37 +149,37 @@ function generateVirtualCheckTasks(leases: Lease[], dbTasks: Task[]): Task[] {
   const todayMonth = today.slice(0, 7);
   const coveredPropertyMonths = new Set<string>();
   for (const t of dbTasks) {
-    if (t.category === "Rent Collection" && t.relatedEntityType === "lease" && t.relatedEntityId) {
-      const propId = leaseToProperty.get(t.relatedEntityId);
-      // מכסה חודש נוכחי או עתידי — גם אם dueDate הוא אתמול (תזכורת יום לפני התשלום)
-      if (propId && t.dueDate.slice(0, 7) >= todayMonth) {
-        coveredPropertyMonths.add(propertyMonthKey(propId, t.dueDate.slice(0, 7)));
+    if (t.category === "Rent Collection" && t.related_entity_type === "lease" && t.related_entity_id) {
+      const propId = leaseToProperty.get(t.related_entity_id);
+      // מכסה חודש נוכחי או עתידי — גם אם due_date הוא אתמול (תזכורת יום לפני התשלום)
+      if (propId && t.due_date.slice(0, 7) >= todayMonth) {
+        coveredPropertyMonths.add(propertyMonthKey(propId, t.due_date.slice(0, 7)));
       }
     }
   }
 
   for (const lease of leases) {
-    const pm = lease.paymentMethod?.toLowerCase();
+    const pm = lease.payment_method?.toLowerCase();
     if (lease.status === "ended" || lease.status === "paused") continue;
     if (pm && pm !== "check" && pm !== "checks") continue;
     const propId = lease.properties?.id;
     if (!propId) continue;
 
     for (const slot of listRentMonths(lease)) {
-      if (slot.dueDate < today) continue;
+      if (slot.due_date < today) continue;
       const key = propertyMonthKey(propId, slot.monthKey);
       if (coveredPropertyMonths.has(key)) continue;
 
-      const monthLabel = new Date(`${slot.dueDate}T00:00:00`).toLocaleDateString("he-IL", { month: "long", year: "numeric" });
+      const monthLabel = new Date(`${slot.due_date}T00:00:00`).toLocaleDateString("he-IL", { month: "long", year: "numeric" });
       const propertyLabel = lease.properties?.title ?? "נכס";
       virtual.push({
         id: `virtual-check-${lease.id}-${slot.monthKey}`,
         title: `הפקדת שק שכ"ד — ${propertyLabel} — ${monthLabel}`,
         category: "Rent Collection",
-        dueDate: slot.dueDate,
+        due_date: slot.due_date,
         priority: "normal",
-        relatedEntityType: "lease",
-        relatedEntityId: lease.id,
+        related_entity_type: "lease",
+        related_entity_id: lease.id,
         isVirtual: true,
       });
       coveredPropertyMonths.add(key);
@@ -177,10 +191,10 @@ function generateVirtualCheckTasks(leases: Lease[], dbTasks: Task[]): Task[] {
 
 // "רלוונטי" = פג מועד או עד 30 יום קדימה
 // חשבונות שירות ותזכורות סיום חוזה כבר מסוננים לחלון הרלוונטי שלהם ביצירה
-// (generateVirtualUtilityTasks / generateVirtualLeaseRenewalTasks) - תמיד "רלוונטי", גם אם ה-dueDate רחוק מ-30 יום
+// (generateVirtualUtilityTasks / generateVirtualLeaseRenewalTasks) - תמיד "רלוונטי", גם אם ה-due_date רחוק מ-30 יום
 function isRelevant(t: Task) {
-  if (t.relatedEntityType === "property_utility" || t.relatedEntityType === "lease_renewal") return true;
-  const due = new Date(t.dueDate);
+  if (t.related_entity_type === "property_utility" || t.related_entity_type === "lease_renewal") return true;
+  const due = new Date(t.due_date);
   due.setHours(0, 0, 0, 0);
   const in30 = new Date();
   in30.setHours(0, 0, 0, 0);
@@ -206,7 +220,7 @@ function formatDue(dateStr: string, isOverdue: boolean) {
 
 export default function TasksPage() {
   const queryClient = useQueryClient();
-  const tasksQuery = useQuery({ queryKey: queryKeys.tasks, queryFn: () => apiGet<Task[]>("/api/tasks") });
+  const tasksQuery = useQuery({ queryKey: queryKeys.tasks, queryFn: () => apiGet<DbTask[]>("/api/tasks") });
   const leasesQuery = useQuery({ queryKey: queryKeys.leases, queryFn: () => apiGet<Lease[]>("/api/leases") });
   const propertiesQuery = useQuery({ queryKey: queryKeys.properties, queryFn: () => apiGet<Property[]>("/api/properties") });
   // הטבלה property_utilities עלולה עוד לא להיות קיימת בפרודקשן (מיגרציה לא רצה) -
@@ -231,7 +245,7 @@ export default function TasksPage() {
     title: "",
     description: "",
     category: "Other",
-    dueDate: "",
+    due_date: "",
     priority: "normal",
   });
   // Recurring state
@@ -290,18 +304,18 @@ export default function TasksPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const pendingDb = dbTasks.filter((t) => !t.completedAt);
-  const done = dbTasks.filter((t) => t.completedAt);
+  const pendingDb = dbTasks.filter((t) => !t.completed_at);
+  const done = dbTasks.filter((t) => t.completed_at);
 
   // ממוין ב-useMemo כי לולאת השרשור-חוזים רצה בכל render, וללא זה גם בכל הקלדה בטופס
   const virtualCheck = useMemo(() => generateVirtualCheckTasks(leases, dbTasks), [leases, dbTasks]);
 
-  // הרכבת קלט חשבונות השירות: property-utilities (אין בו propertyTitle) + join עם properties
+  // הרכבת קלט חשבונות השירות: property-utilities (אין בו property_title) + join עם properties
   const utilitiesWithTitle: PropertyUtilityLike[] = useMemo(() => {
     const titleByPropertyId = new Map(properties.map((p) => [p.id, p.title]));
     return utilityRows.map((u) => ({
       ...u,
-      propertyTitle: titleByPropertyId.get(u.propertyId) ?? "נכס",
+      property_title: titleByPropertyId.get(u.property_id) ?? "נכס",
     }));
   }, [utilityRows, properties]);
 
@@ -323,14 +337,14 @@ export default function TasksPage() {
   const seenPropertyMonth = new Set<string>();
   for (const t of [...pendingDb, ...virtualCheck, ...virtualUtility, ...virtualLeaseRenewal].sort((a, b) => {
     // משימה לא-פגת-תוקף קודמת לפגת-תוקף באותו חודש (לתיקון באג UTC שיצר תאריכים שגויים ב-DB)
-    const aOver = new Date(a.dueDate) < today;
-    const bOver = new Date(b.dueDate) < today;
+    const aOver = new Date(a.due_date) < today;
+    const bOver = new Date(b.due_date) < today;
     if (aOver !== bOver) return aOver ? 1 : -1;
-    return a.dueDate.localeCompare(b.dueDate);
+    return a.due_date.localeCompare(b.due_date);
   })) {
-    if (t.category === "Rent Collection" && t.relatedEntityType === "lease" && t.relatedEntityId) {
-      const propId = leaseToPropertyId.get(t.relatedEntityId) ?? t.relatedEntityId;
-      const key = `${propId}-${t.dueDate.slice(0, 7)}`;
+    if (t.category === "Rent Collection" && t.related_entity_type === "lease" && t.related_entity_id) {
+      const propId = leaseToPropertyId.get(t.related_entity_id) ?? t.related_entity_id;
+      const key = `${propId}-${t.due_date.slice(0, 7)}`;
       if (seenPropertyMonth.has(key)) continue;
       seenPropertyMonth.add(key);
     }
@@ -341,20 +355,20 @@ export default function TasksPage() {
   const relevant = allPending
     .filter((t) => isRelevant(t))
     .sort((a, b) => {
-      const aOver = new Date(a.dueDate) < today;
-      const bOver = new Date(b.dueDate) < today;
+      const aOver = new Date(a.due_date) < today;
+      const bOver = new Date(b.due_date) < today;
       if (aOver !== bOver) return aOver ? -1 : 1; // overdue ראשון
-      return a.dueDate.localeCompare(b.dueDate);   // אחר כך הכי מוקדם
+      return a.due_date.localeCompare(b.due_date);   // אחר כך הכי מוקדם
     });
   const future = allPending.filter((t) => !isRelevant(t));
-  // תזכורות חשבון שירות מעוגנות לתחילת החודש (dueDate = ה-1) ומייצגות את "החודש הנוכחי",
+  // תזכורות חשבון שירות מעוגנות לתחילת החודש (due_date = ה-1) ומייצגות את "החודש הנוכחי",
   // לא deadline - לכן לא נספרות/מוצגות כפג-מועד לאורך החודש.
   const overdueCount = allPending.filter(
-    (t) => t.relatedEntityType !== "property_utility" && new Date(t.dueDate) < today
+    (t) => t.related_entity_type !== "property_utility" && new Date(t.due_date) < today
   ).length;
 
   const resetForm = () => {
-    setForm({ title: "", description: "", category: "Other", dueDate: "", priority: "normal" });
+    setForm({ title: "", description: "", category: "Other", due_date: "", priority: "normal" });
     setRecurring(false);
     setRecurringFreq(1);
     setLinkedLeaseId("");
@@ -375,8 +389,8 @@ export default function TasksPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...form,
-            relatedEntityType: linkedLeaseId ? "lease" : undefined,
-            relatedEntityId: linkedLeaseId || undefined,
+            related_entity_type: linkedLeaseId ? "lease" : undefined,
+            related_entity_id: linkedLeaseId || undefined,
           }),
         });
         const data = await res.json();
@@ -385,13 +399,13 @@ export default function TasksPage() {
       } else {
         // Recurring — calculate all dates
         const occurrences: string[] = [];
-        let cur = new Date(form.dueDate);
+        let cur = new Date(form.due_date);
 
         // Determine end boundary
         let endBoundary: Date | null = null;
         if (linkedLeaseId && !continueAfterLease) {
           const lease = leases.find((l) => l.id === linkedLeaseId);
-          if (lease) endBoundary = new Date(lease.endDate);
+          if (lease) endBoundary = new Date(lease.end_date);
         }
         if (recurringEndDate) {
           endBoundary = new Date(recurringEndDate);
@@ -410,8 +424,8 @@ export default function TasksPage() {
 
         const basePayload = {
           ...form,
-          relatedEntityType: linkedLeaseId ? "lease" : undefined,
-          relatedEntityId: linkedLeaseId || undefined,
+          related_entity_type: linkedLeaseId ? "lease" : undefined,
+          related_entity_id: linkedLeaseId || undefined,
         };
 
         const results = await Promise.all(
@@ -419,7 +433,7 @@ export default function TasksPage() {
             fetch("/api/tasks", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ...basePayload, dueDate: dateStr }),
+              body: JSON.stringify({ ...basePayload, due_date: dateStr }),
             }).then((r) => r.json())
           )
         );
@@ -437,7 +451,7 @@ export default function TasksPage() {
   };
 
   const complete = async (t: Task) => {
-    const key = t.isVirtual ? `virtual-${t.dueDate}-${t.relatedEntityId}` : t.id;
+    const key = t.isVirtual ? `virtual-${t.due_date}-${t.related_entity_id}` : t.id;
     setCompletingId(key);
     try {
       if (t.isVirtual) {
@@ -447,10 +461,10 @@ export default function TasksPage() {
           body: JSON.stringify({
             title: t.title,
             category: t.category,
-            dueDate: t.dueDate,
+            due_date: t.due_date,
             priority: t.priority,
-            relatedEntityType: t.relatedEntityType,
-            relatedEntityId: t.relatedEntityId,
+            related_entity_type: t.related_entity_type,
+            related_entity_id: t.related_entity_id,
           }),
         });
         if (!createRes.ok) { showListError("שגיאה ביצירת משימה"); return; }
@@ -458,7 +472,7 @@ export default function TasksPage() {
         const completeRes = await fetch(`/api/tasks/${created.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ completedAt: new Date().toISOString() }),
+          body: JSON.stringify({ completed_at: new Date().toISOString() }),
         });
         if (completeRes.ok) {
           queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
@@ -468,7 +482,7 @@ export default function TasksPage() {
       const res = await fetch(`/api/tasks/${t.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ completedAt: new Date().toISOString() }),
+        body: JSON.stringify({ completed_at: new Date().toISOString() }),
       });
       if (res.ok) {
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
@@ -482,7 +496,7 @@ export default function TasksPage() {
     const res = await fetch(`/api/tasks/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completedAt: null }),
+      body: JSON.stringify({ completed_at: null }),
     });
     if (res.ok) {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
@@ -535,15 +549,15 @@ export default function TasksPage() {
   );
 
   const TaskRow = ({ t, isDone }: { t: Task; isDone: boolean }) => {
-    const isOverdue = !isDone && t.relatedEntityType !== "property_utility" && new Date(t.dueDate) < today;
+    const isOverdue = !isDone && t.related_entity_type !== "property_utility" && new Date(t.due_date) < today;
     const dueLabel = isDone
-      ? new Date(t.dueDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })
-      : formatDue(t.dueDate, isOverdue);
+      ? new Date(t.due_date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })
+      : formatDue(t.due_date, isOverdue);
     const propertyName =
-      t.relatedEntityType === "lease" && t.relatedEntityId
-        ? leasePropertyMap.get(t.relatedEntityId) ?? null
+      t.related_entity_type === "lease" && t.related_entity_id
+        ? leasePropertyMap.get(t.related_entity_id) ?? null
         : null;
-    const propColors = t.relatedEntityId ? propColorsByLeaseId.get(t.relatedEntityId) : undefined;
+    const propColors = t.related_entity_id ? propColorsByLeaseId.get(t.related_entity_id) : undefined;
     const propColor = propColors?.base ?? "#94a3b8";
     const propDark  = propColors?.dark ?? "#64748b";
     // צבעי הקטגוריה עצמם (CAT_BG/CAT_FG) נשארים כפי שהם - קידוד צבע לפי קטגוריה, כמו PROP_PALETTE.
@@ -766,8 +780,8 @@ export default function TasksPage() {
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">תאריך יעד *</label>
                 <DateInput
-                  value={form.dueDate}
-                  onChange={(v) => setForm({ ...form, dueDate: v })}
+                  value={form.due_date}
+                  onChange={(v) => setForm({ ...form, due_date: v })}
                   required
                   className="w-full"
                 />
@@ -779,7 +793,7 @@ export default function TasksPage() {
                   <option value="">— ללא שיוך —</option>
                   {leases.filter((l) => l.status !== "ended").map((l) => (
                     <option key={l.id} value={l.id}>
-                      {l.properties?.title} · {l.tenant?.firstName} {l.tenant?.lastName}
+                      {l.properties?.title} · {l.tenant?.first_name} {l.tenant?.last_name}
                     </option>
                   ))}
                 </select>
@@ -832,7 +846,7 @@ export default function TasksPage() {
                         <option value="">— ללא חוזה ספציפי —</option>
                         {leases.filter((l) => l.status !== "ended").map((l) => (
                           <option key={l.id} value={l.id}>
-                            {l.properties?.title} · {l.tenant?.firstName} {l.tenant?.lastName}
+                            {l.properties?.title} · {l.tenant?.first_name} {l.tenant?.last_name}
                           </option>
                         ))}
                       </select>
@@ -857,16 +871,16 @@ export default function TasksPage() {
                       </div>
                     )}
 
-                    {form.dueDate && (
+                    {form.due_date && (
                       <p className="text-xs" style={{ color: "var(--accent)" }}>
-                        תזכורת ראשונה: {new Date(form.dueDate).toLocaleDateString("he-IL")}
+                        תזכורת ראשונה: {new Date(form.due_date).toLocaleDateString("he-IL")}
                         {(() => {
                           let count = 0;
-                          let cur = new Date(form.dueDate);
+                          let cur = new Date(form.due_date);
                           let end: Date | null = null;
                           if (linkedLeaseId && !continueAfterLease) {
                             const l = leases.find((x) => x.id === linkedLeaseId);
-                            if (l) end = new Date(l.endDate);
+                            if (l) end = new Date(l.end_date);
                           }
                           if (recurringEndDate) end = new Date(recurringEndDate);
                           while (count < 60) {
