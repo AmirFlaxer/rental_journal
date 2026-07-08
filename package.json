@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "gen:types": "npx --yes supabase@latest gen types typescript --project-id waizojlaygcjpqgluhea --schema public > src/types/supabase.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",
