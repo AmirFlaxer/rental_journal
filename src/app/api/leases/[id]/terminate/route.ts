@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
-import { camelKeys } from "@/lib/supabase/case";
 
 interface RouteParams { params: Promise<{ id: string }> }
 
@@ -56,7 +55,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .single();
 
     if (updateErr) return NextResponse.json({ error: "שגיאה בסיום החוזה" }, { status: 500 });
-    return NextResponse.json({ lease: camelKeys(updated), noticeMonths, effectiveDate: finalEffective });
+    return NextResponse.json({ lease: updated, noticeMonths, effectiveDate: finalEffective });
   } catch (error) {
     console.error("Terminate lease error:", error);
     return NextResponse.json({ error: "שגיאה בסיום החוזה" }, { status: 500 });

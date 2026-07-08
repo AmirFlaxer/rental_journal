@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
-import { camelKeys } from "@/lib/supabase/case";
 
 interface RouteParams { params: Promise<{ id: string }> }
 
@@ -56,7 +55,7 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
       .single();
 
     if (updateErr) return NextResponse.json({ error: "שגיאה בהפעלת האופציה" }, { status: 500 });
-    return NextResponse.json(camelKeys(updated));
+    return NextResponse.json(updated);
   } catch (error) {
     console.error("Activate option error:", error);
     return NextResponse.json({ error: "שגיאה בהפעלת האופציה" }, { status: 500 });

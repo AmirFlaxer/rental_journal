@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { camelKeys } from "@/lib/supabase/case";
 import { randomUUID } from "crypto";
 
 const ALLOWED_TYPES = [
@@ -68,7 +67,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .single();
 
     if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
-    return NextResponse.json(camelKeys(doc), { status: 201 });
+    return NextResponse.json(doc, { status: 201 });
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json({ error: "שגיאה בהעלאת הקובץ" }, { status: 500 });

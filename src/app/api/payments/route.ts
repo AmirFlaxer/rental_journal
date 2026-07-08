@@ -1,7 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
-import { camelKeys, snakeKeys } from "@/lib/supabase/case";
 import { paymentSchema } from "@/lib/validations";
 import { reconcileAutoTax } from "@/lib/auto-tax";
 import { isCheckPaymentMethod, closeCheckReminderForPayment } from "@/lib/check-reminders";
@@ -22,7 +21,7 @@ export async function GET() {
     .order("due_date", { ascending: false });
 
   if (error) return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
-  return NextResponse.json(camelKeys(data));
+  return NextResponse.json(data);
 }
 
 export async function POST(request: NextRequest) {
@@ -32,28 +31,28 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const data = paymentSchema.parse(body);
-    // partialPaidAmount לא ב-paymentSchema (paymentSchema.ts הוא בבעלות תחום אחר) -
+    // partial_paid_amount לא ב-paymentSchema (paymentSchema.ts הוא בבעלות תחום אחר) -
     // נקלט ישירות מה-body ומועבר בנפרד ל-insert
     const partialPaidAmount =
-      typeof body.partialPaidAmount === "number" ? body.partialPaidAmount : undefined;
+      typeof body.partial_paid_amount === "number" ? body.partial_paid_amount : undefined;
 
     const supabase = await createClient();
 
     const { data: property } = await supabase
       .from("properties")
       .select("id")
-      .eq("id", data.propertyId)
+      .eq("id", data.property_id)
       .eq("user_id", session.user.id)
       .single();
 
     if (!property) return NextResponse.json({ error: "Property not found or unauthorized" }, { status: 404 });
 
     let lease: { id: string; payment_method: string | null } | null = null;
-    if (data.leaseId) {
+    if (data.lease_id) {
       const { data: leaseRow } = await supabase
         .from("leases")
         .select("id, payment_method")
-        .eq("id", data.leaseId)
+        .eq("id", data.lease_id)
         .eq("user_id", session.user.id)
         .single();
       if (!leaseRow) return NextResponse.json({ error: "Lease not found or unauthorized" }, { status: 404 });
@@ -63,7 +62,7 @@ export async function POST(request: NextRequest) {
     const { data: row, error } = await supabase
       .from("payments")
       .insert({
-        ...(snakeKeys(data) as object),
+        ...data,
         ...(partialPaidAmount !== undefined ? { partial_paid_amount: partialPaidAmount } : {}),
         user_id: session.user.id,
       })
@@ -86,19 +85,19 @@ export async function POST(request: NextRequest) {
       });
 
       // סגירת תזכורת "הפקדת שק" רק כששולם במלואו (status "paid" בדיוק, לא partial) ובשיקים
-      if (data.leaseId && lease && row.status === "paid" && isCheckPaymentMethod(lease.payment_method)) {
+      if (data.lease_id && lease && row.status === "paid" && isCheckPaymentMethod(lease.payment_method)) {
         await closeCheckReminderForPayment(
           supabase,
           session.user.id,
           row.id,
-          data.leaseId,
-          new Date(data.dueDate).toISOString(),
+          data.lease_id,
+          new Date(data.due_date).toISOString(),
           row.paid_date ?? new Date().toISOString()
         );
       }
     }
 
-    return NextResponse.json(camelKeys(row), { status: 201 });
+    return NextResponse.json(row, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError)
       return NextResponse.json({ error: "Validation failed", details: error.flatten() }, { status: 400 });
