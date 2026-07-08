@@ -13,10 +13,10 @@ export async function closeCheckReminderForPayment(
   userId: string,
   paymentId: string,
   leaseId: string,
-  dueDate: string,
-  paidDate: string
+  due_date: string,
+  paid_date: string
 ): Promise<void> {
-  const monthKey = dueDate.slice(0, 7);
+  const monthKey = due_date.slice(0, 7);
 
   const { data: linked } = await supabase
     .from("tasks")
@@ -25,7 +25,7 @@ export async function closeCheckReminderForPayment(
     .eq("source_payment_id", paymentId)
     .maybeSingle();
   if (linked) {
-    await supabase.from("tasks").update({ completed_at: paidDate }).eq("id", linked.id);
+    await supabase.from("tasks").update({ completed_at: paid_date }).eq("id", linked.id);
     return;
   }
 
@@ -41,7 +41,7 @@ export async function closeCheckReminderForPayment(
   if (match) {
     await supabase
       .from("tasks")
-      .update({ completed_at: paidDate, source_payment_id: paymentId })
+      .update({ completed_at: paid_date, source_payment_id: paymentId })
       .eq("id", match.id);
     return;
   }
@@ -50,8 +50,8 @@ export async function closeCheckReminderForPayment(
     user_id: userId,
     title: 'הפקדת שק שכ"ד',
     category: "Rent Collection",
-    due_date: dueDate,
-    completed_at: paidDate,
+    due_date,
+    completed_at: paid_date,
     priority: "normal",
     related_entity_type: "lease",
     related_entity_id: leaseId,

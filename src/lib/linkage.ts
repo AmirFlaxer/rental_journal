@@ -5,7 +5,7 @@ export type LinkageFrequency = "monthly" | "quarterly" | "semiannual";
 
 export interface IndexRate {
   type: LinkageType;
-  periodDate: string; // ISO date
+  period_date: string; // ISO date
   value: number;
 }
 
@@ -28,34 +28,34 @@ export function pickRate(rates: IndexRate[], type: LinkageType, targetDate: Date
   // מקומי ליום הקודם, ובתחילת חודש זה גורם לבחירת מדד של התקופה הקודמת בטעות.
   const target = localDateStr(targetDate);
   const matching = rates
-    .filter((r) => r.type === type && r.periodDate <= target)
-    .sort((a, b) => b.periodDate.localeCompare(a.periodDate));
+    .filter((r) => r.type === type && r.period_date <= target)
+    .sort((a, b) => b.period_date.localeCompare(a.period_date));
   return matching[0] ?? null;
 }
 
 export interface LinkageLease {
-  linkageType: LinkageType;
-  linkageFrequency: LinkageFrequency;
-  baseAmount: number | null;
-  baseDate: string | null; // ISO date
-  monthlyRent: number;
+  linkage_type: LinkageType;
+  linkage_frequency: LinkageFrequency;
+  base_amount: number | null;
+  base_date: string | null; // ISO date
+  monthly_rent: number;
 }
 
 // Returns the effective rent for today given the available index_rates rows
 export function calcEffectiveRent(lease: LinkageLease, rates: IndexRate[]): number {
-  if (lease.linkageType === "none" || !lease.baseAmount || !lease.baseDate) {
-    return lease.monthlyRent;
+  if (lease.linkage_type === "none" || !lease.base_amount || !lease.base_date) {
+    return lease.monthly_rent;
   }
 
-  const baseDate = new Date(lease.baseDate);
-  const baseRate = pickRate(rates, lease.linkageType, baseDate);
-  if (!baseRate) return lease.monthlyRent; // no data yet, fall back
+  const baseDate = new Date(lease.base_date);
+  const baseRate = pickRate(rates, lease.linkage_type, baseDate);
+  if (!baseRate) return lease.monthly_rent; // no data yet, fall back
 
-  const periodStart = getEffectivePeriodStart(new Date(), lease.linkageFrequency);
-  const currentRate = pickRate(rates, lease.linkageType, periodStart);
-  if (!currentRate) return lease.monthlyRent;
+  const periodStart = getEffectivePeriodStart(new Date(), lease.linkage_frequency);
+  const currentRate = pickRate(rates, lease.linkage_type, periodStart);
+  if (!currentRate) return lease.monthly_rent;
 
-  return Math.round((lease.baseAmount * currentRate.value) / baseRate.value);
+  return Math.round((lease.base_amount * currentRate.value) / baseRate.value);
 }
 
 export const LINKAGE_TYPE_LABELS: Record<LinkageType, string> = {

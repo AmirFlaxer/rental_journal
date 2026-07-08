@@ -20,7 +20,7 @@ afterEach(() => {
 function makeLease(overrides: Partial<LeaseLike> = {}): LeaseLike {
   return {
     id: "l1",
-    endDate: "2026-10-06", // daysToEnd=90 מ-8/7/2026
+    end_date: "2026-10-06", // daysToEnd=90 מ-8/7/2026
     status: "active",
     properties: { id: "p1", title: "רוטשילד 1" },
     ...overrides,
@@ -30,7 +30,7 @@ function makeLease(overrides: Partial<LeaseLike> = {}): LeaseLike {
 describe("generateVirtualLeaseRenewalTasks - חלון 90 יום", () => {
   it("לא מיוצר כשנשארו יותר מ-90 יום", () => {
     const tasks = generateVirtualLeaseRenewalTasks(
-      [makeLease({ endDate: "2026-10-10" })], // daysToEnd=94
+      [makeLease({ end_date: "2026-10-10" })], // daysToEnd=94
       [],
       new Date()
     );
@@ -39,7 +39,7 @@ describe("generateVirtualLeaseRenewalTasks - חלון 90 יום", () => {
 
   it("מיוצר בדיוק ב-90 יום, עדיפות normal", () => {
     const tasks = generateVirtualLeaseRenewalTasks(
-      [makeLease({ endDate: "2026-10-06" })], // daysToEnd=90
+      [makeLease({ end_date: "2026-10-06" })], // daysToEnd=90
       [],
       new Date()
     );
@@ -50,7 +50,7 @@ describe("generateVirtualLeaseRenewalTasks - חלון 90 יום", () => {
 
   it("חוזה שהסתיים (daysToEnd<0) לא מיוצר", () => {
     const tasks = generateVirtualLeaseRenewalTasks(
-      [makeLease({ endDate: "2026-07-07" })], // daysToEnd=-1
+      [makeLease({ end_date: "2026-07-07" })], // daysToEnd=-1
       [],
       new Date()
     );
@@ -59,7 +59,7 @@ describe("generateVirtualLeaseRenewalTasks - חלון 90 יום", () => {
 
   it("daysToEnd=0 (מסתיים היום) עדיין מיוצר, דחוף", () => {
     const tasks = generateVirtualLeaseRenewalTasks(
-      [makeLease({ endDate: "2026-07-08" })], // daysToEnd=0
+      [makeLease({ end_date: "2026-07-08" })], // daysToEnd=0
       [],
       new Date()
     );
@@ -72,7 +72,7 @@ describe("generateVirtualLeaseRenewalTasks - חלון 90 יום", () => {
 describe("generateVirtualLeaseRenewalTasks - הסלמת עדיפות בגבולות 75/60", () => {
   it("76 יום - normal (מעל 75)", () => {
     const tasks = generateVirtualLeaseRenewalTasks(
-      [makeLease({ endDate: "2026-09-22" })], // daysToEnd=76
+      [makeLease({ end_date: "2026-09-22" })], // daysToEnd=76
       [],
       new Date()
     );
@@ -82,7 +82,7 @@ describe("generateVirtualLeaseRenewalTasks - הסלמת עדיפות בגבול�
 
   it("75 יום - high (הגבול נכלל בטווח 60-75)", () => {
     const tasks = generateVirtualLeaseRenewalTasks(
-      [makeLease({ endDate: "2026-09-21" })], // daysToEnd=75
+      [makeLease({ end_date: "2026-09-21" })], // daysToEnd=75
       [],
       new Date()
     );
@@ -92,7 +92,7 @@ describe("generateVirtualLeaseRenewalTasks - הסלמת עדיפות בגבול�
 
   it("60 יום - high, עדיין לא דחוף בכותרת", () => {
     const tasks = generateVirtualLeaseRenewalTasks(
-      [makeLease({ endDate: "2026-09-06" })], // daysToEnd=60
+      [makeLease({ end_date: "2026-09-06" })], // daysToEnd=60
       [],
       new Date()
     );
@@ -102,7 +102,7 @@ describe("generateVirtualLeaseRenewalTasks - הסלמת עדיפות בגבול�
 
   it("59 יום - high + 'דחוף' בכותרת (מתחת ל-60)", () => {
     const tasks = generateVirtualLeaseRenewalTasks(
-      [makeLease({ endDate: "2026-09-05" })], // daysToEnd=59
+      [makeLease({ end_date: "2026-09-05" })], // daysToEnd=59
       [],
       new Date()
     );
@@ -115,7 +115,7 @@ describe("generateVirtualLeaseRenewalTasks - הסלמת עדיפות בגבול�
 describe("generateVirtualLeaseRenewalTasks - סינון סטטוס ו-dedup", () => {
   it("חוזה ended לא מייצר תזכורת", () => {
     const tasks = generateVirtualLeaseRenewalTasks(
-      [makeLease({ status: "ended", endDate: "2026-08-01" })],
+      [makeLease({ status: "ended", end_date: "2026-08-01" })],
       [],
       new Date()
     );
@@ -124,48 +124,48 @@ describe("generateVirtualLeaseRenewalTasks - סינון סטטוס ו-dedup", ()
 
   it("חוזה paused לא מייצר תזכורת", () => {
     const tasks = generateVirtualLeaseRenewalTasks(
-      [makeLease({ status: "paused", endDate: "2026-08-01" })],
+      [makeLease({ status: "paused", end_date: "2026-08-01" })],
       [],
       new Date()
     );
     expect(tasks).toHaveLength(0);
   });
 
-  it("dedup לפי lease.id + endDate - task קיים (גם מושלם) חוסם", () => {
+  it("dedup לפי lease.id + end_date - task קיים (גם מושלם) חוסם", () => {
     const dbTasks: DbTaskLike[] = [
       {
         category: "Lease Renewal",
-        relatedEntityType: "lease_renewal",
-        relatedEntityId: "l1",
-        dueDate: "2026-10-06",
-        completedAt: "2026-07-08",
+        related_entity_type: "lease_renewal",
+        related_entity_id: "l1",
+        due_date: "2026-10-06",
+        completed_at: "2026-07-08",
       },
     ];
     const tasks = generateVirtualLeaseRenewalTasks(
-      [makeLease({ endDate: "2026-10-06" })],
+      [makeLease({ end_date: "2026-10-06" })],
       dbTasks,
       new Date()
     );
     expect(tasks).toHaveLength(0);
   });
 
-  it("הארכת חוזה (endDate חדש) מייצרת מחזור חדש - ה-dbTask הישן לא חוסם", () => {
+  it("הארכת חוזה (end_date חדש) מייצרת מחזור חדש - ה-dbTask הישן לא חוסם", () => {
     const dbTasks: DbTaskLike[] = [
       {
         category: "Lease Renewal",
-        relatedEntityType: "lease_renewal",
-        relatedEntityId: "l1",
-        dueDate: "2026-10-06", // המחזור הישן, מכוסה
-        completedAt: "2026-07-08",
+        related_entity_type: "lease_renewal",
+        related_entity_id: "l1",
+        due_date: "2026-10-06", // המחזור הישן, מכוסה
+        completed_at: "2026-07-08",
       },
     ];
-    // החוזה הוארך ל-endDate חדש - daysToEnd=75 מהתאריך המוקפא
+    // החוזה הוארך ל-end_date חדש - daysToEnd=75 מהתאריך המוקפא
     const tasks = generateVirtualLeaseRenewalTasks(
-      [makeLease({ endDate: "2026-09-21" })],
+      [makeLease({ end_date: "2026-09-21" })],
       dbTasks,
       new Date()
     );
     expect(tasks).toHaveLength(1);
-    expect(tasks[0].dueDate).toBe("2026-09-21");
+    expect(tasks[0].due_date).toBe("2026-09-21");
   });
 });

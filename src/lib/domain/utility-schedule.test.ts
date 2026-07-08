@@ -21,12 +21,12 @@ afterEach(() => {
 function makeUtility(overrides: Partial<PropertyUtilityLike> = {}): PropertyUtilityLike {
   return {
     id: "u1",
-    propertyId: "p1",
-    propertyTitle: "רוטשילד 1",
+    property_id: "p1",
+    property_title: "רוטשילד 1",
     type: "water",
-    customLabel: null,
+    custom_label: null,
     frequency: "monthly",
-    anchorMonth: null,
+    anchor_month: null,
     responsibility: "owner_pays",
     active: true,
     ...overrides,
@@ -34,44 +34,44 @@ function makeUtility(overrides: Partial<PropertyUtilityLike> = {}): PropertyUtil
 }
 
 describe("utilityAppliesThisPeriod", () => {
-  it("monthly - תמיד חל, לא משנה מה anchorMonth", () => {
+  it("monthly - תמיד חל, לא משנה מה anchor_month", () => {
     expect(utilityAppliesThisPeriod(makeUtility({ frequency: "monthly" }), new Date())).toBe(true);
     expect(
-      utilityAppliesThisPeriod(makeUtility({ frequency: "monthly", anchorMonth: 3 }), new Date())
+      utilityAppliesThisPeriod(makeUtility({ frequency: "monthly", anchor_month: 3 }), new Date())
     ).toBe(true);
   });
 
-  it("bimonthly - חל בחודש שבו (currentMonth - anchorMonth) זוגי", () => {
+  it("bimonthly - חל בחודש שבו (currentMonth - anchor_month) זוגי", () => {
     // חודש נוכחי = 7 (יולי). anchor=1: 7-1=6, זוגי - חל
     expect(
-      utilityAppliesThisPeriod(makeUtility({ frequency: "bimonthly", anchorMonth: 1 }), new Date())
+      utilityAppliesThisPeriod(makeUtility({ frequency: "bimonthly", anchor_month: 1 }), new Date())
     ).toBe(true);
     // anchor=5: 7-5=2, זוגי - חל
     expect(
-      utilityAppliesThisPeriod(makeUtility({ frequency: "bimonthly", anchorMonth: 5 }), new Date())
+      utilityAppliesThisPeriod(makeUtility({ frequency: "bimonthly", anchor_month: 5 }), new Date())
     ).toBe(true);
   });
 
-  it("bimonthly - לא חל בחודש שבו (currentMonth - anchorMonth) אי-זוגי", () => {
+  it("bimonthly - לא חל בחודש שבו (currentMonth - anchor_month) אי-זוגי", () => {
     // anchor=2: 7-2=5, אי-זוגי - לא חל
     expect(
-      utilityAppliesThisPeriod(makeUtility({ frequency: "bimonthly", anchorMonth: 2 }), new Date())
+      utilityAppliesThisPeriod(makeUtility({ frequency: "bimonthly", anchor_month: 2 }), new Date())
     ).toBe(false);
     // anchor=6: 7-6=1, אי-זוגי - לא חל
     expect(
-      utilityAppliesThisPeriod(makeUtility({ frequency: "bimonthly", anchorMonth: 6 }), new Date())
+      utilityAppliesThisPeriod(makeUtility({ frequency: "bimonthly", anchor_month: 6 }), new Date())
     ).toBe(false);
   });
 
-  it("bimonthly בלי anchorMonth - נחשב תמיד חל", () => {
+  it("bimonthly בלי anchor_month - נחשב תמיד חל", () => {
     expect(
-      utilityAppliesThisPeriod(makeUtility({ frequency: "bimonthly", anchorMonth: null }), new Date())
+      utilityAppliesThisPeriod(makeUtility({ frequency: "bimonthly", anchor_month: null }), new Date())
     ).toBe(true);
   });
 });
 
 describe("generateVirtualUtilityTasks", () => {
-  it("owner_pays - כותרת 'תשלום {תווית} - {נכס}', dueDate ה-1 בחודש הנוכחי", () => {
+  it("owner_pays - כותרת 'תשלום {תווית} - {נכס}', due_date ה-1 בחודש הנוכחי", () => {
     const tasks = generateVirtualUtilityTasks(
       [makeUtility({ id: "u1", type: "water", responsibility: "owner_pays" })],
       [],
@@ -82,10 +82,10 @@ describe("generateVirtualUtilityTasks", () => {
       id: "virtual-util-u1-2026-07",
       title: "תשלום מים - רוטשילד 1",
       category: "Water",
-      dueDate: "2026-07-01",
+      due_date: "2026-07-01",
       priority: "normal",
-      relatedEntityType: "property_utility",
-      relatedEntityId: "u1",
+      related_entity_type: "property_utility",
+      related_entity_id: "u1",
       isVirtual: true,
     });
   });
@@ -115,7 +115,7 @@ describe("generateVirtualUtilityTasks", () => {
 
   it("bimonthly שלא חל בחודש הנוכחי - לא נוצרת תזכורת", () => {
     const tasks = generateVirtualUtilityTasks(
-      [makeUtility({ frequency: "bimonthly", anchorMonth: 2 })], // 7-2=5, אי-זוגי
+      [makeUtility({ frequency: "bimonthly", anchor_month: 2 })], // 7-2=5, אי-זוגי
       [],
       new Date()
     );
@@ -129,10 +129,10 @@ describe("generateVirtualUtilityTasks", () => {
       makeUtility({ id: "c", type: "electricity" }),
       makeUtility({ id: "d", type: "municipal_tax" }),
       makeUtility({ id: "e", type: "house_committee" }),
-      makeUtility({ id: "f", type: "other", customLabel: "אינטרנט" }),
+      makeUtility({ id: "f", type: "other", custom_label: "אינטרנט" }),
     ];
     const tasks = generateVirtualUtilityTasks(utilities, [], new Date());
-    const byId = Object.fromEntries(tasks.map((t) => [t.relatedEntityId, t]));
+    const byId = Object.fromEntries(tasks.map((t) => [t.related_entity_id, t]));
     expect(byId.a.category).toBe("Water");
     expect(byId.b.category).toBe("Gas");
     expect(byId.c.category).toBe("Electricity");
@@ -142,9 +142,9 @@ describe("generateVirtualUtilityTasks", () => {
     expect(byId.f.title).toBe("תשלום אינטרנט - רוטשילד 1");
   });
 
-  it("other בלי customLabel - נופל ל'חשבון'", () => {
+  it("other בלי custom_label - נופל ל'חשבון'", () => {
     const tasks = generateVirtualUtilityTasks(
-      [makeUtility({ type: "other", customLabel: null })],
+      [makeUtility({ type: "other", custom_label: null })],
       [],
       new Date()
     );
@@ -153,7 +153,7 @@ describe("generateVirtualUtilityTasks", () => {
 
   it("dedup - task קיים באותו חודש (גם מושלם) חוסם יצירת וירטואלי תואם", () => {
     const dbTasks: DbTaskLike[] = [
-      { category: "Water", relatedEntityType: "property_utility", relatedEntityId: "u1", dueDate: "2026-07-01", completedAt: "2026-07-02" },
+      { category: "Water", related_entity_type: "property_utility", related_entity_id: "u1", due_date: "2026-07-01", completed_at: "2026-07-02" },
     ];
     const tasks = generateVirtualUtilityTasks([makeUtility({ id: "u1" })], dbTasks, new Date());
     expect(tasks).toHaveLength(0);
@@ -161,7 +161,7 @@ describe("generateVirtualUtilityTasks", () => {
 
   it("dedup - task קיים בחודש אחר לא חוסם", () => {
     const dbTasks: DbTaskLike[] = [
-      { category: "Water", relatedEntityType: "property_utility", relatedEntityId: "u1", dueDate: "2026-06-01" },
+      { category: "Water", related_entity_type: "property_utility", related_entity_id: "u1", due_date: "2026-06-01" },
     ];
     const tasks = generateVirtualUtilityTasks([makeUtility({ id: "u1" })], dbTasks, new Date());
     expect(tasks).toHaveLength(1);
