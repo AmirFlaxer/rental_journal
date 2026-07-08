@@ -11,7 +11,9 @@ export type { Database };
 // ---- enums דומייניים (צמצום מעל string של הסכימה) ----
 export type LinkageType = "none" | "usd" | "cpi";
 export type LinkageFrequency = "monthly" | "quarterly" | "semiannual";
-export type LeaseStatus = "active" | "terminated" | "expired";
+// active/ended נכתבים ע"י האפליקציה היום; paused/terminated/expired ערכי מורשת
+// שנשמרים בשורות ישנות (חוזים ישנים לא נדרסים - לוגיקה מטפלת, לא הדאטה)
+export type LeaseStatus = "active" | "ended" | "paused" | "terminated" | "expired";
 export type PaymentMethod = "bank_transfer" | "check" | "cash" | "other";
 export type ExpenseCategory =
   | "maintenance"

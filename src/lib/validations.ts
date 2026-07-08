@@ -70,6 +70,10 @@ export const leaseSchema = z.object({
   tenant_notice_months: z.number().int().min(1).nullish(),
   landlord_notice_months: z.number().int().min(1).nullish(),
   payment_method: z.string().nullish(),
+  check_bank: z.string().nullish(),
+  check_branch: z.string().nullish(),
+  check_account: z.string().nullish(),
+  check_deposit_reminder: z.boolean().nullish(),
   // Index linkage
   linkage_type: z.enum(["none", "usd", "cpi"]).default("none"),
   linkage_frequency: z.enum(["monthly", "quarterly", "semiannual"]).default("monthly"),
