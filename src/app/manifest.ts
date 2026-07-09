@@ -2,13 +2,13 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "מנהל נכסים להשכרה",
-    short_name: "מנהל נכסים",
+    name: "יומן הספר - ניהול נכסים",
+    short_name: "יומן הספר",
     description: "נהל את נכסי ההשכרה שלך בקלות",
     start_url: "/dashboard",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#2563eb",
+    background_color: "#f3edde",
+    theme_color: "#f3edde",
     dir: "rtl",
     lang: "he",
     orientation: "portrait-primary",

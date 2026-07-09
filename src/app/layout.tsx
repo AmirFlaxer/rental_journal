@@ -21,16 +21,16 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#2563eb",
+  themeColor: "#f3edde",
 };
 
 export const metadata: Metadata = {
-  title: "מנהל נכסים להשכרה",
+  title: "יומן הספר - ניהול נכסים",
   description: "נהל את נכסי ההשכרה שלך בקלות",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "מנהל נכסים",
+    statusBarStyle: "default",
+    title: "יומן הספר",
   },
   formatDetection: {
     telephone: false,
