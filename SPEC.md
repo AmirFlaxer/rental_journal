@@ -17,7 +17,7 @@
   - **חשבונות שירות**: src/lib/domain/utility-schedule.ts - תזכורת לתקופה הנוכחית לחשבונות owner_pays/owner_forwards (נוסח שונה). tenant_pays = בלי תזכורת. bimonthly לפי זוגיות anchor_month.
   - **סיום חוזה מתקרב**: src/lib/domain/lease-reminders.ts - מ-90 יום לפני end_date, הסלמת עדיפות ב-75/60 יום, תזכורת אחת שסימון אחד סוגר (מפתח lease+endDate).
 - **"שחזור תזכורות" (רעיון ישן) קופל לכאן**: הווירטואליות מרפאות את עצמן, אין צורך בכפתור שחזור.
-- מיגרציה `20260708_property_utilities.sql` **טרם הורצה בפרודקשן**. spec: docs/superpowers/specs/2026-07-08-property-utilities-design.md.
+- מיגרציה `20260708_property_utilities.sql` **הורצה בפרודקשן 2026-07-08** ✅. spec: docs/superpowers/specs/2026-07-08-property-utilities-design.md.
 
 ## גל שיפורים שני (2026-07-08) - חוב-טכני, freemium, משוב, לינט
 
@@ -26,7 +26,7 @@
 - **טופס משוב ל-DB**: טבלת `feedback` + RLS; POST /api/feedback; טופס האודות שולח ל-DB (best-effort) + fallback ל-mailto.
 - **לינט חוסם**: כל 38 בעיות הלינט תוקנו; הוסר `continue-on-error` - כשל לינט חוסם פריסה. date-input עבר מ-ref-during-render ל-setState-during-render.
 - **פריסה אוטומטית פעילה**: GitHub Actions (secrets מוגדרים) - כל push ל-main בודק ופורס. אין צורך ב-vercel deploy ידני.
-- **3 מיגרציות חדשות טרם הורצו בפרודקשן** (ראו supabase/migrations/README.md): payments_partial_amount, subscriptions, feedback.
+- **3 המיגרציות (payments_partial_amount, subscriptions, feedback) הורצו בפרודקשן 2026-07-08** ✅ (סטטוס מלא: supabase/migrations/README.md).
 
 **נדחה מפורשות (לסשן ייעודי):** Server Components לדוחות (מנוגד ל-TanStack שנעשה), supabase gen types (דורש token), פיצ'רים גדולים (חשבונות שירות, שחזור תזכורות, חוברת הסברים).
 
@@ -130,8 +130,8 @@
 - ~~**באג UTC באישור תקבול ביום עצמו**~~ — **נפתר** (2026-06-26): השוואת מחרוזת YYYY-MM-DD במקום `new Date()` ב-payments/debts/dashboard
 - ~~**route מסמכים נדרס בתוכן index_rates**~~ — **נפתר** (2026-06-26): שוחזרו GET/DELETE עם בדיקת בעלות (documents/[id]/route.ts)
 - ~~**enum סטטוס תשלום חסר partial**~~ — **נפתר** (2026-06-26): יושר ל-PaymentStatus ב-validations.ts
-- **Vercel auto-deploy לא עובד** — יש להריץ `vercel --prod --yes` ידנית לאחר כל push (אין חיבור GitHub→Vercel פעיל)
-- **PWA לא נבדקה על מכשיר אמיתי** — לבדוק התקנה ב-Chrome Android / Safari iOS
+- ~~**Vercel auto-deploy לא עובד**~~ — **נפתר** (2026-07-08): פריסה אוטומטית דרך GitHub Actions על כל push ל-main (secrets מוגדרים); אין צורך ב-vercel deploy ידני
+- ~~**PWA לא נבדקה על מכשיר אמיתי (Android)**~~ — **נבדקה 2026-07-09** על OnePlus CPH2653 אמיתי דרך adb+CDP: manifest בלי שגיאות, SW activated, מותקנת כ-WebAPK מלא, standalone מאומת (`display-mode: standalone` = true); נבדקו גם המסכים מבפנים אחרי התחברות (בקרה/נכסים/חוזים/תקבולים/תזכורות) - נתונים אמיתיים נטענים, צבעים סמנטיים תקינים, ותזכורות חשבונות-שירות + סיום-חוזה מהפיצ'ר החדש מופיעות בפרודקשן. Safari iOS לא ייבדק - אין מכשיר iOS זמין (2026-07-09). **ממצא פתוח**: `theme_color` ב-manifest הוא הכחול הישן `#2563eb` - פס הסטטוס באפליקציה המותקנת כחול במקום סגול המותג `#7c83ff`
 - **📨 טופס "אודות" → שמירת פניות ב-DB** — כיום טופס הדיווח (`/dashboard/about`) שולח דרך `mailto` בלבד. הצעה: טבלת `feedback` + `POST /api/feedback`.
 - **📚 חוברת הסברים למשתמש** — ראה פירוט בסעיף למטה
 - **🧾 חשבונות שירות לפי נכס + תזכורות מחזוריות** (רעיון לפעם הבאה) — בכל נכס לסמן אילו חשבונות מגיעים לבעלים (מים, גז, חשמל, ארנונה, ועד בית וכו'), כל אחד עם תדירות (חודשי / דו-חודשי) ואולי יום בחודש. המערכת תייצר **תזכורת מחזורית אוטומטית** לכל חשבון מסומן. נקודות לתכנון: טבלת `property_utilities` (property_id, type, frequency, due_day, active) או שדה JSON על `properties`; חיבור למנגנון התזכורות הקיים (`tasks`); אולי קישור אוטומטי להוצאה כשמסמנים "שולם". להתחבר לשדות הקיימים `paid_by` / `bill_transferred` ב-expenses.
@@ -224,8 +224,8 @@ CREATE POLICY "index_rates_read" ON index_rates FOR SELECT USING (true);
 ---
 
 ## הצעד הבא
-1. להריץ את ה-SQL למעלה ב-Supabase Dashboard
-2. להגדיר `CRON_SECRET` ב-Vercel env vars
-3. לבדוק PWA על נייד (Chrome Android / Safari iOS)
+1. ~~להריץ את ה-SQL למעלה ב-Supabase Dashboard~~ - **בוצע** (כל הטבלאות/עמודות קיימות; מיגרציות 2026-07-08 הורצו, ראו supabase/migrations/README.md)
+2. ~~להגדיר `CRON_SECRET` ב-Vercel env vars~~ - **בוצע** ✅
+3. ~~לבדוק PWA על נייד Android~~ - **בוצע 2026-07-09** ✅ (iOS לא ייבדק - אין מכשיר); נשארה החלטה על theme_color (כחול ישן מול סגול מותג)
 4. ~~לשקול `supabase gen types typescript`~~ - **בוצע במלואו 2026-07-08** (כולל snake_case מקצה לקצה)
 5. 📚 להכין חוברת הסברים (ראה סעיף למעלה)
