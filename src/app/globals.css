@@ -14,6 +14,9 @@
   --accent-hover:#5b62e6;
   --accent-dim: rgba(124,131,255,0.13);
   --gilt:       #d8b25a; /* זהב מאופק - לסימן המותג בלבד */
+  /* aliases - קוד קיים מפנה ל---font-rubik / --font-display; שניהם Heebo כעת */
+  --font-rubik:   var(--font-heebo);
+  --font-display: var(--font-heebo);
 }
 
 /* ── Base ───────────────────────────────────────────── */
@@ -40,7 +43,7 @@ button, a, [role="button"] {
 }
 
 h1, h2 {
-  font-family: var(--font-display), var(--font-rubik), serif;
+  font-family: var(--font-heebo), sans-serif;
   font-weight: 700;
   letter-spacing: -0.005em;
 }
