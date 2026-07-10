@@ -67,4 +67,18 @@ describe("buildAttentionItems - גבולות אופק", () => {
     });
     expect(items).toHaveLength(0);
   });
+
+  it("due_date בפורמט timestamptz מלא מה-DB מטופל נכון", () => {
+    const items = buildAttentionItems({
+      payments: [],
+      activeLeases: [],
+      openTasks: [
+        { id: "t1", title: "קרוב", due_date: "2026-07-12T00:00:00+00:00" },
+        { id: "t2", title: "רחוק", due_date: "2026-08-20T00:00:00+00:00" },
+      ],
+      today: TODAY,
+    });
+    expect(items).toHaveLength(1);
+    expect(items[0].sub).toBe("בעוד 2 ימים");
+  });
 });

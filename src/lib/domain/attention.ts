@@ -36,9 +36,10 @@ const TASK_HORIZON_DAYS = 7;
 const LEASE_HORIZON_DAYS = 90;
 
 // הפרש ימים בין שני תאריכי YYYY-MM-DD בזמן מקומי (בלי מלכודת UTC)
+// תומך גם ב-timestamptz מלא מה-DB (למשל "2026-07-25T00:00:00+00:00") - נחתך ליום בלבד.
 function daysBetween(from: string, to: string): number {
-  const [fy, fm, fd] = from.split("-").map(Number);
-  const [ty, tm, td] = to.split("-").map(Number);
+  const [fy, fm, fd] = from.slice(0, 10).split("-").map(Number);
+  const [ty, tm, td] = to.slice(0, 10).split("-").map(Number);
   const a = new Date(fy, fm - 1, fd).getTime();
   const b = new Date(ty, tm - 1, td).getTime();
   return Math.round((b - a) / 86400000);
@@ -54,7 +55,7 @@ export function buildAttentionItems(input: {
   const items: AttentionItem[] = [];
 
   for (const p of payments) {
-    if (p.status === "paid" || p.due_date >= today) continue;
+    if (p.status === "paid" || p.due_date.slice(0, 10) >= today) continue;
     items.push({
       id: `overdue-${p.id}`,
       kind: "overdue",

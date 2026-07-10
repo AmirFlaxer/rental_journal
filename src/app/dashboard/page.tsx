@@ -270,7 +270,7 @@ export default function Dashboard() {
       {/* מספר-גיבור: תזרים החודש */}
       <div className="text-center py-2">
         <p className="text-sm text-gray-600">תזרים החודש, אחרי מס</p>
-        <p className="text-5xl font-bold text-gray-900 num-ltr py-1">₪{cashflow.toLocaleString()}</p>
+        <p className="text-5xl font-bold text-gray-900 num-ltr py-1">₪{Math.round(cashflow).toLocaleString()}</p>
         {trendPct !== null && (
           <p className={`text-sm font-semibold ${trendPct >= 0 ? "text-emerald-700" : "text-red-700"}`}>
             <span aria-hidden="true" className="text-xs">{trendPct >= 0 ? "▲" : "▼"}</span>{" "}
