@@ -41,7 +41,8 @@ function toUtcArgs(iso: string): [number, number, number] {
 // שבוע ישראלי מתחיל ביום ראשון.
 export function weekGroupLabel(dateStr: string, today: string): string {
   const parse = (s: string) => {
-    const [y, m, d] = s.split("-").map(Number);
+    // תומך גם ב-timestamptz מלא מה-DB - נחתך ליום לפני הפירוק
+    const [y, m, d] = s.slice(0, 10).split("-").map(Number);
     return new Date(y, m - 1, d);
   };
   const t = parse(today);

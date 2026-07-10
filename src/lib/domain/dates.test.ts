@@ -49,4 +49,9 @@ describe("weekGroupLabel", () => {
     expect(weekGroupLabel("2026-06-28", "2026-07-10")).toBe("שבוע שעבר");
     expect(weekGroupLabel("2026-06-27", "2026-07-10")).toBe("יוני 2026");
   });
+
+  it("תומך בפורמט timestamptz מלא מה-DB", () => {
+    expect(weekGroupLabel("2026-07-08T00:00:00+00:00", "2026-07-10")).toBe("השבוע");
+    expect(weekGroupLabel("2026-06-20T15:30:00+00:00", "2026-07-10")).toBe("יוני 2026");
+  });
 });
