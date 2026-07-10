@@ -66,7 +66,7 @@ h1, h2 {
 }
 
 /* עזר: פונט החתימה לשימוש מפורש (מספרים-גיבור, כותרות הירו) */
-.font-display { font-family: var(--font-display), var(--font-rubik), serif; }
+.font-display { font-family: var(--font-display), var(--font-rubik), sans-serif; }
 
 /* ── Tailwind overrides — backgrounds ───────────────── */
 .bg-white          { background-color: var(--bg-surface)  !important; }
@@ -109,10 +109,10 @@ select option { background: var(--bg-elevated); color: var(--text-1); }
 .hover\:bg-indigo-700:hover{ background-color: var(--accent-hover) !important; }
 .text-indigo-600,
 .text-indigo-700,
-.text-indigo-400           { color: var(--accent)           !important; }
+.text-indigo-400           { color: var(--accent-hover)      !important; }
 .bg-indigo-50,
 .bg-indigo-100             { background-color: var(--accent-dim) !important; }
-.text-indigo-800           { color: var(--accent)           !important; }
+.text-indigo-800           { color: var(--accent-hover)      !important; }
 .ring-indigo-400,
 .focus\:ring-indigo-400,
 .focus\:ring-indigo-500,
@@ -129,7 +129,7 @@ select option { background: var(--bg-elevated); color: var(--text-1); }
 .bg-blue-600               { background-color: var(--accent) !important; }
 .hover\:bg-blue-700:hover  { background-color: var(--accent-hover) !important; }
 .text-blue-600,
-.text-blue-700             { color: var(--accent)           !important; }
+.text-blue-700             { color: var(--accent-hover)      !important; }
 .bg-blue-50,
 .bg-blue-100               { background-color: var(--accent-dim) !important; }
 .border-blue-200           { border-color: rgba(124,131,255,0.3) !important; }
@@ -143,7 +143,7 @@ select option { background: var(--bg-elevated); color: var(--text-1); }
 .from-pink-500\/10         { --tw-gradient-from: rgba(124,131,255,0.10) !important; }
 .accent-pink-600           { accent-color: var(--accent) !important; }
 .text-pink-600,
-.text-pink-700             { color: var(--accent) !important; }
+.text-pink-700             { color: var(--accent-hover) !important; }
 /* ⚠ deprecated: המיפויים למעלה (pink → accent) הם רשת ביטחון היסטורית.
    לשימושים חדשים/מוחלפים יש להשתמש ב-.tick-accent / .grad-accent-diag / .grad-accent-fade-l
    למטה — הם לא תלויים בזה שמישהו כתב "pink" בקוד, ולכן פחות שבירים. אל תמחקו את מיפויי ה-pink -
@@ -181,11 +181,11 @@ select option { background: var(--bg-elevated); color: var(--text-1); }
 .bg-red-100    { background-color: rgba(190,18,60,0.09)  !important; }
 .text-red-700  { color: #be123c !important; }
 .bg-amber-100  { background-color: rgba(180,83,9,0.10)   !important; }
-.text-amber-700{ color: #b45309 !important; }
+.text-amber-700{ color: #92400e !important; }
 .bg-emerald-100{ background-color: rgba(4,120,87,0.10)   !important; }
 .text-emerald-700{ color: #047857 !important; }
 .bg-yellow-100 { background-color: rgba(180,83,9,0.10)   !important; }
-.text-yellow-700{ color: #b45309 !important; }
+.text-yellow-700{ color: #92400e !important; }
 
 /* Error boxes */
 .bg-red-50     { background-color: rgba(190,18,60,0.07)  !important; }
