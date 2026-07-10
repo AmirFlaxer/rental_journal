@@ -118,6 +118,7 @@ export default function Dashboard() {
 
   const today = todayStr();
   const thisMonth = today.slice(0, 7);
+  const dayOfMonth = Number(today.slice(8, 10));
   const prevMonth = (() => {
     const [y, m] = thisMonth.split("-").map(Number);
     return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
@@ -125,8 +126,8 @@ export default function Dashboard() {
 
   const cashflow = useMemo(() => monthCashflow(payments, expenses, thisMonth), [payments, expenses, thisMonth]);
   const trendPct = useMemo(
-    () => cashflowTrendPct(cashflow, monthCashflow(payments, expenses, prevMonth)),
-    [cashflow, payments, expenses, prevMonth]
+    () => cashflowTrendPct(cashflow, monthCashflow(payments, expenses, prevMonth, dayOfMonth)),
+    [cashflow, payments, expenses, prevMonth, dayOfMonth]
   );
 
   const openTasks = useMemo(() => tasks.filter((t) => t.completed_at === null), [tasks]);

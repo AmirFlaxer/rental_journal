@@ -38,3 +38,30 @@ describe("cashflowTrendPct", () => {
     expect(cashflowTrendPct(5000, -100)).toBeNull();
   });
 });
+
+describe("monthCashflow - uptoDay (השוואה עד אותו יום)", () => {
+  const payments = [
+    { payment_type: "Rent", status: "paid", paid_date: "2026-06-08", amount: 7875 },
+    { payment_type: "Rent", status: "paid", paid_date: "2026-06-26", amount: 5500 },
+  ];
+  const expenses = [
+    { amount: 787, date: "2026-06-08" },
+    { amount: 550, date: "2026-06-26" },
+  ];
+
+  it("מגביל את החישוב עד היום הנתון בחודש (כולל אותו)", () => {
+    expect(monthCashflow(payments as never, expenses, "2026-06", 10)).toBe(7875 - 787);
+    expect(monthCashflow(payments as never, expenses, "2026-06", 8)).toBe(7875 - 787);
+    expect(monthCashflow(payments as never, expenses, "2026-06", 7)).toBe(0);
+  });
+
+  it("בלי uptoDay - החודש כולו (התנהגות קיימת)", () => {
+    expect(monthCashflow(payments as never, expenses, "2026-06")).toBe(13375 - 1337);
+  });
+
+  it("תומך ב-paid_date בפורמט timestamptz מלא", () => {
+    const p = [{ payment_type: "Rent", status: "paid", paid_date: "2026-06-08T09:00:00+00:00", amount: 1000 }];
+    expect(monthCashflow(p as never, [], "2026-06", 10)).toBe(1000);
+    expect(monthCashflow(p as never, [], "2026-06", 7)).toBe(0);
+  });
+});
