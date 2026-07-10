@@ -2,6 +2,16 @@
 
 > מצב נוכחי, החלטות, והצעד הבא. מתעדכן בכל session.
 
+## רדיזיין "מהדורת נייר" (2026-07-10, מוזג ופרוס)
+
+- **מעבר מכהה-בלבד לערכת "קלף" בהירה אחת** (הכרעת מחקר רב-סוכני: 7/7 אפליקציות בקטגוריה בהירות, positive polarity, קהל 35-65, שימוש יומי קצר). אין ערכה כהה ואין theme switcher. spec: docs/superpowers/specs/2026-07-10-paper-edition-redesign-design.md, תוכנית: docs/superpowers/plans/2026-07-10-paper-edition-redesign.md.
+- **טוקנים**: רקע `#f3edde`, כרטיס `#fbf7ec`, דיו `#231f16`, מותג `#7c83ff` (טקסט מותג על קלף: `--accent-hover #5b62e6` ל-AA), ענבר טקסט `#92400e`, ירוק `#047857`, אדום `#be123c`. צל חם עדין.
+- **Heebo יחיד** (400/500/700) - Rubik ו-Frank Ruhl Libre הוסרו; `--font-rubik`/`--font-display` הם aliases ל-Heebo.
+- **דשבורד חדש** (בנוי לביקור 1-3 דקות אחת לכמה ימים): "מאז הביקור האחרון" (localStorage, created_at מכריע), "דורש טיפול" (איחורים/משימות עד 7 ימים/חוזים עד 90 יום - src/lib/domain/attention.ts), מספר-גיבור "תזרים החודש אחרי מס" + מגמה (src/lib/domain/cashflow.ts), פיד מקובץ שבועי (weekGroupLabel). מודולים חדשים ב-domain עם 18 בדיקות; סה"כ 95 ירוקות.
+- **manifest**: שם "יומן הספר - ניהול נכסים", theme_color `#f3edde` (פס סטטוס קלף; WebAPK מותקן מתעדכן תוך עד ~יום).
+- **לקח תהליכי**: נוסף סקיל verify פרויקטלי (.claude/skills/verify, לא בגיט) - חובה בדיקה ויזואלית Playwright אחרי שערים סטטיים; תפסה 2 באגים (NaN מ-timestamptz, Invalid Date) ששערים סטטיים פספסו. תאריכים מה-DB הם timestamptz - כל פירוק חייב `.slice(0, 10)`.
+- **פתוח להכרעה**: מגמת התזרים משווה חודש-חלקי לחודש-קודם-מלא (באמצע חודש נוטה ל"ירידה") - לשקול השוואה עד-אותו-יום; בדיקת מכשיר אמיתי אחרי הפריסה טרם בוצעה (המכשיר נותק).
+
 ## רפקטור: gen types + snake_case מקצה לקצה (2026-07-08, מוזג ופרוס)
 
 - **הושלם שלב 2 של docs/gen-types.md** (סשן ייעודי, 8 משימות subagent-driven + סקירת Opus סופית): `src/types/supabase.ts` מיוצר מהסכימה (`npm run gen:types`), `src/types/database.ts` גוזר ממנו את כל הישויות (צמצומי enum דרך Omit בלבד), **שכבת ההמרה camelKeys/snakeKeys נמחקה** - כל ה-API והדפים עובדים snake_case כמו ה-DB.
