@@ -334,9 +334,9 @@ export default function PropertyDetailPage() {
               if (!l) return null;
               return (
                 <ul className="text-sm text-gray-700 mb-6 space-y-1 bg-gray-50 rounded-lg p-3">
-                  <li>תאריך התחלה: <strong>{new Date(l.option_start ?? l.end_date).toLocaleDateString("he-IL")}</strong></li>
-                  <li>תאריך סיום: <strong>{l.option_end ? new Date(l.option_end).toLocaleDateString("he-IL") : "-"}</strong></li>
-                  {l.option_rent && <li>שכ&quot;ד חדש: <strong>₪{Number(l.option_rent).toLocaleString()}</strong></li>}
+                  <li>תאריך התחלה: <strong className="num-ltr">{new Date(l.option_start ?? l.end_date).toLocaleDateString("he-IL")}</strong></li>
+                  <li>תאריך סיום: <strong className="num-ltr">{l.option_end ? new Date(l.option_end).toLocaleDateString("he-IL") : "-"}</strong></li>
+                  {l.option_rent && <li>שכ&quot;ד חדש: <strong className="num-ltr">₪{Number(l.option_rent).toLocaleString()}</strong></li>}
                 </ul>
               );
             })()}
@@ -361,7 +361,7 @@ export default function PropertyDetailPage() {
             <div className="text-4xl mb-3">✅</div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">בקשת הסיום נרשמה</h3>
             <p className="text-gray-600 mb-1">תקופת הודעה: <strong>{termResult.noticeMonths} חודשים</strong></p>
-            <p className="text-gray-600 mb-6">תאריך סיום יעיל: <strong>{new Date(termResult.effectiveDate).toLocaleDateString("he-IL")}</strong></p>
+            <p className="text-gray-600 mb-6">תאריך סיום יעיל: <strong className="num-ltr">{new Date(termResult.effectiveDate).toLocaleDateString("he-IL")}</strong></p>
             <button onClick={() => setTermResult(null)}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
               סגור
@@ -700,7 +700,7 @@ export default function PropertyDetailPage() {
               {property.purchase_price != null && (
                 <div className="col-span-2">
                   <span className="text-gray-500">מחיר רכישה: </span>
-                  <span className="font-semibold text-gray-800">₪{property.purchase_price.toLocaleString()}</span>
+                  <span className="font-semibold text-gray-800 num-ltr">₪{property.purchase_price.toLocaleString()}</span>
                 </div>
               )}
               {property.zip_code && (
@@ -994,7 +994,7 @@ export default function PropertyDetailPage() {
                       <span className="mx-2 text-gray-400">·</span>
                       <span>{r.month}</span>
                       <span className="mx-2 text-gray-400">·</span>
-                      <span>₪{Number(r.lease.monthly_rent).toLocaleString()}</span>
+                      <span className="num-ltr">₪{Number(r.lease.monthly_rent).toLocaleString()}</span>
                     </div>
                     <span className="font-bold text-xs px-2 py-1 rounded-full">
                       {r.status === "paid" ? "✅ התקבל" : r.status === "partial" ? "🔶 חלקי" : r.dueDate <= today ? "⚠️ לא התקבל" : "📅 עתידי"}

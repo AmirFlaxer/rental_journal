@@ -306,13 +306,13 @@ export default function PaymentsPage() {
               </span>
               {p.paid_date && (
                 <span className="text-xs text-gray-400">
-                  · שולם {new Date(p.paid_date).toLocaleDateString("he-IL")}
+                  · שולם <span className="num-ltr">{new Date(p.paid_date).toLocaleDateString("he-IL")}</span>
                 </span>
               )}
             </div>
             {p.status === "partial" && partialPaid != null && (
               <p className="text-xs text-blue-600 mt-0.5">
-                שולם ₪{partialPaid.toLocaleString()} · יתרה: ₪{remaining!.toLocaleString()}
+                שולם <span className="num-ltr">₪{partialPaid.toLocaleString()}</span> · יתרה: <span className="num-ltr">₪{remaining!.toLocaleString()}</span>
                 {partialReasonText && ` · ${partialReasonText}`}
               </p>
             )}
@@ -382,7 +382,7 @@ export default function PaymentsPage() {
               />
             </div>
             {partialAmount && partialAmount > 0 && partialAmount < p.amount && (
-              <p className="text-xs text-blue-600">יתרת חוב: ₪{(p.amount - partialAmount).toLocaleString()}</p>
+              <p className="text-xs text-blue-600">יתרת חוב: <span className="num-ltr">₪{(p.amount - partialAmount).toLocaleString()}</span></p>
             )}
             <div className="flex gap-2">
               <button onClick={() => savePartial(p, isVirtual)} disabled={savingPartial || !partialAmount || partialAmount <= 0 || partialAmount >= p.amount}
@@ -492,7 +492,7 @@ export default function PaymentsPage() {
             className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors"
           >
             <span className="text-[10px]">{showPaid ? "▼" : "▶"}</span>
-            שולמו ({paidItems.length}) · ₪{totalPaidAmt.toLocaleString()}
+            שולמו ({paidItems.length}) · <span className="num-ltr">₪{totalPaidAmt.toLocaleString()}</span>
           </button>
           {showPaid && (
             <div className="space-y-2">

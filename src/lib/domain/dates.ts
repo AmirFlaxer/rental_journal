@@ -36,3 +36,23 @@ function toUtcArgs(iso: string): [number, number, number] {
   const { year, month, day } = isoDateParts(iso);
   return [year, month - 1, day];
 }
+
+// כותרת קבוצה לפיד תנועות - רזולוציה שמתאימה לביקור אחת לכמה ימים.
+// שבוע ישראלי מתחיל ביום ראשון.
+export function weekGroupLabel(dateStr: string, today: string): string {
+  const parse = (s: string) => {
+    // תומך גם ב-timestamptz מלא מה-DB - נחתך ליום לפני הפירוק
+    const [y, m, d] = s.slice(0, 10).split("-").map(Number);
+    return new Date(y, m - 1, d);
+  };
+  const t = parse(today);
+  const weekStart = new Date(t);
+  weekStart.setDate(t.getDate() - t.getDay()); // getDay(): ראשון = 0
+  const prevWeekStart = new Date(weekStart);
+  prevWeekStart.setDate(weekStart.getDate() - 7);
+
+  const d = parse(dateStr);
+  if (d >= weekStart) return "השבוע";
+  if (d >= prevWeekStart) return "שבוע שעבר";
+  return d.toLocaleDateString("he-IL", { month: "long", year: "numeric" });
+}

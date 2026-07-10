@@ -321,7 +321,7 @@ export default function ReportsPage() {
             <div className="rounded-xl border border-amber-500/30 p-5 bg-gradient-to-br from-amber-500/15 to-amber-700/5">
               <div className="text-xs font-semibold text-amber-500 uppercase mb-1">מס 10% משוער</div>
               <div className="text-2xl font-bold text-amber-400">{fmt(totals.tax10)}</div>
-              <div className="text-xs text-amber-500/80 mt-1">10% מ-{fmt(totals.totalPaid)} הכנסה</div>
+              <div className="text-xs text-amber-500/80 mt-1">10% מ-<span className="num-ltr">{fmt(totals.totalPaid)}</span> הכנסה</div>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <div className="text-xs font-semibold text-gray-400 uppercase mb-1">רווח לפני מס</div>
@@ -369,7 +369,7 @@ export default function ReportsPage() {
                         {p.monthlyRent > 0
                           ? <span className="text-green-600">{fmt(p.monthlyRent)}</span>
                           : p.lastMonthlyRent > 0
-                            ? <span className="text-gray-400">{fmt(p.lastMonthlyRent)} <span className="text-xs font-normal">(לא פעיל)</span></span>
+                            ? <span className="text-gray-400"><span className="num-ltr">{fmt(p.lastMonthlyRent)}</span> <span className="text-xs font-normal">(לא פעיל)</span></span>
                             : "—"}
                       </td>
                       <td className="px-4 py-4 text-gray-700">{p.totalPaid > 0 ? fmt(p.totalPaid) : "—"}</td>
@@ -430,7 +430,7 @@ export default function ReportsPage() {
                       <div className="flex justify-between text-xs text-gray-500 mb-1">
                         <span className="font-semibold text-gray-700">{monthName}</span>
                         <span className={m.net >= 0 ? "text-green-600 font-bold" : "text-red-500 font-bold"}>
-                          נטו: {fmt(m.net)}
+                          נטו: <span className="num-ltr">{fmt(m.net)}</span>
                         </span>
                       </div>
                       <div className="space-y-1">

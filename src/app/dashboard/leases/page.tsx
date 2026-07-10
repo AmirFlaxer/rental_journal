@@ -211,10 +211,15 @@ export default function LeasesPage() {
                     <p className="text-sm text-gray-500 mt-0.5">
                       {lease.properties?.city && `${lease.properties.city} · `}
                       {lease.tenant ? `${lease.tenant.first_name} ${lease.tenant.last_name}` : "שוכר לא ידוע"}
-                      {lease.tenant?.phone && ` · ${formatPhone(lease.tenant.phone)}`}
+                      {lease.tenant?.phone && (
+                        <>
+                          {" · "}
+                          <span className="num-ltr">{formatPhone(lease.tenant.phone)}</span>
+                        </>
+                      )}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      {formatDate(lease.start_date)} – {formatDate(lease.end_date)}
+                      <span className="num-ltr">{formatDate(lease.start_date)} – {formatDate(lease.end_date)}</span>
                       {lease.has_option && lease.option_months && (
                         <span className="mr-2 text-indigo-500">+ אופציה {lease.option_months} חודשים</span>
                       )}
