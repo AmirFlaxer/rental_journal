@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { localDateStr, localMonthKey, isoDateParts, isoMonthKey, diffDays } from "@/lib/domain/dates";
+import { localDateStr, localMonthKey, isoDateParts, isoMonthKey, diffDays, weekGroupLabel } from "@/lib/domain/dates";
 
 describe("localDateStr / localMonthKey", () => {
   it("בונים מחרוזת מרכיבי תאריך מקומיים (לא UTC)", () => {
@@ -37,5 +37,16 @@ describe("diffDays", () => {
 
   it("מתעלם מרכיב הזמן - משווה רק את התאריך גם עם timestamps שונים", () => {
     expect(diffDays("2026-07-02T10:00:00+00:00", "2026-07-01T23:00:00+00:00")).toBe(1);
+  });
+});
+
+describe("weekGroupLabel", () => {
+  // 2026-07-10 הוא יום שישי; תחילת השבוע (ראשון) 2026-07-05
+  it("מסווג לשבוע הנוכחי, לשבוע שעבר ולחודש לפי לוח עברי-ישראלי (שבוע מתחיל בראשון)", () => {
+    expect(weekGroupLabel("2026-07-10", "2026-07-10")).toBe("השבוע");
+    expect(weekGroupLabel("2026-07-05", "2026-07-10")).toBe("השבוע");
+    expect(weekGroupLabel("2026-07-04", "2026-07-10")).toBe("שבוע שעבר");
+    expect(weekGroupLabel("2026-06-28", "2026-07-10")).toBe("שבוע שעבר");
+    expect(weekGroupLabel("2026-06-27", "2026-07-10")).toBe("יוני 2026");
   });
 });
