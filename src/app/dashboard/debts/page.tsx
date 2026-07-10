@@ -208,17 +208,17 @@ export default function DebtsPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-800">
                           שכ״ד{" "}
-                          {new Date(d.due_date).toLocaleDateString("he-IL", { month: "long", year: "numeric" })}
+                          <span className="num-ltr">{new Date(d.due_date).toLocaleDateString("he-IL", { month: "long", year: "numeric" })}</span>
                           {d.isVirtual && <span className="text-xs font-normal text-gray-400 mr-1"> · לא נרשם</span>}
                         </p>
                         {d.status === "partial" && partialPaid != null && (
                           <p className="text-xs text-blue-600 mt-0.5">
-                            שולם ₪{partialPaid.toLocaleString()}
+                            שולם <span className="num-ltr">₪{partialPaid.toLocaleString()}</span>
                             {reason && ` · ${reason}`}
                           </p>
                         )}
                         <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-2">
-                          <span>מועד: {new Date(d.due_date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</span>
+                          <span>מועד: <span className="num-ltr">{new Date(d.due_date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</span></span>
                           {(() => {
                             const days = diffDays(todayStr(), d.due_date);
                             if (days <= 0) return null;
@@ -233,7 +233,7 @@ export default function DebtsPage() {
                       <div className="text-right">
                         <p className="font-bold text-red-700">₪{d.debtAmount.toLocaleString()}</p>
                         {d.status === "partial" && (
-                          <p className="text-xs text-gray-400">מתוך ₪{d.amount.toLocaleString()}</p>
+                          <p className="text-xs text-gray-400">מתוך <span className="num-ltr">₪{d.amount.toLocaleString()}</span></p>
                         )}
                       </div>
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${STATUS_COLOR[d.status] || "bg-gray-100 text-gray-600"}`}>
