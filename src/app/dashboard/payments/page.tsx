@@ -382,7 +382,7 @@ export default function PaymentsPage() {
               />
             </div>
             {partialAmount && partialAmount > 0 && partialAmount < p.amount && (
-              <p className="text-xs text-blue-600">יתרת חוב: ₪{(p.amount - partialAmount).toLocaleString()}</p>
+              <p className="text-xs text-blue-600">יתרת חוב: <span className="num-ltr">₪{(p.amount - partialAmount).toLocaleString()}</span></p>
             )}
             <div className="flex gap-2">
               <button onClick={() => savePartial(p, isVirtual)} disabled={savingPartial || !partialAmount || partialAmount <= 0 || partialAmount >= p.amount}
