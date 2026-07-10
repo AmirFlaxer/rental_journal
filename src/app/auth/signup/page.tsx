@@ -53,7 +53,7 @@ export default function SignUp() {
         className="pointer-events-none absolute inset-0 opacity-[0.3]"
         style={{
           background:
-            "repeating-linear-gradient(to bottom, transparent 0, transparent 37px, rgba(255,255,255,0.035) 37px, rgba(255,255,255,0.035) 38px)",
+            "repeating-linear-gradient(to bottom, transparent 0, transparent 37px, rgba(35,31,22,0.035) 37px, rgba(35,31,22,0.035) 38px)",
           maskImage: "radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 100%)",
         }}
       />
@@ -68,7 +68,7 @@ export default function SignUp() {
           <span className="font-display text-lg font-bold" style={{ color: "var(--text-1)" }}>ניהול נכסים</span>
         </div>
 
-        <div className="p-8 rounded-2xl" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}>
+        <div className="p-8 rounded-2xl" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "0 24px 60px rgba(0,0,0,0.14)" }}>
         <h1 className="font-display text-2xl font-bold mb-6 ledger-rule" style={{ color: "var(--text-1)" }}>פתיחת יומן חדש</h1>
 
         {error && (

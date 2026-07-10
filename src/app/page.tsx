@@ -15,7 +15,7 @@ export default async function Home() {
         className="pointer-events-none absolute inset-0 opacity-[0.35]"
         style={{
           background:
-            "repeating-linear-gradient(to bottom, transparent 0, transparent 37px, rgba(255,255,255,0.035) 37px, rgba(255,255,255,0.035) 38px)",
+            "repeating-linear-gradient(to bottom, transparent 0, transparent 37px, rgba(35,31,22,0.035) 37px, rgba(35,31,22,0.035) 38px)",
           maskImage: "radial-gradient(120% 80% at 50% 0%, #000 40%, transparent 100%)",
         }}
       />
@@ -88,7 +88,7 @@ export default async function Home() {
 
             <div
               className="overflow-hidden rounded-2xl"
-              style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}
+              style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "0 24px 60px rgba(0,0,0,0.14)" }}
             >
               {LEDGER_ROWS.map((r, i) => (
                 <div
@@ -125,7 +125,7 @@ export default async function Home() {
 const TONE = {
   paid:   { bg: "rgba(16,185,129,0.15)", fg: "#34d399" },
   due:    { bg: "rgba(239,68,68,0.15)",  fg: "#f87171" },
-  wait:   { bg: "rgba(255,255,255,0.06)", fg: "#9ca0aa" },
+  wait:   { bg: "rgba(35,31,22,0.06)", fg: "var(--text-2)" },
 };
 
 const LEDGER_ROWS = [
