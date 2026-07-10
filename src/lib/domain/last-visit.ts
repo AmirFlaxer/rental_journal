@@ -16,6 +16,7 @@ export interface SincePayment extends ReceivedAmountInput {
   payment_type: string;
   paid_date?: string | null;
   due_date?: string;
+  created_at?: string; // חותמת רישום - הבסיס ל"חדש מאז"
 }
 
 export interface SinceTask {
@@ -36,8 +37,13 @@ export function summarizeSince(
 ): SinceSummary | null {
   const sinceDay = sinceIso.slice(0, 10);
 
+  // תקבול "חדש" = נרשם מאז הביקור (created_at מלא - בלי כפילות יום-חפיפה
+  // ובלי החמצת רישום באותו יום); fallback ל-paid_date לרשומות בלי created_at
   const received = data.payments.filter(
-    (p) => p.payment_type === "Rent" && p.paid_date && p.paid_date >= sinceDay
+    (p) =>
+      p.payment_type === "Rent" &&
+      p.paid_date &&
+      (p.created_at ? p.created_at > sinceIso : p.paid_date >= sinceDay)
   );
   const tasksDone = data.tasks.filter((t) => t.completed_at && t.completed_at >= sinceIso).length;
   const newOverdue = data.payments.filter(
