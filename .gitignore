@@ -51,4 +51,6 @@ prisma/*.db-journal
 .vercel
 
 # Claude Code
-.claude/
+.claude/*
+!.claude/skills/
+
