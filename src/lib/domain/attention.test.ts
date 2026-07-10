@@ -38,3 +38,33 @@ describe("buildAttentionItems", () => {
     expect(items.find((i) => i.kind === "lease_ending")?.sub).toBe("מסתיים היום");
   });
 });
+
+describe("buildAttentionItems - גבולות אופק", () => {
+  const base = { payments: [], activeLeases: [], openTasks: [], today: TODAY };
+
+  it("משימה בדיוק באופק 7 ימים נכללת; יום 8 לא", () => {
+    const at7 = buildAttentionItems({ ...base, openTasks: [{ id: "t1", title: "x", due_date: "2026-07-17" }] });
+    const at8 = buildAttentionItems({ ...base, openTasks: [{ id: "t2", title: "x", due_date: "2026-07-18" }] });
+    expect(at7).toHaveLength(1);
+    expect(at7[0].sub).toBe("בעוד 7 ימים");
+    expect(at8).toHaveLength(0);
+  });
+
+  it("חוזה בדיוק באופק 90 ימים נכלל; יום 91 לא", () => {
+    const at90 = buildAttentionItems({ ...base, activeLeases: [{ id: "l1", end_date: "2026-10-08", properties: { title: "x" } }] });
+    const at91 = buildAttentionItems({ ...base, activeLeases: [{ id: "l2", end_date: "2026-10-09", properties: { title: "x" } }] });
+    expect(at90).toHaveLength(1);
+    expect(at90[0].sub).toBe("בעוד 90 ימים");
+    expect(at91).toHaveLength(0);
+  });
+
+  it("תקבול שמועדו היום אינו איחור; משימה שמועדה עבר וחוזה שהסתיים - לא מופיעים", () => {
+    const items = buildAttentionItems({
+      ...base,
+      payments: [{ id: "p1", status: "pending", due_date: TODAY, amount: 100 }],
+      openTasks: [{ id: "t1", title: "x", due_date: "2026-07-01" }],
+      activeLeases: [{ id: "l1", end_date: "2026-07-01", properties: { title: "x" } }],
+    });
+    expect(items).toHaveLength(0);
+  });
+});
