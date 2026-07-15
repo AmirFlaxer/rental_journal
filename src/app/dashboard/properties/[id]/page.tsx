@@ -38,9 +38,9 @@ const UTILITY_TYPE_OPTIONS: { value: PropertyUtilityType; label: string; icon: I
   { value: "house_committee", label: "ועד בית", icon: "houseCommittee" },
   { value: "other", label: "אחר", icon: "pin" },
 ];
-const UTILITY_TYPE_ICON: Record<PropertyUtilityType, string> = Object.fromEntries(
+const UTILITY_TYPE_ICON: Record<PropertyUtilityType, IconName> = Object.fromEntries(
   UTILITY_TYPE_OPTIONS.map((o) => [o.value, o.icon])
-) as Record<PropertyUtilityType, string>;
+) as Record<PropertyUtilityType, IconName>;
 
 const UTILITY_FREQUENCY_HE: Record<PropertyUtilityFrequency, string> = {
   monthly: "חודשי",
@@ -463,7 +463,7 @@ export default function PropertyDetailPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   {UTILITY_TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
+                    <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </select>
               </div>
@@ -909,8 +909,8 @@ export default function PropertyDetailPage() {
                 return (
                   <div key={u.id} className="flex items-center justify-between px-6 py-3 gap-3 flex-wrap">
                     <div className="flex items-center gap-3 flex-wrap">
-                      <span className="font-semibold text-gray-900">
-                        {UTILITY_TYPE_ICON[u.type]} {label}
+                      <span className="font-semibold text-gray-900 inline-flex items-center gap-1">
+                        <Icon name={UTILITY_TYPE_ICON[u.type]} size={16} /> {label}
                       </span>
                       <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-semibold">
                         {UTILITY_FREQUENCY_HE[u.frequency]}
