@@ -251,4 +251,4 @@ CREATE POLICY "index_rates_read" ON index_rates FOR SELECT USING (true);
 2. ~~להגדיר `CRON_SECRET` ב-Vercel env vars~~ - **בוצע** ✅
 3. ~~לבדוק PWA על נייד Android~~ - **בוצע 2026-07-09** ✅ (iOS לא ייבדק - אין מכשיר); ~~theme_color~~ - **נפתר** (אומת 2026-07-15: production מגיש `#f3edde` קלף, לא כחול ישן - תואם לרדיזיין)
 4. ~~לשקול `supabase gen types typescript`~~ - **בוצע במלואו 2026-07-08** (כולל snake_case מקצה לקצה)
-5. 📚 להכין חוברת הסברים (ראה סעיף למעלה)
+5. חוברת הסברים למשתמש - **spec נכתב ונדחף** (2026-07-16, `docs/superpowers/specs/2026-07-16-user-guide-design.md`): עמוד `/dashboard/help` פנימי (TSX), 9 פרקים (פתיחה+8 קטגוריות), כפתור-עזרה בסרגל עם קפיצה-חכמה לפי מסך. **טרם אושר סופית ע"י אמיר וטרם נכתבה תוכנית-ביצוע** - זו נקודת-ההמשך הבאה: לקרוא את ה-spec, לאשר/לתקן, ואז writing-plans.
