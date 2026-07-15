@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
+import { Icon } from "@/components/Icon";
+import type { IconName } from "@/lib/icons";
 
 const CAT_HE: Record<string, string> = {
   Maintenance: "תחזוקה",
@@ -15,13 +17,13 @@ const CAT_HE: Record<string, string> = {
   Other: "אחר",
 };
 
-const CAT_ICON: Record<string, string> = {
-  Maintenance: "🔧",
-  Insurance: "🛡️",
-  Tax: "📋",
-  Utilities: "💡",
-  "Professional Fees": "👔",
-  Other: "📦",
+const CAT_ICON: Record<string, IconName> = {
+  Maintenance: "maintenance",
+  Insurance: "insurance",
+  Tax: "tax",
+  Utilities: "electricity",
+  "Professional Fees": "professionalFees",
+  Other: "other",
 };
 
 const FREQ_HE: Record<string, string> = {
@@ -274,7 +276,7 @@ export default function ExpensesPage() {
         </select>
         {(filterCat || filterProp || filterYear) && (
           <button onClick={() => { setFilterCat(""); setFilterProp(""); setFilterYear(""); }}
-            className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">נקה סינון ✕</button>
+            className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">נקה סינון <Icon name="cancel" size={14} /></button>
         )}
         <div className="mr-auto px-3.5 py-1.5 bg-gradient-to-br from-rose-500 to-rose-700 text-white rounded-lg text-sm font-bold drop-shadow-sm">
           סה״כ: ₪{total.toLocaleString()}
@@ -287,7 +289,7 @@ export default function ExpensesPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">{editingId ? "עריכת הוצאה" : "הוצאה חדשה"}</h2>
-              <button onClick={closeForm} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button onClick={closeForm} className="text-gray-400 hover:text-gray-600"><Icon name="cancel" size={18} /></button>
             </div>
             {error && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>}
             <form onSubmit={handleSubmit} className="space-y-3">
@@ -390,7 +392,7 @@ export default function ExpensesPage() {
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="py-16 text-center space-y-3">
-            <div className="text-4xl">💸</div>
+            <div className="flex justify-center"><Icon name="expenses" size={36} className="text-gray-300" /></div>
             <p className="text-gray-500 font-medium">אין הוצאות</p>
             <button onClick={openNew} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700">
               + הוסף הוצאה ראשונה
@@ -404,7 +406,7 @@ export default function ExpensesPage() {
                 <div key={e.id} className="px-5 py-4 hover:bg-slate-50">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-gradient-to-br from-rose-500/25 to-rose-700/15 ring-1 ring-rose-500/30 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
-                      {CAT_ICON[e.category] || "📦"}
+                      <Icon name={CAT_ICON[e.category] ?? "other"} size={18} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 truncate">{e.description}</p>
@@ -414,7 +416,7 @@ export default function ExpensesPage() {
                         {e.paid_by === "tenant" && " · שוכר"}
                         {e.recurring && ` · חוזרת ${e.recurring_freq ? FREQ_HE[e.recurring_freq] || e.recurring_freq : ""}`}
                       </p>
-                      {e.notes && <p className="text-xs text-gray-500 mt-0.5 truncate">📝 {e.notes}</p>}
+                      {e.notes && <p className="text-xs text-gray-500 mt-0.5 truncate flex items-center gap-1"><Icon name="note" size={12} /> {e.notes}</p>}
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-rose-700">₪{e.amount.toLocaleString()}</p>
@@ -423,7 +425,7 @@ export default function ExpensesPage() {
                     <div className="flex gap-1.5">
                       <button onClick={() => openEdit(e)}
                         className="px-2.5 py-1.5 text-xs font-medium text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-                        ✏️
+                        <Icon name="edit" size={16} />
                       </button>
                       {confirmDeleteId === e.id ? (
                         <div className="flex items-center gap-1">
@@ -439,7 +441,7 @@ export default function ExpensesPage() {
                       ) : (
                         <button onClick={() => setConfirmDeleteId(e.id)}
                           className="px-2.5 py-1.5 text-xs font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                          🗑
+                          <Icon name="delete" size={16} />
                         </button>
                       )}
                     </div>
