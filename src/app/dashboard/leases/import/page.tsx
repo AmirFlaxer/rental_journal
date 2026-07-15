@@ -8,6 +8,8 @@ import { PhoneInput } from "@/components/phone-input";
 import { formatPhone } from "@/lib/phone";
 import type { Property, Lease } from "@/types/database";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
+import { Icon } from "@/components/Icon";
+import type { IconName } from "@/lib/icons";
 
 type Step = "upload" | "review" | "complete";
 
@@ -93,11 +95,11 @@ function PhoneField({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
-function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+function Section({ title, icon, children }: { title: string; icon: IconName; children: React.ReactNode }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
       <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-        <span className="text-lg">{icon}</span>
+        <Icon name={icon} size={18} />
         <h3 className="font-bold text-gray-800 text-sm">{title}</h3>
       </div>
       <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
@@ -446,7 +448,7 @@ export default function ImportLeasePage() {
   if (step === "complete") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4">
-        <div className="text-6xl">✅</div>
+        <div className="flex justify-center"><Icon name="paid" size={52} className="text-emerald-600" /></div>
         <h2 className="text-2xl font-bold text-gray-900">החוזה נשמר בהצלחה!</h2>
         <p className="text-gray-500">מועבר לעמוד הנכס...</p>
       </div>
@@ -457,7 +459,7 @@ export default function ImportLeasePage() {
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">📥 ייבוא חוזה שכירות</h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><Icon name="leaseImport" size={24} /> ייבוא חוזה שכירות</h1>
         <p className="text-gray-500 text-sm mt-1">העלה חוזה PDF/DOCX — המערכת תחלץ אוטומטית את הנתונים לבדיקה ואישורך</p>
       </div>
 
@@ -475,7 +477,7 @@ export default function ImportLeasePage() {
               step === "review" && s.key === "upload"
                 ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"
             }`}>
-              {step === "review" && s.key === "upload" && <span>✓</span>}
+              {step === "review" && s.key === "upload" && <Icon name="check" size={14} />}
               {s.label}
             </div>
           </div>
@@ -485,7 +487,7 @@ export default function ImportLeasePage() {
       {/* Step 1: Upload */}
       {step === "upload" && (
         <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-10 text-center space-y-5">
-          <div className="text-5xl">📄</div>
+          <div className="flex justify-center"><Icon name="leases" size={44} className="text-gray-300" /></div>
           <div>
             <p className="font-semibold text-gray-800">גרור קובץ לכאן או לחץ לבחירה</p>
             <p className="text-gray-400 text-sm mt-1">PDF או DOCX, עד 10MB</p>
@@ -493,7 +495,7 @@ export default function ImportLeasePage() {
 
           <div className="text-right rounded-xl p-4 text-sm space-y-1.5 max-w-md mx-auto" dir="rtl"
             style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>
-            <p className="font-semibold" style={{ color: "var(--accent)" }}>📋 הנחיות לקובץ</p>
+            <p className="font-semibold flex items-center gap-1" style={{ color: "var(--accent)" }}><Icon name="taxReport" size={16} /> הנחיות לקובץ</p>
             <ul className="space-y-1 text-xs" style={{ color: "var(--text-2)" }}>
               <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>PDF:</span> נתמך. אם הקובץ סרוק (תמונה), יחולץ אוטומטית באמצעות Gemini</li>
               <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>DOCX:</span> נתמך — <span className="font-semibold" style={{ color: "var(--text-1)" }}>חובה שהקובץ יהיה בפורמט Word החדש (.docx)</span>. אם יש לך קובץ DOC ישן, פתח אותו ב-Word, ואז שמור בשם, ובחר &quot;Word Document (*.docx)&quot;</li>
@@ -519,9 +521,9 @@ export default function ImportLeasePage() {
 
           {file ? (
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium">
-              <span>📎</span>
+              <Icon name="attachment" size={16} />
               <span>{file.name}</span>
-              <button onClick={() => setFile(null)} className="text-indigo-400 hover:text-indigo-700 mr-1">✕</button>
+              <button onClick={() => setFile(null)} className="text-indigo-400 hover:text-indigo-700 mr-1"><Icon name="cancel" size={14} /></button>
             </div>
           ) : (
             <button onClick={() => fileRef.current?.click()}
@@ -532,7 +534,7 @@ export default function ImportLeasePage() {
 
           {fileFormatError && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm text-right" dir="rtl">
-              ⚠️ {fileFormatError}
+              <Icon name="unpaid" size={16} className="inline text-rose-700" /> {fileFormatError}
             </div>
           )}
 
@@ -544,7 +546,7 @@ export default function ImportLeasePage() {
             <div className="flex gap-3 justify-center">
               <button onClick={handleExtract} disabled={extracting}
                 className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 disabled:opacity-60">
-                ✨ חלץ נתונים מהחוזה
+                <Icon name="aiMagic" size={16} className="inline" /> חלץ נתונים מהחוזה
               </button>
               <button onClick={() => { setData(EMPTY); setStep("review"); }}
                 className="px-6 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-xl font-semibold text-sm hover:bg-gray-50">
@@ -570,7 +572,7 @@ export default function ImportLeasePage() {
                       ${active ? "bg-indigo-50 text-indigo-800 border border-indigo-200" :
                         done ? "text-emerald-600" : "text-gray-400"}`}>
                       <span className="text-base">
-                        {done ? "✓" : active ? (
+                        {done ? <Icon name="check" size={14} /> : active ? (
                           <span className="inline-block w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                         ) : "○"}
                       </span>
@@ -593,7 +595,7 @@ export default function ImportLeasePage() {
               {/* Thinking tokens box (Qwen3 reasoning, if thinking mode is on) */}
               {thinkingTokens && !llmTokens && (
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-400 text-right">💭 המודל חושב...</p>
+                  <p className="text-xs text-gray-400 text-right flex items-center justify-end gap-1"><Icon name="aiThinking" size={14} /> המודל חושב...</p>
                   <div className="bg-gray-800 text-gray-400 rounded-xl p-3 text-xs font-mono text-left overflow-y-auto max-h-24 whitespace-pre-wrap" dir="ltr">
                     {thinkingTokens}
                   </div>
@@ -641,7 +643,7 @@ export default function ImportLeasePage() {
         <form onSubmit={handleSave} className="space-y-5">
           {isExtensionAnnex && (
             <div className="p-4 rounded-xl text-sm" style={{ background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--text-1)" }}>
-              <div className="font-bold mb-1" style={{ color: "var(--accent)" }}>📋 זוהה נספח הארכת שכירות</div>
+              <div className="font-bold mb-1 flex items-center gap-1" style={{ color: "var(--accent)" }}><Icon name="leaseRenewal" size={16} /> זוהה נספח הארכת שכירות</div>
               <p>המסמך זוהה כנספח הארכה. תאריכי ההארכה מולאו אוטומטית בסעיף <strong>אופציה / הארכה</strong> — אנא בדוק ואשר את הנתונים.</p>
               <p className="mt-1" style={{ color: "var(--text-2)" }}>תאריכי &quot;תחילה&quot; ו&quot;סיום&quot; למטה הם תאריכי החוזה המקורי — עדכן אותם אם הם לא מולאו נכון.</p>
             </div>
@@ -653,7 +655,7 @@ export default function ImportLeasePage() {
           {/* Property address */}
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
             <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-              <span className="text-lg">🏢</span>
+              <Icon name="properties" size={20} />
               <h3 className="font-bold text-gray-800 text-sm">נכס</h3>
             </div>
             <div className="p-5 space-y-4">
@@ -672,7 +674,7 @@ export default function ImportLeasePage() {
                   style={{ borderColor: propertyAction === "use-existing" ? "var(--accent)" : "var(--border)", background: "var(--bg-elevated)" }}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm">
-                      <span>🏠</span>
+                      <Icon name="dashboard" size={16} />
                       <span className="font-semibold">{matchedProperty.title}</span>
                       <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">נכס קיים</span>
                     </div>
@@ -693,7 +695,7 @@ export default function ImportLeasePage() {
                   </div>
                   {propertyAction === "use-existing" && (matchedProperty.leases || []).some((l) => isLeaseCurrentlyActive(l)) && (
                     <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-                      ⚠️ לנכס זה יש חוזה פעיל — הוא יועבר לארכיון ולא יימחק
+                      <Icon name="unpaid" size={16} className="inline text-amber-700" /> לנכס זה יש חוזה פעיל — הוא יועבר לארכיון ולא יימחק
                     </p>
                   )}
                 </div>
@@ -701,7 +703,7 @@ export default function ImportLeasePage() {
 
               {!matchedProperty && data.propertyAddress && data.propertyCity && (
                 <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-800 flex items-center gap-2">
-                  <span>➕</span>
+                  <Icon name="add" size={16} />
                   <span>יווצר נכס חדש: <strong>{data.propertyAddress} {data.propertyHouseNumber}, {data.propertyCity}</strong></span>
                 </div>
               )}
@@ -728,7 +730,7 @@ export default function ImportLeasePage() {
             </div>
           </div>
 
-          <Section title="פרטי השוכר הראשי" icon="👤">
+          <Section title="פרטי השוכר הראשי" icon="singleTenant">
             <Field label="שם פרטי" value={data.firstName} onChange={set("firstName")} required />
             <Field label="שם משפחה" value={data.lastName} onChange={set("lastName")} required />
             <Field label="תעודת זהות" value={data.idNumber} onChange={set("idNumber")} />
@@ -742,7 +744,7 @@ export default function ImportLeasePage() {
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
             <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-lg">👥</span>
+                <Icon name="multipleTenants" size={20} />
                 <h3 className="font-bold text-gray-800 text-sm">שוכר/ת נוסף/ת (בן/בת זוג)</h3>
               </div>
               <button type="button" onClick={() => setHasSecond(!hasSecond)}
@@ -766,7 +768,7 @@ export default function ImportLeasePage() {
             )}
           </div>
 
-          <Section title="תנאי השכירות" icon="📋">
+          <Section title="תנאי השכירות" icon="leaseRenewal">
             <Field label="תאריך התחלה" value={data.startDate} onChange={set("startDate")} type="date" required />
             <Field label="תאריך סיום" value={data.endDate} onChange={set("endDate")} type="date" required />
             <div>
@@ -786,7 +788,7 @@ export default function ImportLeasePage() {
             </div>
           </Section>
 
-          <Section title="אמצעי תקבול" icon="💳">
+          <Section title="אמצעי תקבול" icon="creditCard">
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold text-gray-500 mb-1">שיטת תקבול</label>
               <select value={data.paymentMethod}
@@ -829,7 +831,7 @@ export default function ImportLeasePage() {
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
             <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-lg">🔄</span>
+                <Icon name="sync" size={20} />
                 <h3 className="font-bold text-gray-800 text-sm">אופציה להארכת חוזה</h3>
               </div>
               <button type="button" onClick={() => setData((p) => ({ ...p, hasOption: !p.hasOption }))}
@@ -868,7 +870,7 @@ export default function ImportLeasePage() {
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   שומר...
                 </span>
-              ) : "✅ שמור חוזה"}
+              ) : <><Icon name="paid" size={16} className="inline" /> שמור חוזה</>}
             </button>
             <button type="button" onClick={() => setStep("upload")}
               className="px-5 py-3 bg-white text-gray-600 border border-gray-200 rounded-xl font-semibold hover:bg-gray-50">
