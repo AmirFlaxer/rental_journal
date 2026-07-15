@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Icon } from "@/components/Icon";
 import { formatPhone } from "@/lib/phone";
 import { calcEffectiveRent, LINKAGE_TYPE_LABELS } from "@/lib/linkage";
 import type { IndexRate, LinkageType, LinkageFrequency } from "@/lib/linkage";
@@ -146,7 +147,12 @@ export default function LeasesPage() {
       {/* Filter tabs */}
       <div className="flex gap-2 flex-wrap">
         {(["all", "active", "future", "ended"] as const).map((f) => {
-          const labels = { all: "הכל", active: "בתוקף", future: "עתידיים", ended: "🗂 ארכיון" };
+          const labels: Record<typeof f, React.ReactNode> = {
+            all: "הכל",
+            active: "בתוקף",
+            future: "עתידיים",
+            ended: <span className="inline-flex items-center gap-1"><Icon name="archive" size={14} /> ארכיון</span>,
+          };
           const count = f === "all" ? deduped.length : counts[f];
           return (
             <button
@@ -170,7 +176,7 @@ export default function LeasesPage() {
       {/* List */}
       {filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 py-20 text-center space-y-3">
-          <div className="text-5xl">📄</div>
+          <div className="flex justify-center"><Icon name="leases" size={44} className="text-gray-300" /></div>
           <p className="text-gray-600 font-semibold text-lg">אין חוזים</p>
           <Link href="/dashboard/leases/import" className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700">
             + ייבא חוזה ראשון
@@ -225,7 +231,9 @@ export default function LeasesPage() {
                       )}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {lease.payment_method === "bank_transfer" ? "💳 העברה בנקאית" : "🧾 שקים"}
+                      {lease.payment_method === "bank_transfer"
+                        ? <span className="flex items-center gap-1"><Icon name="creditCard" size={14} /> העברה בנקאית</span>
+                        : <span className="flex items-center gap-1"><Icon name="expenses" size={14} /> שקים</span>}
                     </p>
                   </div>
 
