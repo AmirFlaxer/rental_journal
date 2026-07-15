@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { Icon } from "@/components/Icon";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 import { listRentMonths, coveredPropertyMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
 import { getDebtAmount, getReceivedAmount } from "@/lib/domain/partial-payment";
@@ -191,8 +192,8 @@ export default function Dashboard() {
   const { count: pendingCount } = pendingSummary;
 
   const incomeExpenseStats = [
-    { label: "הכנסה חודשית", value: monthlyIncome > 0 ? `₪${monthlyIncome.toLocaleString()}` : "—", subValue: monthlyIncome > 0 ? `₪${Math.round(monthlyIncome * 0.9).toLocaleString()} לאחר מס` : undefined, icon: "💰", gradient: "from-emerald-500 to-emerald-700", href: "/dashboard/reports" },
-    { label: "הוצאות כוללות", value: totalExpenses > 0 ? `₪${totalExpenses.toLocaleString()}` : "₪0", icon: "💸", gradient: "from-rose-500 to-rose-700", href: "/dashboard/expenses" },
+    { label: "הכנסה חודשית", value: monthlyIncome > 0 ? `₪${monthlyIncome.toLocaleString()}` : "—", subValue: monthlyIncome > 0 ? `₪${Math.round(monthlyIncome * 0.9).toLocaleString()} לאחר מס` : undefined, icon: "rentCollection" as const, gradient: "from-emerald-500 to-emerald-700", href: "/dashboard/reports" },
+    { label: "הוצאות כוללות", value: totalExpenses > 0 ? `₪${totalExpenses.toLocaleString()}` : "₪0", icon: "expenses" as const, gradient: "from-rose-500 to-rose-700", href: "/dashboard/expenses" },
   ];
 
   return (
@@ -201,7 +202,7 @@ export default function Dashboard() {
       <div>
         <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
           <span className="inline-block w-1.5 h-7 rounded-full tick-accent" />
-          שלום 👋
+          שלום
         </h1>
         <p className="text-gray-500 mt-1 text-sm">
           {new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
@@ -212,19 +213,19 @@ export default function Dashboard() {
       <div className="flex flex-wrap gap-3">
         <Link href="/dashboard/leases/import"
           className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 shadow-sm shadow-indigo-200 transition-all">
-          <span aria-hidden="true">📥</span> ייבוא חוזה
+          <Icon name="leaseImport" size={16} /> ייבוא חוזה
         </Link>
         <Link href="/dashboard/properties/new"
           className="flex items-center gap-2 px-5 py-2.5 bg-white text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-50 border border-gray-200 transition-all">
-          <span aria-hidden="true">🏢</span> נכס חדש
+          <Icon name="properties" size={16} /> נכס חדש
         </Link>
         <Link href="/dashboard/reports"
           className="flex items-center gap-2 px-5 py-2.5 bg-white text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-50 border border-gray-200 transition-all">
-          <span aria-hidden="true">📊</span> דוחות
+          <Icon name="reports" size={16} /> דוחות
         </Link>
         <Link href="/dashboard/reports/tax"
           className="flex items-center gap-2 px-5 py-2.5 bg-orange-50 text-orange-700 rounded-xl font-semibold text-sm hover:bg-orange-100 border border-orange-200 transition-all">
-          <span aria-hidden="true">📋</span> דוח מס שנתי
+          <Icon name="taxReport" size={16} color="var(--accent-hover)" /> דוח מס שנתי
         </Link>
       </div>
 
@@ -232,17 +233,17 @@ export default function Dashboard() {
       {sinceSummary && (
         <div className="rounded-2xl p-4 space-y-2" style={{ background: "var(--accent-dim)", border: "1px solid rgba(124,131,255,0.32)" }}>
           <p className="text-sm font-bold" style={{ color: "var(--accent-hover)" }}>
-            <span aria-hidden="true">🗞️</span> מאז הביקור האחרון
+            <Icon name="weeklyDigest" size={16} color="var(--accent-hover)" /> מאז הביקור האחרון
           </p>
           <ul className="text-sm space-y-1">
             {sinceSummary.paymentsCount > 0 && (
-              <li className="flex justify-between">
+              <li className="flex justify-between items-center">
                 <span>{sinceSummary.paymentsCount} תקבולי שכ&quot;ד נכנסו</span>
-                <span className="font-bold text-emerald-700 num-ltr">₪{sinceSummary.paymentsSum.toLocaleString()} ✓</span>
+                <span className="font-bold text-emerald-700 num-ltr flex items-center gap-1">₪{sinceSummary.paymentsSum.toLocaleString()} <Icon name="check" size={14} /></span>
               </li>
             )}
             {sinceSummary.tasksDone > 0 && (
-              <li className="flex justify-between"><span>{sinceSummary.tasksDone} תזכורות סומנו כבוצעו</span><span className="text-emerald-700">✓</span></li>
+              <li className="flex justify-between items-center"><span>{sinceSummary.tasksDone} תזכורות סומנו כבוצעו</span><Icon name="check" size={14} className="text-emerald-700" /></li>
             )}
             <li className="flex justify-between">
               <span>חובות חדשים</span>
@@ -257,7 +258,7 @@ export default function Dashboard() {
       {/* דורש טיפול */}
       {attention.length > 0 && (
         <div className="bg-white rounded-2xl p-4 space-y-2 border border-amber-700/30" style={{ borderInlineStartWidth: 3, borderInlineStartColor: "#b45309" }}>
-          <p className="text-sm font-bold text-amber-700"><span aria-hidden="true">📌</span> דורש טיפול ({attention.length})</p>
+          <p className="text-sm font-bold text-amber-700 flex items-center gap-1"><Icon name="pin" size={16} /> דורש טיפול ({attention.length})</p>
           {attention.map((item) => (
             <Link key={item.id} href={item.href}
               className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5 hover:bg-gray-100 transition-colors">
@@ -277,7 +278,7 @@ export default function Dashboard() {
             <p className="text-sm font-semibold text-gray-500">ללא שינוי מהחודש שעבר</p>
           ) : (
             <p className={`text-sm font-semibold ${trendPct > 0 ? "text-emerald-700" : "text-red-700"}`}>
-              <span aria-hidden="true" className="text-xs">{trendPct > 0 ? "▲" : "▼"}</span>{" "}
+              <Icon name={trendPct > 0 ? "caretUp" : "caretDown"} size={12} className="inline" />{" "}
               {trendPct > 0 ? "עלייה" : "ירידה"} של {Math.abs(trendPct)}% מהחודש שעבר
             </p>
           )
@@ -302,7 +303,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-3">
         {incomeExpenseStats.map((s) => (
           <Link key={s.label} href={s.href} className={`relative overflow-hidden bg-gradient-to-br ${s.gradient} text-white rounded-2xl p-4 flex flex-col gap-1.5 hover:brightness-110 transition-all`}>
-            <span className="absolute -top-2 -left-2 text-5xl opacity-15 select-none" aria-hidden="true">{s.icon}</span>
+            <span className="absolute -top-2 -left-2 opacity-15 select-none"><Icon name={s.icon} size={48} color="white" /></span>
             <div className="text-xl font-extrabold relative drop-shadow-sm">{s.value}</div>
             {"subValue" in s && s.subValue && (
               <div className="text-xs font-semibold text-white/80 relative">{s.subValue}</div>
@@ -350,17 +351,17 @@ export default function Dashboard() {
 
         {properties.length === 0 ? (
           <div className="bg-white rounded-2xl px-6 py-14 text-center space-y-4">
-            <div className="text-5xl" aria-hidden="true">🏠</div>
+            <div className="flex justify-center"><Icon name="dashboard" size={48} className="text-gray-300" /></div>
             <p className="text-gray-500 font-medium">עדיין אין נכסים</p>
             <p className="text-gray-400 text-sm">התחל בהוספת נכס או בייבוא חוזה</p>
             <div className="flex gap-3 justify-center pt-2">
               <Link href="/dashboard/leases/import"
                 className="px-5 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700">
-                <span aria-hidden="true">📥</span> ייבוא חוזה
+                <Icon name="leaseImport" size={16} /> ייבוא חוזה
               </Link>
               <Link href="/dashboard/properties/new"
                 className="px-5 py-2 bg-white text-gray-700 rounded-xl font-semibold text-sm border border-gray-200 hover:bg-gray-50">
-                <span aria-hidden="true">🏢</span> הוסף נכס
+                <Icon name="properties" size={16} /> הוסף נכס
               </Link>
             </div>
           </div>
