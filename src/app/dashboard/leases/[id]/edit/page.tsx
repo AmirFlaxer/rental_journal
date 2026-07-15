@@ -6,6 +6,7 @@ import Link from "next/link";
 import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
 import { PhoneInput } from "@/components/phone-input";
+import { Icon } from "@/components/Icon";
 import { formatPhone } from "@/lib/phone";
 import { pickRate, type IndexRate } from "@/lib/linkage";
 
@@ -423,8 +424,8 @@ export default function EditLeasePage() {
         {error && <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl">{error}</div>}
         {applySuccessMsg && (
           <div className="p-3 bg-green-50 border border-green-300 text-green-700 rounded-xl text-sm flex items-center justify-between gap-3">
-            <span>✅ {applySuccessMsg}</span>
-            <button type="button" onClick={() => setApplySuccessMsg("")} className="text-green-600 hover:text-green-800 font-bold">✕</button>
+            <span className="flex items-center gap-1"><Icon name="paid" size={16} /> {applySuccessMsg}</span>
+            <button type="button" onClick={() => setApplySuccessMsg("")} className="text-green-600 hover:text-green-800"><Icon name="cancel" size={16} /></button>
           </div>
         )}
 
@@ -743,7 +744,7 @@ export default function EditLeasePage() {
                     : "bg-white text-blue-700 border-blue-400 hover:bg-blue-50"
                 }`}
               >
-                {uploading ? "מעלה..." : "📎 העלה מסמך"}
+                {uploading ? "מעלה..." : <><Icon name="attachment" size={14} className="inline" /> העלה מסמך</>}
               </label>
               <span className="text-xs text-gray-400">PDF או DOCX עד 10MB</span>
             </div>
@@ -755,7 +756,7 @@ export default function EditLeasePage() {
                 {documents.map((doc) => (
                   <li key={doc.id} className="flex items-center justify-between py-2.5 gap-2">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="text-lg flex-shrink-0">{doc.mime_type === "application/pdf" ? "📄" : "📝"}</span>
+                      <Icon name={doc.mime_type === "application/pdf" ? "leases" : "document"} size={20} className="flex-shrink-0" />
                       <div className="min-w-0">
                         <a
                           href={`/api/documents/${doc.id}`}
@@ -778,7 +779,7 @@ export default function EditLeasePage() {
                         className="px-3 py-1 text-xs font-semibold rounded-lg border border-purple-400 text-purple-700 hover:bg-purple-50 disabled:opacity-50 disabled:cursor-wait transition-colors"
                         title="שאוב נתונים מהמסמך"
                       >
-                        {extractingDocId === doc.id ? "⏳ מחלץ..." : "✨ שאוב נתונים"}
+                        {extractingDocId === doc.id ? <><Icon name="aiLoading" size={14} className="inline" /> מחלץ...</> : <><Icon name="aiMagic" size={14} className="inline" /> שאוב נתונים</>}
                       </button>
                       {/* מחיקה — אישור דו-שלבי: לחיצה ראשונה הופכת ל"בטוח?", מתאפס אחרי 3 שניות */}
                       {confirmDeleteDocId === doc.id ? (
@@ -797,7 +798,7 @@ export default function EditLeasePage() {
                           className="text-red-400 hover:text-red-600 text-sm"
                           title="מחק מסמך"
                         >
-                          🗑
+                          <Icon name="delete" size={16} />
                         </button>
                       )}
                     </div>
