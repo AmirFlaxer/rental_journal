@@ -2,6 +2,15 @@
 
 > מצב נוכחי, החלטות, והצעד הבא. מתעדכן בכל session.
 
+## מעבר אמוג'י ל-Phosphor Icons (2026-07-15/16, מוזג ופרוס)
+
+- **65 גליפי-אמוג'י (ניווט, קטגוריות, סטטוס-תשלום, פעולות, דקורטיביים) הוחלפו באייקוני `@phosphor-icons/react`** (weight="duotone") - מניע: מקצועיות/רצינות (אפליקציית ניהול-כספים). הכרעה על גבי קומפניון-ויזואלי חי: השוואת 4 משפחות-אייקונים (Lucide/Tabler/Phosphor-Regular/Phosphor-Duotone) ובחירת עובי-קו/צבע - Duotone נבחר (יותר "חם", תואם לזהות "יומן הספר").
+- **ארכיטקטורה**: `src/lib/icons.ts` (מפת שם-לוגי→קומפוננטה, `IconName = keyof typeof ICONS`) + `src/components/Icon.tsx` (עטיפה, `weight="duotone"` ברירת-מחדל). כל מפת-קטגוריה קיימת (`CAT_ICON`, `TYPE_ICON`, `UTILITY_TYPE_OPTIONS` וכו') הוטבה-טיפוס ל-`Record<string, IconName>` - טעות-הקלדה בשם-אייקון = שגיאת-`tsc`, לא תקלת-ריצה.
+- **תיקוני-אגב**: `NAV_ITEMS` (סרגל+bottom-nav) אוחד ל-`src/lib/nav-items.ts` יחיד; סטטוס-תשלום "עתידי" אוחד לשם-לוגי `future` בשני מסכים שונים (`properties/[id]` ו-`reports/[propertyId]`) שהיו לא-עקביים לפני-כן.
+- **תהליך**: brainstorming (כולל קומפניון-ויזואלי לבחירת עובי-קו/משפחה/תיקוני-icon בודדים) → spec → plan (15 משימות) → subagent-driven (מיישמי Haiku/Sonnet + סקירת-Sonnet לכל משימה + סקירת-על Opus) → מיזוג ל-main.
+- **לקחים**: (1) `Receipt` ב-Lucide מצייר "$" בתוך-הצורה (Phosphor לא) - לבדוק SVG-path בפועל לפני קביעת אייקון-כסף. (2) שני "פספוסי-תוכנית" נתפסו ותוקנו תוך-כדי (Task 4: `⚠` שלא נכלל ב-brief; Task 7: 2 אתרי-צריכה של `UTILITY_TYPE_OPTIONS` שלא נכללו). (3) סוכן-implementer אחד ביצע commit בטעות על `main` הראשי במקום ה-worktree - שוחזר בבטחה (cherry-pick + `git checkout -B`). (4) סקירת-העל הסופית תפסה התנגשות-סמנטית אחת (`paid`/CheckCircle לכפתור-ניווט "השוואת הצמדה" - הוחלף ל-`reports`).
+- הכל ירוק: tsc/lint/vitest(100/100)/build + בדיקה חזותית Playwright על 15 מסכים מאומתים. קומיט אחרון `fd46a80`, CI ירוק, פרוס.
+
 ## רדיזיין "מהדורת נייר" (2026-07-10, מוזג ופרוס)
 
 - **מעבר מכהה-בלבד לערכת "קלף" בהירה אחת** (הכרעת מחקר רב-סוכני: 7/7 אפליקציות בקטגוריה בהירות, positive polarity, קהל 35-65, שימוש יומי קצר). אין ערכה כהה ואין theme switcher. spec: docs/superpowers/specs/2026-07-10-paper-edition-redesign-design.md, תוכנית: docs/superpowers/plans/2026-07-10-paper-edition-redesign.md.
@@ -233,9 +242,13 @@ CREATE POLICY "index_rates_read" ON index_rates FOR SELECT USING (true);
 
 ---
 
+## הצעד הבא (סשן-אייקונים 2026-07-15/16)
+
+מעבר-האמוג'י הושלם ופרוס (ראה סעיף למעלה). לא נשאר פריט-חובה מהמעבר עצמו - כל הממצאים (Critical/Important) תוקנו, הממצאים ה-Minor שנותרו (תיעוד מלא ב-`.superpowers/sdd/progress.md` שהיה ב-worktree, לפני שנוקה) הם קוסמטיים-בלבד ולא נשמרו כ-TODO נפרד כי אף אחד מהם לא נחשב חוב-טכני משמעותי.
+
 ## הצעד הבא
 1. ~~להריץ את ה-SQL למעלה ב-Supabase Dashboard~~ - **בוצע** (כל הטבלאות/עמודות קיימות; מיגרציות 2026-07-08 הורצו, ראו supabase/migrations/README.md)
 2. ~~להגדיר `CRON_SECRET` ב-Vercel env vars~~ - **בוצע** ✅
-3. ~~לבדוק PWA על נייד Android~~ - **בוצע 2026-07-09** ✅ (iOS לא ייבדק - אין מכשיר); נשארה החלטה על theme_color (כחול ישן מול סגול מותג)
+3. ~~לבדוק PWA על נייד Android~~ - **בוצע 2026-07-09** ✅ (iOS לא ייבדק - אין מכשיר); ~~theme_color~~ - **נפתר** (אומת 2026-07-15: production מגיש `#f3edde` קלף, לא כחול ישן - תואם לרדיזיין)
 4. ~~לשקול `supabase gen types typescript`~~ - **בוצע במלואו 2026-07-08** (כולל snake_case מקצה לקצה)
 5. 📚 להכין חוברת הסברים (ראה סעיף למעלה)
