@@ -10,6 +10,8 @@ import { listRentMonths } from "@/lib/domain/rent-schedule";
 import { isoMonthKey, isoDateParts, localMonthKey } from "@/lib/domain/dates";
 import { utilityTypeLabel } from "@/lib/domain/utility-schedule";
 import { apiGet, queryKeys } from "@/lib/api-client";
+import { Icon } from "@/components/Icon";
+import type { IconName } from "@/lib/icons";
 
 const EXPENSE_CAT_HE: Record<string, string> = {
   Maintenance: "תחזוקה",
@@ -28,13 +30,13 @@ const PAYMENT_TYPE_HE: Record<string, string> = {
 };
 
 // חשבונות שירות - תוויות עבריות. תווית "אחר" נלקחת מ-utilityTypeLabel (customLabel).
-const UTILITY_TYPE_OPTIONS: { value: PropertyUtilityType; label: string; icon: string }[] = [
-  { value: "water", label: "מים", icon: "💧" },
-  { value: "gas", label: "גז", icon: "🔥" },
-  { value: "electricity", label: "חשמל", icon: "⚡" },
-  { value: "municipal_tax", label: "ארנונה", icon: "🏛️" },
-  { value: "house_committee", label: "ועד בית", icon: "🏢" },
-  { value: "other", label: "אחר", icon: "📌" },
+const UTILITY_TYPE_OPTIONS: { value: PropertyUtilityType; label: string; icon: IconName }[] = [
+  { value: "water", label: "מים", icon: "water" },
+  { value: "gas", label: "גז", icon: "gas" },
+  { value: "electricity", label: "חשמל", icon: "electricity" },
+  { value: "municipal_tax", label: "ארנונה", icon: "municipalTax" },
+  { value: "house_committee", label: "ועד בית", icon: "houseCommittee" },
+  { value: "other", label: "אחר", icon: "pin" },
 ];
 const UTILITY_TYPE_ICON: Record<PropertyUtilityType, string> = Object.fromEntries(
   UTILITY_TYPE_OPTIONS.map((o) => [o.value, o.icon])
@@ -358,7 +360,7 @@ export default function PropertyDetailPage() {
       {termResult && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-8 max-w-sm w-full mx-4 text-center">
-            <div className="text-4xl mb-3">✅</div>
+            <div className="flex justify-center mb-3"><Icon name="paid" size={36} className="text-emerald-600" /></div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">בקשת הסיום נרשמה</h3>
             <p className="text-gray-600 mb-1">תקופת הודעה: <strong>{termResult.noticeMonths} חודשים</strong></p>
             <p className="text-gray-600 mb-6">תאריך סיום יעיל: <strong className="num-ltr">{new Date(termResult.effectiveDate).toLocaleDateString("he-IL")}</strong></p>
@@ -565,13 +567,13 @@ export default function PropertyDetailPage() {
                 href={`/dashboard/properties/${property.id}/edit`}
                 className="px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 font-semibold text-sm"
               >
-                ✏️ עריכה
+                <Icon name="edit" size={14} className="inline" /> עריכה
               </Link>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="px-4 py-2 border border-red-500 text-red-500 rounded-lg hover:bg-red-50 font-semibold text-sm"
               >
-                🗑️ מחיקה
+                <Icon name="delete" size={14} className="inline" /> מחיקה
               </button>
             </div>
           </div>
@@ -592,7 +594,7 @@ export default function PropertyDetailPage() {
                   isExpired ? "bg-red-50 border-red-300 text-red-800" : days <= 30 ? "bg-orange-50 border-orange-300 text-orange-800" : "bg-yellow-50 border-yellow-300 text-yellow-800"
                 }`}>
                   <span>
-                    {isExpired ? "⛔" : days <= 30 ? "🔴" : "🟡"}&nbsp;
+                    <Icon name={isExpired ? "expired" : days <= 30 ? "expiringSoon" : "expiringSoon"} size={16} color={isExpired ? "var(--rose,#be123c)" : days <= 30 ? "var(--rose,#be123c)" : "var(--amber,#92400e)"} />&nbsp;
                     חוזה {l.tenant?.first_name} {l.tenant?.last_name} —&nbsp;
                     {isExpired ? "פג תוקף לפני " + Math.abs(days) + " ימים" : `מסתיים בעוד ${days} ימים`}
                   </span>
@@ -727,19 +729,19 @@ export default function PropertyDetailPage() {
                   href={`/dashboard/properties/${property.id}/add-lease`}
                   className="flex items-center gap-2 w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm"
                 >
-                  <span>📋</span> הוסף חוזה שכירות
+                  <Icon name="leases" size={16} /> הוסף חוזה שכירות
                 </Link>
                 <Link
                   href={`/dashboard/properties/${property.id}/add-expense`}
                   className="flex items-center gap-2 w-full px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-semibold text-sm"
                 >
-                  <span>🧾</span> הוסף הוצאה
+                  <Icon name="expenses" size={16} /> הוסף הוצאה
                 </Link>
                 <Link
                   href={`/dashboard/properties/${property.id}/add-payment`}
                   className="flex items-center gap-2 w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold text-sm"
                 >
-                  <span>💰</span> הוסף תקבול
+                  <Icon name="rentCollection" size={16} /> הוסף תקבול
                 </Link>
               </div>
             </div>
@@ -841,7 +843,7 @@ export default function PropertyDetailPage() {
                                 className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-medium"
                                 title={doc.file_name}
                               >
-                                <span>📎</span>
+                                <Icon name="attachment" size={16} />
                                 <span className="truncate max-w-[120px]">{doc.file_name}</span>
                               </a>
                             ))}
@@ -855,13 +857,13 @@ export default function PropertyDetailPage() {
                           {lease.has_option && !lease.option_activated && lease.option_end && isLeaseCurrentlyActive(lease) && (
                             <button onClick={(e) => { e.stopPropagation(); setActivatingLeaseId(lease.id); }}
                               className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold hover:bg-blue-200">
-                              🔄 אופציה
+                              <Icon name="sync" size={14} className="inline" /> אופציה
                             </button>
                           )}
                           {!lease.early_term_protection && isLeaseCurrentlyActive(lease) && (
                             <button onClick={(e) => { e.stopPropagation(); setTerminateLease(lease); setTermBy("tenant"); setTermDate(new Date().toISOString().slice(0,10)); setTermReason(""); }}
                               className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-semibold hover:bg-red-200">
-                              🚪 סיום
+                              <Icon name="earlyTermination" size={14} className="inline" /> סיום
                             </button>
                           )}
                           <span className="text-gray-400 text-lg mr-auto">›</span>
@@ -923,7 +925,7 @@ export default function PropertyDetailPage() {
                         onClick={() => openEditUtilityForm(u)}
                         className="px-2 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-200"
                       >
-                        ✏️ עריכה
+                        <Icon name="edit" size={14} className="inline" /> עריכה
                       </button>
                       <button
                         onClick={() => (isConfirmingDelete ? handleDeleteUtility(u.id) : requestDeleteUtility(u.id))}
@@ -931,7 +933,7 @@ export default function PropertyDetailPage() {
                           isConfirmingDelete ? "bg-red-600 text-white hover:bg-red-700" : "bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700"
                         }`}
                       >
-                        {isConfirmingDelete ? "בטוח?" : "🗑️ מחיקה"}
+                        {isConfirmingDelete ? "בטוח?" : <><Icon name="delete" size={14} className="inline" /> מחיקה</>}
                       </button>
                     </div>
                   </div>
@@ -980,7 +982,7 @@ export default function PropertyDetailPage() {
 
           return (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-              <h2 className="text-base font-bold text-amber-800 mb-3">🔔 תזכורות שקים חודשיים</h2>
+              <h2 className="text-base font-bold text-amber-800 mb-3 flex items-center gap-1.5"><Icon name="tasks" size={18} /> תזכורות שקים חודשיים</h2>
               <div className="space-y-2">
                 {reminders.map((r, i) => (
                   <div key={i} className={`flex items-center justify-between px-4 py-3 rounded-lg border text-sm ${
@@ -997,7 +999,10 @@ export default function PropertyDetailPage() {
                       <span className="num-ltr">₪{Number(r.lease.monthly_rent).toLocaleString()}</span>
                     </div>
                     <span className="font-bold text-xs px-2 py-1 rounded-full">
-                      {r.status === "paid" ? "✅ התקבל" : r.status === "partial" ? "🔶 חלקי" : r.dueDate <= today ? "⚠️ לא התקבל" : "📅 עתידי"}
+                      {r.status === "paid" ? <span className="flex items-center gap-1"><Icon name="paid" size={16} color="var(--emerald,#047857)" /> התקבל</span>
+                        : r.status === "partial" ? <span className="flex items-center gap-1"><Icon name="partial" size={16} color="var(--amber,#92400e)" /> חלקי</span>
+                        : r.dueDate <= today ? <span className="flex items-center gap-1"><Icon name="unpaid" size={16} color="var(--rose,#be123c)" /> לא התקבל</span>
+                        : <span className="flex items-center gap-1"><Icon name="future" size={16} className="text-gray-400" /> עתידי</span>}
                     </span>
                   </div>
                 ))}
