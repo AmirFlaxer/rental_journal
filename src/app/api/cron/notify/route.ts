@@ -63,7 +63,7 @@ export async function GET(req: Request) {
 
     const propTitle = (lease.properties as unknown as { title: string } | null)?.title ?? "נכס";
     const msg = {
-      title: `⚠️ חוזה עומד לפוג — ${propTitle}`,
+      title: `חוזה עומד לפוג — ${propTitle}`,
       body: `נותרו ${daysLeft} ימים לסיום החוזה`,
     };
     if (!leaseNotifications[lease.user_id]) leaseNotifications[lease.user_id] = [];
@@ -87,7 +87,7 @@ export async function GET(req: Request) {
   for (const task of tasks ?? []) {
     if (!taskNotifications[task.user_id]) taskNotifications[task.user_id] = [];
     taskNotifications[task.user_id].push({
-      title: "🧾 תזכורת: הפקדת שק מחר",
+      title: "תזכורת: הפקדת שק מחר",
       body: task.title,
     });
   }
