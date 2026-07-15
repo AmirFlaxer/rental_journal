@@ -599,7 +599,7 @@ export default function TasksPage() {
             className="flex-shrink-0 font-bold text-xs text-right"
             style={isDone ? { color: "var(--text-3)" } : isOverdue ? { color: "#fde047", textShadow: shadow } : { color: "white", textShadow: shadow }}
           >
-            {isOverdue && "⚠ "}{dueLabel}
+            {isOverdue && <Icon name="warning" size={12} className="inline" />} {dueLabel}
           </p>
 
           {/* Delete — אישור דו-שלבי: לחיצה ראשונה הופכת ל"בטוח?", מתאפס אחרי 3 שניות */}
