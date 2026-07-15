@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { calcEffectiveRent, pickRate, type IndexRate, type LinkageType, type LinkageFrequency } from "@/lib/linkage";
 import { localMonthKey } from "@/lib/domain/dates";
+import { Icon } from "@/components/Icon";
 
 interface Lease {
   id: string;
@@ -261,7 +262,7 @@ export default function LinkageComparisonPage() {
                         </span>
                       );
                     })()}
-                    <span className="text-gray-400 mr-2">{dropdownOpen ? "▲" : "▼"}</span>
+                    <Icon name={dropdownOpen ? "caretUp" : "caretDown"} size={14} className="text-gray-400 mr-2" />
                   </button>
 
                   {/* options list */}
@@ -336,7 +337,7 @@ export default function LinkageComparisonPage() {
                       disabled={refreshRatesMutation.isPending}
                       className="px-3 py-1.5 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 disabled:opacity-50 transition-colors"
                     >
-                      {refreshRatesMutation.isPending ? "מעדכן..." : "↻ עדכן מדדים"}
+                      {refreshRatesMutation.isPending ? "מעדכן..." : <><Icon name="refresh" size={14} className="inline" /> עדכן מדדים</>}
                     </button>
                     {refreshMsg && <span className={`text-xs font-semibold ${refreshMsg.includes("שגיאה") ? "text-red-500" : "text-green-600"}`}>{refreshMsg}</span>}
                   </div>
@@ -397,7 +398,7 @@ export default function LinkageComparisonPage() {
                           </span>
                         )}
                         <span className={`text-sm ${isSelected ? "text-white/70" : "text-gray-400"}`}>
-                          {isSelected ? "▲" : "▼"}
+                          <Icon name={isSelected ? "caretUp" : "caretDown"} size={14} />
                         </span>
                       </div>
                     </button>

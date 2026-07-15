@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { getReceivedAmount } from "@/lib/domain/partial-payment";
+import { Icon } from "@/components/Icon";
 
 const MONTHS_SHORT = [
   "ינו׳", "פבר׳", "מרץ", "אפר׳", "מאי", "יוני",
@@ -149,7 +150,7 @@ export default function TaxReportPage() {
               onClick={() => window.print()}
               className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-semibold text-sm flex items-center gap-2"
             >
-              🖨️ הדפס / PDF
+<Icon name="print" size={16} className="inline" /> הדפס / PDF
             </button>
             <Link href="/dashboard/reports" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold text-sm">
               חזרה לדוחות
@@ -210,7 +211,7 @@ export default function TaxReportPage() {
         {/* Main table */}
         {!hasAnyData ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center text-gray-400">
-            <div className="text-4xl mb-3">📋</div>
+            <div className="flex justify-center mb-3"><Icon name="taxReport" size={36} className="text-gray-300" /></div>
             <p className="font-medium">אין תקבולי שכ&quot;ד שולמו ב-{selectedYear}</p>
           </div>
         ) : (

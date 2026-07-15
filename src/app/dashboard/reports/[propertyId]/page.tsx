@@ -6,6 +6,7 @@ import { effectiveLeaseStatus } from "@/lib/lease-status";
 import { localMonthKey } from "@/lib/domain/dates";
 import Link from "next/link";
 import type { Lease, Expense, Payment } from "@/types/database";
+import { Icon } from "@/components/Icon";
 
 const EXPENSE_CAT_HE: Record<string, string> = {
   Maintenance: "תחזוקה",
@@ -160,15 +161,15 @@ export default function PropertyReportPage() {
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: "שכ\"ד חודשי", value: report.monthly_rent > 0 ? fmt(report.monthly_rent) : "—", icon: "📄", gradient: "from-pink-500 to-pink-700" },
-                  { label: "הכנסה כוללת", value: fmt(report.total_paid), icon: "💰", gradient: "from-emerald-500 to-emerald-700" },
-                  { label: "הוצאות כוללות", value: fmt(report.total_expenses), icon: "💸", gradient: "from-rose-500 to-rose-700" },
+                  { label: "שכ\"ד חודשי", value: report.monthly_rent > 0 ? fmt(report.monthly_rent) : "—", icon: "leases" as const, gradient: "from-pink-500 to-pink-700" },
+                  { label: "הכנסה כוללת", value: fmt(report.total_paid), icon: "rentCollection" as const, gradient: "from-emerald-500 to-emerald-700" },
+                  { label: "הוצאות כוללות", value: fmt(report.total_expenses), icon: "expenses" as const, gradient: "from-rose-500 to-rose-700" },
                   showTax
-                    ? { label: "נטו אחרי מס", value: fmt(netAfterTax), icon: netAfterTax >= 0 ? "📈" : "📉", gradient: netAfterTax >= 0 ? "from-emerald-500 to-emerald-700" : "from-rose-500 to-rose-700" }
-                    : { label: "רווח נטו", value: fmt(report.net_income), icon: report.net_income >= 0 ? "📈" : "📉", gradient: report.net_income >= 0 ? "from-emerald-500 to-emerald-700" : "from-rose-500 to-rose-700" },
+                    ? { label: "נטו אחרי מס", value: fmt(netAfterTax), icon: netAfterTax >= 0 ? "paid" as const : "unpaid" as const, gradient: netAfterTax >= 0 ? "from-emerald-500 to-emerald-700" : "from-rose-500 to-rose-700" }
+                    : { label: "רווח נטו", value: fmt(report.net_income), icon: report.net_income >= 0 ? "paid" as const : "unpaid" as const, gradient: report.net_income >= 0 ? "from-emerald-500 to-emerald-700" : "from-rose-500 to-rose-700" },
                 ].map(({ label, value, icon, gradient }) => (
                   <div key={label} className={`relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br ${gradient} text-white`}>
-                    <div className="absolute -top-3 -left-3 text-5xl opacity-15 select-none">{icon}</div>
+                    <div className="absolute -top-3 -left-3 opacity-15 select-none"><Icon name={icon} size={48} color="white" /></div>
                     <div className="text-[11px] font-bold text-white/75 uppercase tracking-wide mb-1.5 relative">{label}</div>
                     <div className="text-xl font-extrabold relative drop-shadow-sm">{value}</div>
                   </div>
@@ -324,7 +325,9 @@ export default function PropertyReportPage() {
                     }`}>
                       <span>{label}</span>
                       <span className="mt-0.5">
-                        {isPaid ? "✅" : isPartial ? "🔶" : isFuture ? "🔲" : "❌"}
+                        <Icon name={isPaid ? "paid" : isPartial ? "partial" : isFuture ? "future" : "overdue"}
+                          size={16}
+                          color={isPaid ? "var(--emerald,#047857)" : isPartial ? "var(--amber,#92400e)" : isFuture ? undefined : "var(--rose,#be123c)"} />
                       </span>
                       {(isPaid || isPartial) && match?.paid_date && (
                         <span className="text-[10px] text-gray-400">

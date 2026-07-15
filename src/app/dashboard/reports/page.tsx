@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, queryKeys } from "@/lib/api-client";
+import { Icon } from "@/components/Icon";
 
 const PROPERTY_TYPE_HE: Record<string, string> = {
   Apartment: "דירה",
@@ -228,10 +229,10 @@ export default function ReportsPage() {
           </div>
           <div className="flex gap-2 flex-wrap">
             <Link href="/dashboard/reports/linkage" className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 font-semibold text-sm transition-colors">
-              השוואת הצמדה 📈
+              השוואת הצמדה <Icon name="paid" size={14} className="inline" />
             </Link>
             <Link href="/dashboard/reports/tax" className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 font-semibold text-sm transition-colors">
-              דוח מס שנתי 📋
+              דוח מס שנתי <Icon name="taxReport" size={14} className="inline" />
             </Link>
             <Link href="/dashboard" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold text-sm transition-colors">
               חזרה
@@ -302,14 +303,14 @@ export default function ReportsPage() {
               ? { label: selectedYear ? `רווח אחרי מס ${selectedYear}` : "רווח אחרי מס", value: fmt(totals.netAfterTax), positive: totals.netAfterTax >= 0 }
               : { label: selectedYear ? `רווח נטו ${selectedYear}` : "רווח נטו (כולל)", value: fmt(totals.netIncome), positive: totals.netIncome >= 0 };
             const cards = [
-              { label: "נכסים", value: String(totals.properties), icon: "🏠", gradient: "from-zinc-600 to-zinc-800" },
-              { label: "חוזים פעילים", value: String(totals.activeLeases), icon: "📄", gradient: "from-pink-500 to-pink-700" },
-              { label: selectedYear ? `הכנסה ${selectedYear}` : "הכנסה חודשית", value: selectedYear ? fmt(totals.totalPaid) : fmt(totals.monthlyRent), icon: "💰", gradient: "from-emerald-500 to-emerald-700" },
-              { label: profitCard.label, value: profitCard.value, icon: profitCard.positive ? "📈" : "📉", gradient: profitCard.positive ? "from-emerald-500 to-emerald-700" : "from-rose-500 to-rose-700" },
+              { label: "נכסים", value: String(totals.properties), icon: "properties" as const, gradient: "from-zinc-600 to-zinc-800" },
+              { label: "חוזים פעילים", value: String(totals.activeLeases), icon: "leases" as const, gradient: "from-pink-500 to-pink-700" },
+              { label: selectedYear ? `הכנסה ${selectedYear}` : "הכנסה חודשית", value: selectedYear ? fmt(totals.totalPaid) : fmt(totals.monthlyRent), icon: "rentCollection" as const, gradient: "from-emerald-500 to-emerald-700" },
+              { label: profitCard.label, value: profitCard.value, icon: profitCard.positive ? "paid" as const : "unpaid" as const, gradient: profitCard.positive ? "from-emerald-500 to-emerald-700" : "from-rose-500 to-rose-700" },
             ];
             return cards.map(({ label, value, icon, gradient }) => (
               <div key={label} className={`relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br ${gradient} text-white`}>
-                <div className="absolute -top-3 -left-3 text-5xl opacity-15 select-none">{icon}</div>
+                <div className="absolute -top-3 -left-3 opacity-15 select-none"><Icon name={icon} size={48} color="white" /></div>
                 <div className="text-[11px] font-bold text-white/75 uppercase tracking-wide mb-1.5 relative">{label}</div>
                 <div className="text-2xl font-extrabold relative drop-shadow-sm">{value}</div>
               </div>
