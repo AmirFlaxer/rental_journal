@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DateInput } from "@/components/date-input";
+import { Icon } from "@/components/Icon";
+import type { IconName } from "@/lib/icons";
 import { listRentMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
 import { generateVirtualUtilityTasks, type PropertyUtilityLike } from "@/lib/domain/utility-schedule";
 import { generateVirtualLeaseRenewalTasks } from "@/lib/domain/lease-reminders";
@@ -21,17 +23,17 @@ const CAT_HE: Record<string, string> = {
   Other: "אחר",
 };
 
-const CAT_ICON: Record<string, string> = {
-  Insurance: "🛡️",
-  "Rent Collection": "💰",
-  "Lease Renewal": "📋",
-  Maintenance: "🔧",
-  Tax: "📊",
-  Gas: "🔥",
-  Water: "💧",
-  Electricity: "⚡",
-  "Municipal Tax": "🏛️",
-  Other: "📌",
+const CAT_ICON: Record<string, IconName> = {
+  Insurance: "insurance",
+  "Rent Collection": "rentCollection",
+  "Lease Renewal": "leaseRenewal",
+  Maintenance: "maintenance",
+  Tax: "tax",
+  Gas: "gas",
+  Water: "water",
+  Electricity: "electricity",
+  "Municipal Tax": "municipalTax",
+  Other: "pin",
 };
 
 // צבעי רקע עדינים לכל קטגוריה
@@ -578,10 +580,10 @@ export default function TasksPage() {
         <div className="flex items-center gap-2.5 px-3 pt-3 pb-1">
           {/* Category icon */}
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ background: isDone ? catBg : "rgba(255,255,255,0.18)", boxShadow: isDone ? "none" : "inset 0 1px 0 rgba(255,255,255,0.3)" }}
           >
-            {CAT_ICON[t.category] || "📌"}
+            <Icon name={CAT_ICON[t.category] ?? "pin"} size={18} />
           </div>
 
           {/* Title */}
@@ -615,10 +617,10 @@ export default function TasksPage() {
               <button
                 type="button"
                 onClick={() => requestDelete(t.id)}
-                className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-sm transition-opacity hover:opacity-80"
+                className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-opacity hover:opacity-80"
                 style={isDone ? { background: "var(--bg-surface)", color: "var(--text-3)" } : { background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.9)" }}
               >
-                🗑
+                <Icon name="delete" size={16} />
               </button>
             )
           )}
@@ -674,7 +676,7 @@ export default function TasksPage() {
                 className="px-3 py-1 rounded-lg font-bold text-xs text-white disabled:opacity-60"
                 style={{ background: "#16a34a", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }}
               >
-                {completingId !== null ? "..." : "בוצע ✓"}
+                {completingId !== null ? "..." : <span className="flex items-center gap-1">בוצע <Icon name="check" size={14} /></span>}
               </button>
             ) : (
               <button
@@ -719,9 +721,9 @@ export default function TasksPage() {
           <button
             type="button"
             onClick={() => setListError("")}
-            className="flex-shrink-0 text-xs font-bold opacity-70 hover:opacity-100"
+            className="flex-shrink-0 opacity-70 hover:opacity-100"
           >
-            ✕
+            <Icon name="cancel" size={16} />
           </button>
         </div>
       )}
@@ -732,7 +734,7 @@ export default function TasksPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">תזכורת חדשה</h2>
-              <button onClick={() => { setShowForm(false); resetForm(); }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button onClick={() => { setShowForm(false); resetForm(); }} className="text-gray-400 hover:text-gray-600"><Icon name="cancel" size={18} /></button>
             </div>
             {error && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>}
             <form onSubmit={handleSubmit} className="space-y-3">
@@ -928,7 +930,7 @@ export default function TasksPage() {
         </div>
         {relevant.length === 0 ? (
           <div className="bg-white rounded-xl py-10 text-center space-y-2 shadow-sm">
-            <div className="text-3xl">✅</div>
+            <div className="flex justify-center"><Icon name="paid" size={32} color="var(--emerald,#047857)" /></div>
             <p className="text-gray-500 font-medium text-sm">אין תזכורות רלוונטיות להיום</p>
           </div>
         ) : (
@@ -946,7 +948,7 @@ export default function TasksPage() {
             <h2 className="font-semibold text-gray-600 text-sm">עתידיות</h2>
             <span className="text-xs text-gray-400">({future.length})</span>
           </div>
-          <span className="text-gray-400 text-xs">{showFuture ? "▲" : "▼"}</span>
+          <Icon name={showFuture ? "caretUp" : "caretDown"} size={14} className="text-gray-400" />
         </button>
         {showFuture && (
           future.length === 0 ? (
@@ -967,14 +969,14 @@ export default function TasksPage() {
             className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 to-emerald-700/5 transition-colors hover:from-emerald-500/20"
           >
             <div className="flex items-center gap-2">
-              <span className="text-lg">✅</span>
+              <Icon name="paid" size={18} className="text-emerald-700" />
               <h2 className="font-bold text-sm text-emerald-300">הושלמו</h2>
               <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
                 {done.length}
               </span>
             </div>
             <span className="text-sm font-semibold text-emerald-400">
-              {showDone ? "סגור ▲" : "הצג ▼"}
+              {showDone ? <>סגור <Icon name="caretUp" size={14} className="inline" /></> : <>הצג <Icon name="caretDown" size={14} className="inline" /></>}
             </span>
           </button>
           {showDone && (
