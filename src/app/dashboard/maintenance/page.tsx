@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/api-client";
+import { Icon } from "@/components/Icon";
+import type { IconName } from "@/lib/icons";
 
 export default function MaintenancePage() {
   const queryClient = useQueryClient();
@@ -129,11 +131,11 @@ export default function MaintenancePage() {
     ? { issues: ["שגיאה בבדיקה"] }
     : leaseAuditMutation.data ?? null;
 
-  const actions = [
+  const actions: { title: string; desc: string; icon: IconName; onClick: () => void; running: boolean; result: typeof cleanupResult; btnLabel: string; color: string }[] = [
     {
       title: "ניקוי תזכורות שק",
       desc: "מוחק תזכורות 'הפקדת שק' יתומות, כפולות, או עם תאריך שגוי",
-      icon: "🧹",
+      icon: "cleanup",
       onClick: () => cleanupTasksMutation.mutate(),
       running: cleanupTasksMutation.isPending,
       result: cleanupResult,
@@ -143,7 +145,7 @@ export default function MaintenancePage() {
     {
       title: "ניקוי חוזים יתומים",
       desc: "מוחק חוזים שהנכס שלהם נמחק",
-      icon: "📄",
+      icon: "leases",
       onClick: () => cleanupLeasesMutation.mutate(),
       running: cleanupLeasesMutation.isPending,
       result: leaseCleanupResult,
@@ -171,7 +173,7 @@ export default function MaintenancePage() {
           <div key={a.title} className="bg-white rounded-2xl border border-gray-200 p-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{a.icon}</span>
+                <Icon name={a.icon} size={22} />
                 <div>
                   <p className="text-sm font-semibold text-gray-800">{a.title}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{a.desc}</p>
@@ -198,7 +200,7 @@ export default function MaintenancePage() {
         <div className="bg-white rounded-2xl border border-gray-200 p-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">🔍</span>
+              <Icon name="integrityCheck" size={22} />
               <div>
                 <p className="text-sm font-semibold text-gray-800">בדיקת תקינות חוזים</p>
                 <p className="text-xs text-gray-500 mt-0.5">מאתר נכסים עם יותר מחוזה פעיל אחד במקביל</p>
@@ -216,7 +218,7 @@ export default function MaintenancePage() {
           {leaseAuditResult && (
             <div className={`text-sm rounded-xl p-3 mt-2 space-y-1 ${leaseAuditResult.issues[0] === "לא נמצאו בעיות" ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-800"}`}>
               {leaseAuditResult.issues.map((issue, i) => (
-                <p key={i} className="font-medium">{leaseAuditResult.issues[0] === "לא נמצאו בעיות" ? "✓ " : "⚠ "}{issue}</p>
+                <p key={i} className="font-medium flex items-center gap-1"><Icon name={leaseAuditResult.issues[0] === "לא נמצאו בעיות" ? "check" : "warning"} size={14} />{issue}</p>
               ))}
             </div>
           )}

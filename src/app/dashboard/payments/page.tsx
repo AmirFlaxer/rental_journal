@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { NumberInput } from "@/components/number-input";
+import { Icon } from "@/components/Icon";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 import { listRentMonths, coveredPropertyMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
 import { parsePartialPaid, parsePartialReason, getDebtAmount } from "@/lib/domain/partial-payment";
@@ -461,7 +462,7 @@ export default function PaymentsPage() {
       {/* Action items */}
       {actionItems.length === 0 ? (
         <div className="rounded-2xl py-10 text-center space-y-2 border border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 to-emerald-700/5">
-          <div className="text-4xl">✅</div>
+          <div className="flex justify-center"><Icon name="paid" size={36} className="text-emerald-600" /></div>
           <p className="text-emerald-300 font-semibold">הכל מעודכן!</p>
           <p className="text-xs text-emerald-400/80">אין תקבולים הממתינים לסימון</p>
         </div>
@@ -491,7 +492,7 @@ export default function PaymentsPage() {
             onClick={() => setShowPaid((v) => !v)}
             className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <span className="text-[10px]">{showPaid ? "▼" : "▶"}</span>
+            <Icon name={showPaid ? "caretDown" : "caretRight"} size={12} />
             שולמו ({paidItems.length}) · <span className="num-ltr">₪{totalPaidAmt.toLocaleString()}</span>
           </button>
           {showPaid && (

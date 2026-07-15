@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { Icon } from "@/components/Icon";
 
 type LLMProvider = "gemini" | "anthropic" | "ollama";
 
@@ -424,7 +425,7 @@ export default function SettingsPage() {
         </p>
         <Link href="/dashboard/reports/tax"
           className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-xl text-sm font-semibold hover:bg-orange-100 transition-colors">
-          📋 פתח דוח מס שנתי
+          <Icon name="taxReport" size={16} className="inline" /> פתח דוח מס שנתי
         </Link>
         {taxError && <p className="text-sm text-red-600">{taxError}</p>}
         {taxSuccess && <p className="text-sm text-green-600">{taxSuccess}</p>}
@@ -545,7 +546,7 @@ export default function SettingsPage() {
           {leaseAuditResult && (
             <div className={`text-sm rounded-xl p-3 space-y-1 ${leaseAuditResult.issues[0] === "לא נמצאו בעיות" ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-800"}`}>
               {leaseAuditResult.issues.map((issue, i) => (
-                <p key={i} className="font-medium">{leaseAuditResult.issues[0] === "לא נמצאו בעיות" ? "✓ " : "⚠ "}{issue}</p>
+                <p key={i} className="font-medium flex items-center gap-1"><Icon name={leaseAuditResult.issues[0] === "לא נמצאו בעיות" ? "check" : "warning"} size={14} />{issue}</p>
               ))}
             </div>
           )}

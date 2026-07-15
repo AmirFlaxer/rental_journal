@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Icon } from "@/components/Icon";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 import { listRentMonths, coveredPropertyMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
 import { parsePartialPaid, parsePartialReason, getDebtAmount } from "@/lib/domain/partial-payment";
@@ -174,7 +175,7 @@ export default function DebtsPage() {
 
       {/* Total */}
       <div className="relative overflow-hidden rounded-2xl p-5 flex items-center justify-between bg-gradient-to-br from-rose-500 to-rose-700 text-white">
-        <span className="absolute -top-4 -left-3 text-7xl opacity-15 select-none">🔴</span>
+        <span className="absolute -top-4 -left-3 opacity-15 select-none"><Icon name="debts" size={64} /></span>
         <div className="relative">
           <p className="text-sm font-semibold text-white/80">סה״כ חוב פתוח</p>
           <p className="text-3xl font-extrabold mt-1 drop-shadow-sm">₪{totalDebt.toLocaleString()}</p>
@@ -187,7 +188,7 @@ export default function DebtsPage() {
 
       {debts.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 py-20 text-center space-y-3">
-          <div className="text-5xl">✅</div>
+          <div className="flex justify-center"><Icon name="paid" size={44} className="text-emerald-600" /></div>
           <p className="text-gray-600 font-semibold text-lg">אין חובות פתוחים</p>
           <p className="text-sm text-gray-400">כל התשלומים עד היום שולמו</p>
         </div>
