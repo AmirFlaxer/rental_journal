@@ -150,7 +150,7 @@ export default function TaxReportPage() {
               onClick={() => window.print()}
               className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-semibold text-sm flex items-center gap-2"
             >
-<Icon name="print" size={16} className="inline" /> הדפס / PDF
+              <Icon name="print" size={16} className="inline" /> הדפס / PDF
             </button>
             <Link href="/dashboard/reports" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold text-sm">
               חזרה לדוחות
