@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Icon } from "@/components/Icon";
+import type { IconName } from "@/lib/icons";
 
 // ── ניתן לעריכה בקלות ─────────────────────────────────────
 const DEV = {
@@ -14,13 +16,13 @@ const DEV = {
 
 const APP_VERSION = "1.0";
 
-const APP_FEATURES = [
-  { icon: "🏢", title: "ניהול נכסים", desc: "דירות, בתים ונכסים מסחריים עם כל הפרטים" },
-  { icon: "📄", title: "חוזים חכמים", desc: "ייבוא מ-PDF/תמונה עם AI, הצמדה למדד/דולר, אופציות" },
-  { icon: "💳", title: "תקבולים וחובות", desc: "מעקב תשלומים, תשלומים חלקיים, וחישוב חובות אוטומטי" },
-  { icon: "📋", title: "מס הכנסה 10%", desc: "חישוב מס אוטומטי ודוח מס שנתי מוכן להדפסה" },
-  { icon: "📊", title: "דוחות ואנליטיקה", desc: "הכנסות, הוצאות ורווח לפי נכס, חודש ושנה" },
-  { icon: "🔔", title: "תזכורות", desc: "שיקים, סיום חוזים ומשימות — שלא תשכח כלום" },
+const APP_FEATURES: { icon: IconName; title: string; desc: string }[] = [
+  { icon: "properties", title: "ניהול נכסים", desc: "דירות, בתים ונכסים מסחריים עם כל הפרטים" },
+  { icon: "leases", title: "חוזים חכמים", desc: "ייבוא מ-PDF/תמונה עם AI, הצמדה למדד/דולר, אופציות" },
+  { icon: "payments", title: "תקבולים וחובות", desc: "מעקב תשלומים, תשלומים חלקיים, וחישוב חובות אוטומטי" },
+  { icon: "taxReport", title: "מס הכנסה 10%", desc: "חישוב מס אוטומטי ודוח מס שנתי מוכן להדפסה" },
+  { icon: "reports", title: "דוחות ואנליטיקה", desc: "הכנסות, הוצאות ורווח לפי נכס, חודש ושנה" },
+  { icon: "tasks", title: "תזכורות", desc: "שיקים, סיום חוזים ומשימות — שלא תשכח כלום" },
 ];
 
 type FeedbackType = "bug" | "feature";
@@ -34,7 +36,7 @@ export default function AboutPage() {
   const [copied, setCopied] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 
-  const subjectPrefix = type === "bug" ? "🐞 דיווח באג" : "✨ בקשת פיצ'ר";
+  const subjectPrefix = type === "bug" ? "דיווח באג" : "בקשת פיצ'ר";
   const subject = `[${type === "bug" ? "באג" : "בקשה"}] ${title || "ללא כותרת"}`;
   const body =
     `${subjectPrefix} — יומן השכרות\n\n` +
@@ -97,7 +99,7 @@ export default function AboutPage() {
 
       {/* Hero — about the app */}
       <div className="relative overflow-hidden rounded-2xl p-6 grad-accent-diag text-white">
-        <span className="absolute -top-4 -left-3 text-7xl opacity-15 select-none">🏠</span>
+        <span className="absolute -top-4 -left-3 opacity-15 select-none"><Icon name="dashboard" size={64} color="white" /></span>
         <div className="relative">
           <h2 className="text-xl font-extrabold drop-shadow-sm">יומן השכרות</h2>
           <p className="text-sm text-white/85 mt-1 leading-relaxed max-w-lg">
@@ -116,7 +118,7 @@ export default function AboutPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {APP_FEATURES.map((f) => (
             <div key={f.title} className="bg-white rounded-xl border border-gray-200 p-4 flex items-start gap-3">
-              <span className="text-2xl flex-shrink-0">{f.icon}</span>
+              <Icon name={f.icon} size={22} className="flex-shrink-0" />
               <div>
                 <p className="font-semibold text-gray-900 text-sm">{f.title}</p>
                 <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{f.desc}</p>
@@ -154,7 +156,7 @@ export default function AboutPage() {
             href={`mailto:${DEV.email}`}
             className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-br from-emerald-500 to-emerald-700 text-white rounded-xl font-semibold text-sm hover:brightness-110 transition-all"
           >
-            <span>✉️</span> {DEV.email}
+            <Icon name="mail" size={16} /> {DEV.email}
           </a>
           {DEV.github && (
             <a
@@ -163,7 +165,7 @@ export default function AboutPage() {
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-5 py-2.5 bg-white text-gray-700 rounded-xl font-semibold text-sm border border-gray-200 hover:bg-gray-50 transition-all"
             >
-              <span>💻</span> GitHub
+              <Icon name="externalLink" size={16} /> GitHub
             </a>
           )}
         </div>
@@ -186,7 +188,7 @@ export default function AboutPage() {
                   : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
               }`}
             >
-              🐞 דיווח על באג
+              <Icon name="bugReport" size={14} className="inline" /> דיווח על באג
             </button>
             <button
               onClick={() => { setType("feature"); setSaveStatus("idle"); }}
@@ -196,7 +198,7 @@ export default function AboutPage() {
                   : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
               }`}
             >
-              ✨ בקשת פיצ&apos;ר
+              <Icon name="aiMagic" size={14} className="inline" /> בקשת פיצ&apos;ר
             </button>
           </div>
 
@@ -237,18 +239,18 @@ export default function AboutPage() {
                   : "bg-gray-100 text-gray-400 cursor-not-allowed"
               }`}
             >
-              ✉️ שלח באימייל
+              <Icon name="mail" size={14} className="inline" /> שלח באימייל
             </a>
             <button
               onClick={copyDetails}
               disabled={!canSend}
               className="px-4 py-2.5 rounded-xl font-semibold text-sm border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
-              {copied ? "✓ הועתק" : "📋 העתק"}
+              {copied ? <><Icon name="check" size={14} className="inline" /> הועתק</> : <><Icon name="taxReport" size={14} className="inline" /> העתק</>}
             </button>
           </div>
           {saveStatus === "success" && (
-            <p className="text-xs text-emerald-600 font-semibold">✓ הפנייה נשמרה במערכת, ומייל נפתח לשליחה</p>
+            <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1"><Icon name="check" size={12} /> הפנייה נשמרה במערכת, ומייל נפתח לשליחה</p>
           )}
           {saveStatus === "error" && (
             <p className="text-xs text-gray-400">
