@@ -5,23 +5,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { QueryProvider } from "@/components/query-provider";
+import { Icon } from "@/components/Icon";
+import { NAV_ITEMS, MOBILE_NAV_ITEMS, type NavItem as NavItemType } from "@/lib/nav-items";
 
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "לוח בקרה", icon: "🏠", exact: true },
-  { href: "/dashboard/properties", label: "נכסים", icon: "🏢" },
-  { href: "/dashboard/leases", label: "חוזים", icon: "📄", exact: true },
-  { href: "/dashboard/leases/import", label: "ייבוא חוזה", icon: "📥" },
-  { href: "/dashboard/expenses", label: "הוצאות", icon: "💸" },
-  { href: "/dashboard/payments", label: "תקבולים", icon: "💳" },
-  { href: "/dashboard/reports", label: "דוחות", icon: "📊" },
-  { href: "/dashboard/reports/tax", label: "דוח מס", icon: "📋" },
-  { href: "/dashboard/debts", label: "חובות", icon: "🔴" },
-  { href: "/dashboard/tasks", label: "תזכורות", icon: "🔔" },
-  { href: "/dashboard/about", label: "אודות", icon: "ℹ️" },
-  { href: "/dashboard/maintenance", label: "תחזוקה", icon: "🔧" },
-];
-
-function NavItem({ href, label, icon, exact }: { href: string; label: string; icon: string; exact?: boolean }) {
+function NavItem({ href, label, icon, exact }: NavItemType) {
   const pathname = usePathname();
   const isActive = exact ? pathname === href : pathname.startsWith(href);
 
@@ -37,7 +24,7 @@ function NavItem({ href, label, icon, exact }: { href: string; label: string; ic
         color: "var(--text-2)",
       }}
     >
-      <span className="text-base leading-none" aria-hidden="true">{icon}</span>
+      <Icon name={icon} size={20} color={isActive ? "var(--accent)" : "var(--text-2)"} />
       <span>{label}</span>
     </Link>
   );
@@ -104,13 +91,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               className="text-sm transition-colors" style={{ color: "var(--text-3)" }}
               onMouseEnter={e => (e.currentTarget.style.color = "var(--accent)")}
               onMouseLeave={e => (e.currentTarget.style.color = "var(--text-3)")}>
-              <span aria-hidden="true">⚙</span>
+              <Icon name="settings" size={16} />
             </Link>
             <button onClick={handleSignOut} title="התנתקות" aria-label="התנתקות"
               className="text-sm transition-colors" style={{ color: "var(--text-3)" }}
               onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
               onMouseLeave={e => (e.currentTarget.style.color = "var(--text-3)")}>
-              <span aria-hidden="true">↩</span>
+              <Icon name="signOut" size={16} />
             </button>
           </div>
         </div>
@@ -140,7 +127,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           }}>
           <button onClick={() => setMobileOpen(!mobileOpen)} aria-label="פתח תפריט"
             className="p-2 rounded-lg text-sm" style={{ color: "var(--text-2)" }} aria-expanded={mobileOpen}>
-            <span aria-hidden="true">☰</span>
+            <Icon name="menu" size={20} />
           </button>
           <span className="font-display font-bold text-base" style={{ color: "var(--text-1)" }}>ניהול נכסים</span>
         </header>
@@ -158,13 +145,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             paddingTop: "0.25rem",
             paddingBottom: "max(0.25rem, env(safe-area-inset-bottom))",
           }}>
-          {[
-            { href: "/dashboard", label: "בקרה", icon: "🏠", exact: true },
-            { href: "/dashboard/properties", label: "נכסים", icon: "🏢" },
-            { href: "/dashboard/leases", label: "חוזים", icon: "📄", exact: true },
-            { href: "/dashboard/payments", label: "תקבולים", icon: "💳" },
-            { href: "/dashboard/tasks", label: "תזכורות", icon: "🔔" },
-          ].map((item) => (
+          {MOBILE_NAV_ITEMS.map((item) => (
             <MobileNavItem key={item.href} {...item} />
           ))}
         </nav>
@@ -174,13 +155,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 }
 
-function MobileNavItem({ href, label, icon, exact }: { href: string; label: string; icon: string; exact?: boolean }) {
+function MobileNavItem({ href, label, icon, exact }: NavItemType) {
   const pathname = usePathname();
   const isActive = exact ? pathname === href : pathname.startsWith(href);
   return (
     <Link href={href} className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg min-w-0 flex-1 min-h-[44px] justify-center"
       style={{ color: isActive ? "var(--accent)" : "var(--text-3)" }}>
-      <span className="text-xl leading-none" aria-hidden="true">{icon}</span>
+      <Icon name={icon} size={22} color={isActive ? "var(--accent)" : "var(--text-3)"} />
       <span className="text-[11px] font-medium truncate w-full text-center">{label}</span>
     </Link>
   );
