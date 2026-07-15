@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
+import { Icon } from "@/components/Icon";
+import type { IconName } from "@/lib/icons";
 
 const TYPE_HE: Record<string, string> = { Apartment: "דירה", House: "בית", Commercial: "מסחרי" };
-const TYPE_ICON: Record<string, string> = { Apartment: "🏢", House: "🏠", Commercial: "🏪" };
+const TYPE_ICON: Record<string, IconName> = { Apartment: "apartment", House: "house", Commercial: "commercial" };
 
 interface Property {
   id: string;
@@ -81,7 +83,7 @@ export default function PropertiesPage() {
             href="/dashboard/leases/import"
             className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-50"
           >
-            📥 ייבוא חוזה
+            <Icon name="leaseImport" size={16} className="inline" /> ייבוא חוזה
           </Link>
           <Link
             href="/dashboard/properties/new"
@@ -94,15 +96,15 @@ export default function PropertiesPage() {
 
       {properties.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 py-20 text-center space-y-4">
-          <div className="text-5xl">🏠</div>
+          <div className="flex justify-center"><Icon name="dashboard" size={44} className="text-gray-300" /></div>
           <p className="text-gray-500 font-medium">עדיין אין נכסים</p>
           <p className="text-sm text-gray-400">הוסף נכס או ייבא חוזה שכירות</p>
           <div className="flex gap-3 justify-center pt-2">
             <Link href="/dashboard/leases/import" className="px-5 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700">
-              📥 ייבוא חוזה
+              <Icon name="leaseImport" size={16} className="inline" /> ייבוא חוזה
             </Link>
             <Link href="/dashboard/properties/new" className="px-5 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-50">
-              🏢 הוסף נכס
+              <Icon name="properties" size={16} className="inline" /> הוסף נכס
             </Link>
           </div>
         </div>
@@ -117,7 +119,7 @@ export default function PropertiesPage() {
                 <Link href={`/dashboard/properties/${p.id}`} className="block">
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 grad-accent-diag text-white rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
-                      {TYPE_ICON[p.property_type] || "🏠"}
+                      <Icon name={TYPE_ICON[p.property_type] ?? "house"} size={20} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-gray-900 truncate">{p.title}</p>
@@ -147,7 +149,7 @@ export default function PropertiesPage() {
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
                   <Link href={`/dashboard/properties/${p.id}/edit`}
                     className="text-xs text-gray-400 hover:text-indigo-600 font-medium">
-                    ✏️ עריכה
+                    <Icon name="edit" size={14} className="inline" /> עריכה
                   </Link>
                   {confirmId === p.id ? (
                     <div className="flex items-center gap-2">
@@ -171,7 +173,7 @@ export default function PropertiesPage() {
                       onClick={() => setConfirmId(p.id)}
                       className="text-xs text-gray-400 hover:text-red-600 font-medium"
                     >
-                      🗑️ מחיקה
+                      <Icon name="delete" size={14} className="inline" /> מחיקה
                     </button>
                   )}
                 </div>
