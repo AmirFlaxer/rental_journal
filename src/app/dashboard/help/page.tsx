@@ -4,8 +4,9 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import type { IconName } from "@/lib/icons";
+import type { HelpSectionId } from "@/lib/domain/help-anchor";
 
-const TOC: { id: string; label: string }[] = [
+const TOC: { id: HelpSectionId; label: string }[] = [
   { id: "intro", label: "0. פתיחה" },
   { id: "properties", label: "1. נכסים" },
   { id: "leases", label: "2. חוזים" },
@@ -29,7 +30,7 @@ function Topic({ title, text }: { title: string; text: string }) {
 function Chapter({
   id, num, title, iconName, children,
 }: {
-  id: string; num: string; title: string; iconName: IconName; children: React.ReactNode;
+  id: HelpSectionId; num: string; title: string; iconName: IconName; children: React.ReactNode;
 }) {
   return (
     <section id={id} className="space-y-3">
