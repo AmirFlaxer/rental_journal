@@ -1,3 +1,5 @@
+"use client";
+
 // src/app/dashboard/help/page.tsx
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
