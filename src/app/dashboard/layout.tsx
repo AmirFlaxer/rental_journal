@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { QueryProvider } from "@/components/query-provider";
 import { Icon } from "@/components/Icon";
 import { NAV_ITEMS, MOBILE_NAV_ITEMS, type NavItem as NavItemType } from "@/lib/nav-items";
+import { chapterAnchorFor } from "@/lib/domain/help-anchor";
 
 function NavItem({ href, label, icon, exact }: NavItemType) {
   const pathname = usePathname();
@@ -31,6 +32,7 @@ function NavItem({ href, label, icon, exact }: NavItemType) {
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userName, setUserName] = useState("");
@@ -87,6 +89,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate" style={{ color: "var(--text-1)" }}>{userName || "משתמש"}</p>
             </div>
+            <Link href={`/dashboard/help#${chapterAnchorFor(pathname)}`} title="עזרה" aria-label="עזרה"
+              className="text-sm transition-colors" style={{ color: "var(--text-3)" }}
+              onMouseEnter={e => (e.currentTarget.style.color = "var(--accent)")}
+              onMouseLeave={e => (e.currentTarget.style.color = "var(--text-3)")}>
+              <Icon name="guide" size={16} />
+            </Link>
             <Link href="/dashboard/settings" title="הגדרות" aria-label="הגדרות"
               className="text-sm transition-colors" style={{ color: "var(--text-3)" }}
               onMouseEnter={e => (e.currentTarget.style.color = "var(--accent)")}

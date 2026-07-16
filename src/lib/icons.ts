@@ -1,6 +1,7 @@
 import {
   HouseIcon, BuildingsIcon, FileTextIcon, FileArrowDownIcon, ReceiptIcon, HandCoinsIcon, ChartBarIcon,
   ClipboardTextIcon, WarningCircleIcon, BellIcon, InfoIcon, WrenchIcon, GearIcon, SignOutIcon, ListIcon,
+  BookOpenIcon,
   ShieldCheckIcon, WalletIcon, CalendarCheckIcon, PercentIcon, FireIcon, DropIcon, LightningIcon, BankIcon,
   BriefcaseIcon, PackageIcon, CheckCircleIcon, CircleHalfIcon, WarningIcon, CalendarIcon, XCircleIcon,
   ProhibitIcon, DoorOpenIcon, ArchiveIcon, EraserIcon, MagnifyingGlassIcon, UserIcon, UsersIcon, NoteIcon,
@@ -27,6 +28,7 @@ export const ICONS = {
   settings: GearIcon,
   signOut: SignOutIcon,
   menu: ListIcon,
+  guide: BookOpenIcon,
 
   // קטגוריות (תזכורות + הוצאות)
   insurance: ShieldCheckIcon,
