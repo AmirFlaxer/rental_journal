@@ -110,6 +110,21 @@ interface UtilityFormState {
   responsibility: PropertyUtilityResponsibility;
 }
 
+interface SecurityFormState {
+  id: string | null;
+  lease_id: string;
+  kind: SecurityKind;
+  utility_type: SecurityUtilityType;
+  amount: string;
+  bank: string;
+  branch: string;
+  check_number: string;
+  status: SecurityStatus;
+  received_date: string;
+  resolved_date: string;
+  notes: string;
+}
+
 interface Property {
   id: string;
   title: string;
@@ -192,6 +207,7 @@ export default function PropertyDetailPage() {
   useEffect(() => () => {
     if (utilityListErrorTimer.current) clearTimeout(utilityListErrorTimer.current);
     if (confirmDeleteUtilityTimer.current) clearTimeout(confirmDeleteUtilityTimer.current);
+    if (confirmDeleteSecurityTimer.current) clearTimeout(confirmDeleteSecurityTimer.current);
   }, []);
 
   // בטחונות - נטענים בנפרד דרך TanStack Query
@@ -201,12 +217,10 @@ export default function PropertyDetailPage() {
     retry: false, // הטבלה אולי עוד לא קיימת בפרודקשן - לא לנסות שוב, להציג מיד הודעה עדינה
   });
   const [securitiesOpen, setSecuritiesOpen] = useState(false);
-  // TODO(Task 5): stubs זמניים - יוחלפו במימוש מלא (טופס הוספה/עריכה + מחיקה) במשימה הבאה
+  const [securityForm, setSecurityForm] = useState<SecurityFormState | null>(null);
+  const [securityFormError, setSecurityFormError] = useState("");
   const [confirmDeleteSecurityId, setConfirmDeleteSecurityId] = useState<string | null>(null);
-  const openNewSecurityForm = (_leaseId: string) => {};
-  const openEditSecurityForm = (_s: LeaseSecurity) => {};
-  const requestDeleteSecurity = (_id: string) => {};
-  const handleDeleteSecurity = (_id: string) => {};
+  const confirmDeleteSecurityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadProperty = useCallback(() => {
     setIsLoading(true);
@@ -319,6 +333,68 @@ export default function PropertyDetailPage() {
   const currentTenantName = currentLease?.tenant
     ? `${currentLease.tenant.first_name} ${currentLease.tenant.last_name}`
     : "";
+
+  const openNewSecurityForm = (leaseId: string) => {
+    setSecurityFormError("");
+    setSecurityForm({
+      id: null, lease_id: leaseId, kind: "cash_deposit", utility_type: "electricity",
+      amount: "", bank: "", branch: "", check_number: "", status: "held",
+      received_date: "", resolved_date: "", notes: "",
+    });
+  };
+  const openEditSecurityForm = (s: LeaseSecurity) => {
+    setSecurityFormError("");
+    setSecurityForm({
+      id: s.id, lease_id: s.lease_id, kind: s.kind,
+      utility_type: s.utility_type ?? "electricity",
+      amount: s.amount != null ? String(s.amount) : "",
+      bank: s.bank ?? "", branch: s.branch ?? "", check_number: s.check_number ?? "",
+      status: s.status, received_date: s.received_date ?? "", resolved_date: s.resolved_date ?? "",
+      notes: s.notes ?? "",
+    });
+  };
+
+  const handleSaveSecurity = async () => {
+    if (!securityForm) return;
+    setSecurityFormError("");
+    const isCheck = securityForm.kind === "security_check" || securityForm.kind === "utility_check";
+    try {
+      const payload = {
+        property_id: property.id,
+        lease_id: securityForm.lease_id,
+        kind: securityForm.kind,
+        utility_type: securityForm.kind === "utility_check" ? securityForm.utility_type : null,
+        amount: securityForm.amount.trim() ? Number(securityForm.amount) : null,
+        bank: isCheck ? (securityForm.bank.trim() || null) : null,
+        branch: isCheck ? (securityForm.branch.trim() || null) : null,
+        check_number: isCheck ? (securityForm.check_number.trim() || null) : null,
+        status: securityForm.status,
+        received_date: securityForm.received_date || null,
+        resolved_date: securityForm.status !== "held" ? (securityForm.resolved_date || null) : null,
+        notes: securityForm.notes.trim() || null,
+      };
+      const res = await fetch(
+        securityForm.id ? `/api/lease-securities/${securityForm.id}` : "/api/lease-securities",
+        { method: securityForm.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }
+      );
+      if (!res.ok) throw new Error("שגיאה בשמירת הבטחון");
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaseSecurities });
+      setSecurityForm(null);
+    } catch (err) {
+      setSecurityFormError(err instanceof Error ? err.message : "שגיאה בשמירת הבטחון");
+    }
+  };
+
+  const requestDeleteSecurity = (id: string) => {
+    setConfirmDeleteSecurityId(id);
+    if (confirmDeleteSecurityTimer.current) clearTimeout(confirmDeleteSecurityTimer.current);
+    confirmDeleteSecurityTimer.current = setTimeout(() => setConfirmDeleteSecurityId(null), 3000);
+  };
+  const handleDeleteSecurity = async (id: string) => {
+    const res = await fetch(`/api/lease-securities/${id}`, { method: "DELETE" });
+    if (res.ok) queryClient.invalidateQueries({ queryKey: queryKeys.leaseSecurities });
+    setConfirmDeleteSecurityId(null);
+  };
 
   const showUtilityListError = (msg: string) => {
     if (utilityListErrorTimer.current) clearTimeout(utilityListErrorTimer.current);
@@ -621,6 +697,131 @@ export default function PropertyDetailPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Security form modal - בטחון (הוספה/עריכה) */}
+      {securityForm && (
+        <div className="fixed inset-0 bg-black/40 grid place-items-center p-4 z-50" onClick={(e) => { if (e.target === e.currentTarget) setSecurityForm(null); }}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[92vh] overflow-y-auto">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="font-bold text-gray-900">{securityForm.id ? "עריכת בטחון" : "הוספת בטחון"}</h3>
+              <button onClick={() => setSecurityForm(null)} className="text-gray-400 hover:text-gray-700"><Icon name="cancel" size={20} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">סוג בטחון</label>
+                <select
+                  value={securityForm.kind}
+                  onChange={(e) => setSecurityForm({ ...securityForm, kind: e.target.value as SecurityKind })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                >
+                  <option value="cash_deposit">פיקדון כספי</option>
+                  <option value="security_check">שק ביטחון</option>
+                  <option value="promissory_note">שטר ביטחון</option>
+                  <option value="utility_check">שק ביטחון לחשבון שירות</option>
+                  <option value="other">אחר</option>
+                </select>
+              </div>
+
+              {securityForm.kind === "utility_check" && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">חשבון השירות</label>
+                  <select
+                    value={securityForm.utility_type}
+                    onChange={(e) => setSecurityForm({ ...securityForm, utility_type: e.target.value as SecurityUtilityType })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  >
+                    <option value="electricity">חשמל</option>
+                    <option value="water">מים</option>
+                    <option value="gas">גז</option>
+                    <option value="municipal_tax">ארנונה</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">סכום (₪)</label>
+                  <input
+                    type="text" inputMode="numeric" value={securityForm.amount}
+                    onChange={(e) => setSecurityForm({ ...securityForm, amount: e.target.value })}
+                    placeholder={securityForm.kind === "cash_deposit" ? "סכום הפיקדון" : "לא חובה - שק פתוח"}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">תאריך קבלה</label>
+                  <input
+                    type="date" value={securityForm.received_date}
+                    onChange={(e) => setSecurityForm({ ...securityForm, received_date: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+              </div>
+
+              {(securityForm.kind === "security_check" || securityForm.kind === "utility_check") && (
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">בנק</label>
+                    <input type="text" value={securityForm.bank} onChange={(e) => setSecurityForm({ ...securityForm, bank: e.target.value })} className="w-full border border-gray-300 rounded-lg px-2 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">סניף</label>
+                    <input type="text" value={securityForm.branch} onChange={(e) => setSecurityForm({ ...securityForm, branch: e.target.value })} className="w-full border border-gray-300 rounded-lg px-2 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">מס' שק</label>
+                    <input type="text" value={securityForm.check_number} onChange={(e) => setSecurityForm({ ...securityForm, check_number: e.target.value })} className="w-full border border-gray-300 rounded-lg px-2 py-2" />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">סטטוס</label>
+                <div className="flex gap-2">
+                  {(["held", "returned", "cashed"] as SecurityStatus[]).map((st) => (
+                    <button
+                      key={st} type="button"
+                      onClick={() => setSecurityForm({ ...securityForm, status: st })}
+                      className={`flex-1 px-3 py-2 rounded-lg border text-sm font-semibold ${
+                        securityForm.status === st ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-700 border-gray-300"
+                      }`}
+                    >
+                      {SECURITY_STATUS_HE[st]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {securityForm.status !== "held" && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">תאריך פעולה (החזרה/פדיון)</label>
+                  <input
+                    type="date" value={securityForm.resolved_date}
+                    onChange={(e) => setSecurityForm({ ...securityForm, resolved_date: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">הערות</label>
+                <textarea
+                  rows={2} value={securityForm.notes}
+                  onChange={(e) => setSecurityForm({ ...securityForm, notes: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
+              </div>
+
+              {securityFormError && <p className="text-red-600 text-sm">{securityFormError}</p>}
+
+              <div className="flex gap-2 pt-1">
+                <button onClick={handleSaveSecurity} className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">שמור</button>
+                <button type="button" onClick={() => setSecurityForm(null)} className="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold">ביטול</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
