@@ -772,7 +772,7 @@ export default function PropertyDetailPage() {
                     <input type="text" value={securityForm.branch} onChange={(e) => setSecurityForm({ ...securityForm, branch: e.target.value })} className="w-full border border-gray-300 rounded-lg px-2 py-2" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">מס' שק</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">{"מס' שק"}</label>
                     <input type="text" value={securityForm.check_number} onChange={(e) => setSecurityForm({ ...securityForm, check_number: e.target.value })} className="w-full border border-gray-300 rounded-lg px-2 py-2" />
                   </div>
                 </div>
