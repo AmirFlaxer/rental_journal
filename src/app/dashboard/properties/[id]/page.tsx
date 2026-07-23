@@ -118,6 +118,7 @@ interface SecurityFormState {
   amount: string;
   bank: string;
   branch: string;
+  account: string;
   check_number: string;
   status: SecurityStatus;
   received_date: string;
@@ -221,6 +222,13 @@ export default function PropertyDetailPage() {
   const [securityFormError, setSecurityFormError] = useState("");
   const [confirmDeleteSecurityId, setConfirmDeleteSecurityId] = useState<string | null>(null);
   const confirmDeleteSecurityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // סגירת חלונית הבטחונות ב-Escape (בנוסף ללחיצה על הרקע)
+  useEffect(() => {
+    if (!securityForm) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSecurityForm(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [securityForm]);
 
   const loadProperty = useCallback(() => {
     setIsLoading(true);
@@ -338,7 +346,7 @@ export default function PropertyDetailPage() {
     setSecurityFormError("");
     setSecurityForm({
       id: null, lease_id: leaseId, kind: "cash_deposit", utility_type: "electricity",
-      amount: "", bank: "", branch: "", check_number: "", status: "held",
+      amount: "", bank: "", branch: "", account: "", check_number: "", status: "held",
       received_date: "", resolved_date: "", notes: "",
     });
   };
@@ -348,7 +356,7 @@ export default function PropertyDetailPage() {
       id: s.id, lease_id: s.lease_id, kind: s.kind,
       utility_type: s.utility_type ?? "electricity",
       amount: s.amount != null ? String(s.amount) : "",
-      bank: s.bank ?? "", branch: s.branch ?? "", check_number: s.check_number ?? "",
+      bank: s.bank ?? "", branch: s.branch ?? "", account: s.account ?? "", check_number: s.check_number ?? "",
       status: s.status, received_date: s.received_date ?? "", resolved_date: s.resolved_date ?? "",
       notes: s.notes ?? "",
     });
@@ -367,6 +375,7 @@ export default function PropertyDetailPage() {
         amount: securityForm.amount.trim() ? Number(securityForm.amount) : null,
         bank: isCheck ? (securityForm.bank.trim() || null) : null,
         branch: isCheck ? (securityForm.branch.trim() || null) : null,
+        account: isCheck ? (securityForm.account.trim() || null) : null,
         check_number: isCheck ? (securityForm.check_number.trim() || null) : null,
         status: securityForm.status,
         received_date: securityForm.received_date || null,
@@ -762,7 +771,7 @@ export default function PropertyDetailPage() {
               </div>
 
               {(securityForm.kind === "security_check" || securityForm.kind === "utility_check") && (
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">בנק</label>
                     <input type="text" value={securityForm.bank} onChange={(e) => setSecurityForm({ ...securityForm, bank: e.target.value })} className="w-full border border-gray-300 rounded-lg px-2 py-2" />
@@ -770,6 +779,10 @@ export default function PropertyDetailPage() {
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">סניף</label>
                     <input type="text" value={securityForm.branch} onChange={(e) => setSecurityForm({ ...securityForm, branch: e.target.value })} className="w-full border border-gray-300 rounded-lg px-2 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">חשבון</label>
+                    <input type="text" value={securityForm.account} onChange={(e) => setSecurityForm({ ...securityForm, account: e.target.value })} className="w-full border border-gray-300 rounded-lg px-2 py-2" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">{"מס' שק"}</label>
@@ -1284,6 +1297,7 @@ export default function PropertyDetailPage() {
                     const isConfirmingDelete = confirmDeleteSecurityId === s.id;
                     const details = [
                       s.bank, s.branch ? `סניף ${s.branch}` : null,
+                      s.account ? `חשבון ${s.account}` : null,
                       s.check_number ? `שק ${s.check_number}` : null,
                     ].filter(Boolean).join(" · ");
                     return (

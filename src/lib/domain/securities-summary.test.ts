@@ -44,6 +44,14 @@ describe("heldCashDepositTotal", () => {
     expect(heldCashDepositTotal(items)).toBe(2000);
   });
 
+  it("פיקדון כספי שנפדה (cashed) לא נספר - רק held", () => {
+    const items = [
+      makeSec({ kind: "cash_deposit", status: "cashed", amount: 4000 }),
+      makeSec({ kind: "cash_deposit", status: "held", amount: 1500 }),
+    ];
+    expect(heldCashDepositTotal(items)).toBe(1500);
+  });
+
   it("רשימה ריקה מחזירה 0", () => {
     expect(heldCashDepositTotal([])).toBe(0);
   });
@@ -59,6 +67,15 @@ describe("heldPaperCount", () => {
       makeSec({ kind: "cash_deposit", status: "held" }),      // פיקדון כספי - לא נייר
     ];
     expect(heldPaperCount(items)).toBe(3);
+  });
+
+  it("סופר kind=other כנייר, ולא סופר cashed", () => {
+    const items = [
+      makeSec({ kind: "other", status: "held" }),          // נספר
+      makeSec({ kind: "security_check", status: "cashed" }), // נפדה - לא נספר
+      makeSec({ kind: "promissory_note", status: "held" }), // נספר
+    ];
+    expect(heldPaperCount(items)).toBe(2);
   });
 
   it("רשימה ריקה מחזירה 0", () => {
