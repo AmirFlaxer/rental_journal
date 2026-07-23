@@ -18,3 +18,4 @@
 | 20260708_subscriptions.sql | ✅ 2026-07-08 |
 | 20260708_feedback.sql | ✅ 2026-07-08 |
 | 20260708_property_utilities.sql | ✅ 2026-07-08 |
+| 20260724_lease_securities.sql | ✅ 2026-07-24 |

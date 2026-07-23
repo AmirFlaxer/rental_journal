@@ -2,6 +2,14 @@
 
 > מצב נוכחי, החלטות, והצעד הבא. מתעדכן בכל session.
 
+## פיצ'ר: בטחונות (Lease Securities) (2026-07-24, מיגרציה הורצה)
+
+- **טבלה חדשה `lease_securities`** (בטחונות המוחזקים תחת חוזה): kind (`cash_deposit`/`security_check`/`promissory_note`/`utility_check`/`other`), utility_type, amount, פרטי-שק (bank/branch/account/check_number), status (`held`/`returned`/`cashed`), received_date/resolved_date, notes. RLS owner-only. **מיגרציה `20260724_lease_securities.sql` הורצה בפרודקשן 2026-07-24** ✅.
+- **מקטע "בטחונות" מתקפל בעמוד הנכס** (`properties/[id]`, מכווץ כברירת מחדל): שורת-כותרת עם שם-השוכר + תקציר ("₪X פיקדון כספי · N שקים/שטרות מוחזקים"); לחיצה על "הצג פקדונות" פותחת פירוט + חלונית הוספה/עריכה/שינוי-סטטוס/מחיקה. שדות מותנים לפי kind (utility_check מוסיף בורר חשבון-שירות + פרטי-שק; פיקדון כספי בלי פרטי-שק). מקטע מקושר לחוזה הפעיל; held מחוזים קודמים מוצג בהערת "בטחונות קודמים שטרם הוחזרו".
+- **מכוון (לא חסר)**: אין תזכורות, אין תנועת-כסף אוטומטית, אין נגיעה בדוחות - מעקב ידני בלבד. פיקדון כספי = התחייבות (לא הכנסה). הקיים (`deposit_amount`, `payment_type=Deposit/Return`) לא שונה.
+- **לוגיקה+בדיקות**: `src/lib/domain/securities-summary.ts` (`heldCashDepositTotal`/`heldPaperCount`) + בדיקות. CRUD ב-`/api/lease-securities`.
+- **תהליך**: brainstorming (כולל מוקאפ-ויזואלי חי להכרעת מיקום+התנהגות-כיווץ) → spec → plan (6 משימות) → subagent-driven (מיישמי Haiku/Sonnet + סקירת-Sonnet לכל משימה + סקירת-על Opus). אימות ויזואלי Playwright מלא (הוספה/עריכה/מחיקה/conditional על נתונים אמיתיים, 0 שגיאות קונסולה). spec: docs/superpowers/specs/2026-07-24-lease-securities-design.md, plan: docs/superpowers/plans/2026-07-24-lease-securities.md.
+
 ## פיצ'ר: חוברת הסברים למשתמש (2026-07-16, מוזג ופרוס)
 
 - **עמוד `/dashboard/help`** עם 9 פרקים (פתיחה + נכסים/חוזים/תקבולים/הוצאות/חובות/דוחות/תזכורות/הגדרות) - תוכן-עניינים עם עוגנים, כל פרק `<section id="...">` באותו דפוס עיצובי כמו `about/page.tsx`. **כפתור-עזרה בסרגל** (ליד הגדרות/התנתקות) עם **קפיצה-חכמה**: `chapterAnchorFor(pathname)` (`src/lib/domain/help-anchor.ts`, פונקציה טהורה + נבדקת-יחידה) ממפה את המסך הנוכחי לעוגן הרלוונטי.
