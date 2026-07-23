@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Lease, Expense, Payment, LeaseDocument, PropertyUtility, PropertyUtilityType, PropertyUtilityFrequency, PropertyUtilityResponsibility } from "@/types/database";
+import type { Lease, Expense, Payment, LeaseDocument, PropertyUtility, PropertyUtilityType, PropertyUtilityFrequency, PropertyUtilityResponsibility, LeaseSecurity, SecurityKind, SecurityStatus, SecurityUtilityType } from "@/types/database";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 import { listRentMonths } from "@/lib/domain/rent-schedule";
 import { isoMonthKey, isoDateParts, localMonthKey } from "@/lib/domain/dates";
 import { utilityTypeLabel } from "@/lib/domain/utility-schedule";
+import { heldCashDepositTotal, heldPaperCount } from "@/lib/domain/securities-summary";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { Icon } from "@/components/Icon";
 import type { IconName } from "@/lib/icons";
@@ -57,6 +58,48 @@ const UTILITY_RESPONSIBILITY_HE: Record<PropertyUtilityResponsibility, string> =
 ) as Record<PropertyUtilityResponsibility, string>;
 
 const UTILITY_MONTH_HE = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+
+const SECURITY_KIND_HE: Record<SecurityKind, string> = {
+  cash_deposit: "פיקדון כספי",
+  security_check: "שק ביטחון",
+  promissory_note: "שטר ביטחון",
+  utility_check: "שק ביטחון - חשבון שירות",
+  other: "אחר",
+};
+const SECURITY_STATUS_HE: Record<SecurityStatus, string> = {
+  held: "מוחזק",
+  returned: "הוחזר",
+  cashed: "נפדה",
+};
+const SECURITY_UTILITY_HE: Record<SecurityUtilityType, string> = {
+  electricity: "חשמל",
+  water: "מים",
+  gas: "גז",
+  municipal_tax: "ארנונה",
+};
+const SECURITY_KIND_ICON: Record<SecurityKind, IconName> = {
+  cash_deposit: "cashDeposit",
+  security_check: "security",
+  promissory_note: "promissoryNote",
+  utility_check: "electricity",
+  other: "other",
+};
+const SECURITY_UTILITY_ICON: Record<SecurityUtilityType, IconName> = {
+  electricity: "electricity",
+  water: "water",
+  gas: "gas",
+  municipal_tax: "municipalTax",
+};
+function securityIcon(s: Pick<LeaseSecurity, "kind" | "utility_type">): IconName {
+  if (s.kind === "utility_check" && s.utility_type) return SECURITY_UTILITY_ICON[s.utility_type];
+  return SECURITY_KIND_ICON[s.kind];
+}
+// תג-סטטוס בגוונים ניטרליים (לא ירוק-הכנסה/אדום-הוצאה)
+const SECURITY_STATUS_CLASS: Record<SecurityStatus, string> = {
+  held: "bg-gray-100 text-gray-600",
+  returned: "bg-green-50 text-green-700",
+  cashed: "bg-amber-50 text-amber-700",
+};
 
 interface UtilityFormState {
   id: string | null;
@@ -151,6 +194,19 @@ export default function PropertyDetailPage() {
     if (confirmDeleteUtilityTimer.current) clearTimeout(confirmDeleteUtilityTimer.current);
   }, []);
 
+  // בטחונות - נטענים בנפרד דרך TanStack Query
+  const securitiesQuery = useQuery({
+    queryKey: queryKeys.leaseSecurities,
+    queryFn: () => apiGet<LeaseSecurity[]>("/api/lease-securities"),
+  });
+  const [securitiesOpen, setSecuritiesOpen] = useState(false);
+  // TODO(Task 5): stubs זמניים - יוחלפו במימוש מלא (טופס הוספה/עריכה + מחיקה) במשימה הבאה
+  const [confirmDeleteSecurityId, setConfirmDeleteSecurityId] = useState<string | null>(null);
+  const openNewSecurityForm = (_leaseId: string) => {};
+  const openEditSecurityForm = (_s: LeaseSecurity) => {};
+  const requestDeleteSecurity = (_id: string) => {};
+  const handleDeleteSecurity = (_id: string) => {};
+
   const loadProperty = useCallback(() => {
     setIsLoading(true);
     fetch(`/api/properties/${propertyId}`)
@@ -241,6 +297,27 @@ export default function PropertyDetailPage() {
 
   // חשבונות שירות של הנכס הנוכחי בלבד (ה-query מחזיר את כל החשבונות של המשתמש)
   const propertyUtilities = (utilitiesQuery.data ?? []).filter((u) => u.property_id === property.id);
+
+  // החוזה ה"נוכחי" של הנכס: הפעיל (אם יש), אחרת האחרון לפי start_date
+  const currentLease =
+    activeLeases[0] ??
+    [...(property.leases ?? [])].sort((a, b) =>
+      (b.start_date ?? "").localeCompare(a.start_date ?? "")
+    )[0] ??
+    null;
+  const propertySecurities = (securitiesQuery.data ?? []).filter((s) => s.property_id === property.id);
+  const currentSecurities = currentLease
+    ? propertySecurities.filter((s) => s.lease_id === currentLease.id)
+    : [];
+  // בטחונות מוחזקים מחוזים קודמים - שלא יעלמו כשמתחיל חוזה חדש
+  const priorHeldSecurities = propertySecurities.filter(
+    (s) => s.status === "held" && (!currentLease || s.lease_id !== currentLease.id)
+  );
+  const cashHeld = heldCashDepositTotal(currentSecurities);
+  const paperHeld = heldPaperCount(currentSecurities);
+  const currentTenantName = currentLease?.tenant
+    ? `${currentLease.tenant.first_name} ${currentLease.tenant.last_name}`
+    : "";
 
   const showUtilityListError = (msg: string) => {
     if (utilityListErrorTimer.current) clearTimeout(utilityListErrorTimer.current);
@@ -939,6 +1016,120 @@ export default function PropertyDetailPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+
+        {/* בטחונות - מקטע מתקפל */}
+        <div id="securities" className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <button
+            onClick={() => setSecuritiesOpen((v) => !v)}
+            aria-expanded={securitiesOpen}
+            className="w-full flex items-center justify-between gap-3 px-6 py-4 text-right hover:bg-gray-50"
+          >
+            <span className="flex items-center gap-3 min-w-0">
+              <span className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-700 grid place-items-center flex-shrink-0">
+                <Icon name="security" size={18} />
+              </span>
+              <span className="min-w-0">
+                <span className="block font-bold text-gray-900">
+                  בטחונות{currentTenantName ? ` · חוזה עם ${currentTenantName}` : ""}
+                </span>
+                <span className="block text-sm text-gray-500">
+                  {securitiesQuery.isError
+                    ? "יש להריץ מיגרציה כדי להפעיל את התכונה"
+                    : cashHeld === 0 && paperHeld === 0
+                    ? "אין בטחונות מוחזקים"
+                    : <>
+                        <span className="num-ltr">₪{cashHeld.toLocaleString()}</span> פיקדון כספי · {paperHeld} שקים/שטרות מוחזקים
+                      </>}
+                </span>
+              </span>
+            </span>
+            <span className="flex items-center gap-1 text-indigo-700 font-semibold text-sm flex-shrink-0">
+              {securitiesOpen ? "הסתר" : "הצג פקדונות"}
+              <Icon name={securitiesOpen ? "caretUp" : "caretDown"} size={16} />
+            </span>
+          </button>
+
+          {securitiesOpen && !securitiesQuery.isError && (
+            <div className="border-t border-gray-100">
+              <div className="flex items-center justify-between gap-2 px-6 py-3 flex-wrap">
+                <div className="flex gap-2 flex-wrap text-sm">
+                  <span className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
+                    פיקדונות כספיים מוחזקים <b className="num-ltr">₪{cashHeld.toLocaleString()}</b>
+                  </span>
+                  <span className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
+                    שקים/שטרות מוחזקים <b>{paperHeld}</b>
+                  </span>
+                </div>
+                {/* כפתור "הוסף" (Task 5) */}
+                {currentLease && (
+                  <button
+                    onClick={() => openNewSecurityForm(currentLease.id)}
+                    className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold text-sm"
+                  >
+                    + הוסף
+                  </button>
+                )}
+              </div>
+
+              {currentSecurities.length === 0 ? (
+                <p className="px-6 py-6 text-gray-400 text-center text-sm">אין בטחונות לחוזה הנוכחי</p>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {currentSecurities.map((s) => {
+                    const isConfirmingDelete = confirmDeleteSecurityId === s.id;
+                    const details = [
+                      s.bank, s.branch ? `סניף ${s.branch}` : null,
+                      s.check_number ? `שק ${s.check_number}` : null,
+                    ].filter(Boolean).join(" · ");
+                    return (
+                      <div key={s.id} className="flex items-center justify-between gap-3 px-6 py-3 flex-wrap">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Icon name={securityIcon(s)} size={18} />
+                          <div className="min-w-0">
+                            <div className="font-semibold text-gray-900">
+                              {SECURITY_KIND_HE[s.kind]}
+                              {s.kind === "utility_check" && s.utility_type ? ` - ${SECURITY_UTILITY_HE[s.utility_type]}` : ""}
+                            </div>
+                            {details && <div className="text-xs text-gray-500">{details}</div>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                          {s.amount != null && (
+                            <span className="font-bold text-gray-900 num-ltr">₪{Number(s.amount).toLocaleString()}</span>
+                          )}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${SECURITY_STATUS_CLASS[s.status]}`}>
+                            {SECURITY_STATUS_HE[s.status]}
+                          </span>
+                          <button
+                            onClick={() => openEditSecurityForm(s)}
+                            className="px-2 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-200"
+                          >
+                            <Icon name="edit" size={14} className="inline" /> עריכה
+                          </button>
+                          <button
+                            onClick={() => (isConfirmingDelete ? handleDeleteSecurity(s.id) : requestDeleteSecurity(s.id))}
+                            className={`px-2 py-1 rounded-lg text-xs font-semibold ${
+                              isConfirmingDelete ? "bg-red-600 text-white hover:bg-red-700" : "bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700"
+                            }`}
+                          >
+                            {isConfirmingDelete ? "בטוח?" : <><Icon name="delete" size={14} className="inline" /> מחיקה</>}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {priorHeldSecurities.length > 0 && (
+                <div className="mx-6 my-3 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                  <b>מבטחונות קודמים שטרם הוחזרו:</b>{" "}
+                  {priorHeldSecurities.map((s) => SECURITY_KIND_HE[s.kind]).join(", ")}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -27,4 +27,5 @@ export const queryKeys = {
   reports: ["reports"] as const,
   indexRates: ["index-rates"] as const,
   propertyUtilities: ["property-utilities"] as const,
+  leaseSecurities: ["lease-securities"] as const,
 };

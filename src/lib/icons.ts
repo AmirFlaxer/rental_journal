@@ -84,6 +84,11 @@ export const ICONS = {
   add: PlusSquareIcon,
   warning: WarningIcon,
 
+  // בטחונות
+  security: ShieldCheckIcon,
+  promissoryNote: NoteIcon,
+  cashDeposit: WalletIcon,
+
   // כיווץ/הרחבה
   caretUp: CaretUpIcon,
   caretDown: CaretDownIcon,
