@@ -54,3 +54,7 @@ prisma/*.db-journal
 .claude/*
 !.claude/skills/
 
+
+# Superpowers / Playwright scratch (subagent ledger, test screenshots)
+.superpowers/
+.playwright-mcp/
