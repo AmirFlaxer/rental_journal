@@ -198,6 +198,7 @@ export default function PropertyDetailPage() {
   const securitiesQuery = useQuery({
     queryKey: queryKeys.leaseSecurities,
     queryFn: () => apiGet<LeaseSecurity[]>("/api/lease-securities"),
+    retry: false, // הטבלה אולי עוד לא קיימת בפרודקשן - לא לנסות שוב, להציג מיד הודעה עדינה
   });
   const [securitiesOpen, setSecuritiesOpen] = useState(false);
   // TODO(Task 5): stubs זמניים - יוחלפו במימוש מלא (טופס הוספה/עריכה + מחיקה) במשימה הבאה
