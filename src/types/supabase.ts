@@ -595,6 +595,81 @@ export type Database = {
           },
         ]
       }
+      lease_securities: {
+        Row: {
+          account: string | null
+          amount: number | null
+          bank: string | null
+          branch: string | null
+          check_number: string | null
+          created_at: string
+          id: string
+          kind: string
+          lease_id: string
+          notes: string | null
+          property_id: string
+          received_date: string | null
+          resolved_date: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          utility_type: string | null
+        }
+        Insert: {
+          account?: string | null
+          amount?: number | null
+          bank?: string | null
+          branch?: string | null
+          check_number?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          lease_id: string
+          notes?: string | null
+          property_id: string
+          received_date?: string | null
+          resolved_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          utility_type?: string | null
+        }
+        Update: {
+          account?: string | null
+          amount?: number | null
+          bank?: string | null
+          branch?: string | null
+          check_number?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          lease_id?: string
+          notes?: string | null
+          property_id?: string
+          received_date?: string | null
+          resolved_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          utility_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lease_securities_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "leases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lease_securities_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string

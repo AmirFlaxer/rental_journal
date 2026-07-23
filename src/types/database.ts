@@ -86,6 +86,25 @@ export type PropertyUtility = Omit<
   responsibility: PropertyUtilityResponsibility;
 };
 
+// ---- בטחונות (lease_securities) ----
+export type SecurityKind =
+  | "cash_deposit"
+  | "security_check"
+  | "promissory_note"
+  | "utility_check"
+  | "other";
+export type SecurityStatus = "held" | "returned" | "cashed";
+export type SecurityUtilityType = "electricity" | "water" | "gas" | "municipal_tax";
+
+export type LeaseSecurity = Omit<
+  TableRow<"lease_securities">,
+  "kind" | "status" | "utility_type"
+> & {
+  kind: SecurityKind;
+  status: SecurityStatus;
+  utility_type: SecurityUtilityType | null;
+};
+
 // ---- טיפוסים מועשרים לתשובות API (מפתחות join נשארים כשמם) ----
 export type LeaseWithRelations = Lease & {
   tenant?: Tenant;

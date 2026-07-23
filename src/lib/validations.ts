@@ -138,6 +138,23 @@ export const propertyUtilitySchema = z.object({
   active: z.boolean().optional(),
 });
 
+// Lease Security Validations - בטחונות המוחזקים תחת חוזה
+export const leaseSecuritySchema = z.object({
+  property_id: z.string().min(1, "Property is required"),
+  lease_id: z.string().min(1, "Lease is required"),
+  kind: z.enum(["cash_deposit", "security_check", "promissory_note", "utility_check", "other"]),
+  utility_type: z.enum(["electricity", "water", "gas", "municipal_tax"]).nullish(),
+  amount: z.number().min(0).nullish(),
+  bank: z.string().nullish(),
+  branch: z.string().nullish(),
+  account: z.string().nullish(),
+  check_number: z.string().nullish(),
+  status: z.enum(["held", "returned", "cashed"]).default("held"),
+  received_date: z.string().nullish(),
+  resolved_date: z.string().nullish(),
+  notes: z.string().nullish(),
+});
+
 // Feedback Validations
 export const feedbackSchema = z.object({
   type: z.enum(["bug", "feature", "other"]).default("other"),
@@ -155,4 +172,5 @@ export type PaymentInput = z.infer<typeof paymentSchema>;
 export type TaskInput = z.infer<typeof taskSchema>;
 export type TaskUpdateInput = z.infer<typeof taskUpdateSchema>;
 export type PropertyUtilityInput = z.infer<typeof propertyUtilitySchema>;
+export type LeaseSecurityInput = z.infer<typeof leaseSecuritySchema>;
 export type FeedbackInput = z.infer<typeof feedbackSchema>;
