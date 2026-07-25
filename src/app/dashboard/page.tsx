@@ -13,6 +13,7 @@ import { readAndStampVisit, summarizeSince } from "@/lib/domain/last-visit";
 import { weekGroupLabel } from "@/lib/domain/dates";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/domain/money";
+import type { CheckBounce } from "@/lib/domain/check-bounce";
 
 interface Property {
   id: string;
@@ -100,15 +101,17 @@ export default function Dashboard() {
   const paymentsQuery = useQuery({ queryKey: queryKeys.payments, queryFn: () => apiGet<Payment[]>("/api/payments") });
   const expensesQuery = useQuery({ queryKey: queryKeys.expenses, queryFn: () => apiGet<Expense[]>("/api/expenses") });
   const tasksQuery = useQuery({ queryKey: queryKeys.tasks, queryFn: () => apiGet<Task[]>("/api/tasks") });
+  const checkBouncesQuery = useQuery({ queryKey: queryKeys.checkBounces, queryFn: () => apiGet<CheckBounce[]>("/api/check-bounces") });
 
   const properties = useMemo(() => propertiesQuery.data ?? [], [propertiesQuery.data]);
   const leases = useMemo(() => leasesQuery.data ?? [], [leasesQuery.data]);
   const payments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
   const expenses = useMemo(() => expensesQuery.data ?? [], [expensesQuery.data]);
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
+  const bounces = useMemo(() => checkBouncesQuery.data ?? [], [checkBouncesQuery.data]);
 
-  const isPending = propertiesQuery.isPending || leasesQuery.isPending || paymentsQuery.isPending || expensesQuery.isPending || tasksQuery.isPending;
-  const failedQuery = [propertiesQuery, leasesQuery, paymentsQuery, expensesQuery, tasksQuery].find((q) => q.isError);
+  const isPending = propertiesQuery.isPending || leasesQuery.isPending || paymentsQuery.isPending || expensesQuery.isPending || tasksQuery.isPending || checkBouncesQuery.isPending;
+  const failedQuery = [propertiesQuery, leasesQuery, paymentsQuery, expensesQuery, tasksQuery, checkBouncesQuery].find((q) => q.isError);
 
   const activeLeases = useMemo(
     () => properties.flatMap((p) => p.leases || []).filter(isLeaseCurrentlyActive),
@@ -135,9 +138,9 @@ export default function Dashboard() {
   const openTasks = useMemo(() => tasks.filter((t) => t.completed_at === null), [tasks]);
   const attention = useMemo(
     () => buildAttentionItems({
-      payments, activeLeases: leases.filter(isLeaseCurrentlyActive), openTasks, today,
+      payments, activeLeases: leases.filter(isLeaseCurrentlyActive), openTasks, bounces, today,
     }),
-    [payments, leases, openTasks, today]
+    [payments, leases, openTasks, bounces, today]
   );
 
   // חותמת ביקור - נקראת ומוטבעת פעם אחת per mount; עוטפים ב-try/catch כי
@@ -262,9 +265,11 @@ export default function Dashboard() {
           <p className="text-sm font-bold text-amber-700 flex items-center gap-1"><Icon name="pin" size={16} /> דורש טיפול ({attention.length})</p>
           {attention.map((item) => (
             <Link key={item.id} href={item.href}
-              className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5 hover:bg-gray-100 transition-colors">
-              <span className="text-sm font-semibold text-gray-800">{item.label}</span>
-              <span className="text-xs font-bold text-gray-500 num-ltr">{item.sub}</span>
+              className={`flex items-center justify-between rounded-xl px-4 py-2.5 transition-colors ${
+                item.kind === "bounced" ? "bg-rose-50 border border-rose-200 hover:bg-rose-100" : "bg-gray-50 hover:bg-gray-100"
+              }`}>
+              <span className={`text-sm font-semibold ${item.kind === "bounced" ? "text-rose-700" : "text-gray-800"}`}>{item.label}</span>
+              <span className={`text-xs font-bold num-ltr ${item.kind === "bounced" ? "text-rose-700" : "text-gray-500"}`}>{item.sub}</span>
             </Link>
           ))}
         </div>
