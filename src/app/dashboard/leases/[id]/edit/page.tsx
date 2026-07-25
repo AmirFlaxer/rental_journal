@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
@@ -10,6 +11,8 @@ import { Icon } from "@/components/Icon";
 import { formatPhone } from "@/lib/phone";
 import { pickRate, type IndexRate } from "@/lib/linkage";
 import { formatCurrency } from "@/lib/domain/money";
+import { apiGet, queryKeys } from "@/lib/api-client";
+import { BOUNCE_REASON_LABELS, type CheckBounce } from "@/lib/domain/check-bounce";
 
 interface LeaseDocument {
   id: string;
@@ -82,6 +85,18 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
 export default function EditLeasePage() {
   const router = useRouter();
   const { id } = useParams() as { id: string };
+
+  // שרשרת ההחזרות של החוזה - רק לחוזה הזה, לא נגררת לשוכר הבא באותו נכס
+  const bouncesQuery = useQuery({
+    queryKey: queryKeys.checkBounces,
+    queryFn: () => apiGet<CheckBounce[]>("/api/check-bounces"),
+  });
+  const leaseBounces = useMemo(
+    () => (bouncesQuery.data ?? [])
+      .filter((b) => b.lease_id === id)
+      .sort((a, b) => a.bounced_at.localeCompare(b.bounced_at)),
+    [bouncesQuery.data, id]
+  );
 
   const [isFetching, setIsFetching] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -716,6 +731,29 @@ export default function EditLeasePage() {
               </div>
             )}
           </div>
+
+          {/* שרשרת ההחזרות של החוזה - להעתקה לפנייה לעורך דין */}
+          {leaseBounces.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-rose-200 p-6">
+              <h2 className="text-lg font-bold text-rose-700 flex items-center gap-2">
+                <Icon name="debts" size={18} />
+                שקים שחזרו בחוזה זה: {leaseBounces.length}
+              </h2>
+              <p className="text-sm text-gray-500 mt-0.5 mb-4">
+                שרשרת ההחזרות המלאה, ממוינת כרונולוגית
+              </p>
+              <div className="divide-y divide-gray-100">
+                {leaseBounces.map((b) => (
+                  <div key={b.id} className="py-2 flex items-center justify-between gap-3 text-sm">
+                    <span className="text-gray-500 num-ltr">
+                      {new Date(b.bounced_at).toLocaleDateString("he-IL")}
+                    </span>
+                    <span className="text-gray-800 font-semibold">{BOUNCE_REASON_LABELS[b.reason]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Documents */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
