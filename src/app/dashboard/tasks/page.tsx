@@ -270,8 +270,8 @@ export default function TasksPage() {
   const utilityRows = useMemo(() => utilitiesQuery.data ?? [], [utilitiesQuery.data]);
   const payments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
   const leaseById = useMemo(() => new Map(leases.map((l) => [l.id, l])), [leases]);
-  const isPending = tasksQuery.isPending || leasesQuery.isPending || propertiesQuery.isPending;
-  const failedQuery = [tasksQuery, leasesQuery, propertiesQuery].find((q) => q.isError);
+  const isPending = tasksQuery.isPending || leasesQuery.isPending || propertiesQuery.isPending || paymentsQuery.isPending;
+  const failedQuery = [tasksQuery, leasesQuery, propertiesQuery, paymentsQuery].find((q) => q.isError);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showDone, setShowDone] = useState(true);
