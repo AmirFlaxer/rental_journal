@@ -162,6 +162,12 @@ export const feedbackSchema = z.object({
   email: z.string().email("Invalid email").optional().or(z.literal("")),
 });
 
+// גוף הבקשה לסימון שק שחזר
+export const checkBounceSchema = z.object({
+  bounced_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "תאריך לא תקין"),
+  reason: z.enum(["nsf", "restricted", "cancelled", "other"]),
+});
+
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 export type PropertyInput = z.infer<typeof propertySchema>;
@@ -174,3 +180,4 @@ export type TaskUpdateInput = z.infer<typeof taskUpdateSchema>;
 export type PropertyUtilityInput = z.infer<typeof propertyUtilitySchema>;
 export type LeaseSecurityInput = z.infer<typeof leaseSecuritySchema>;
 export type FeedbackInput = z.infer<typeof feedbackSchema>;
+export type CheckBounceInput = z.infer<typeof checkBounceSchema>;
