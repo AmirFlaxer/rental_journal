@@ -733,6 +733,15 @@ export default function EditLeasePage() {
           </div>
 
           {/* שרשרת ההחזרות של החוזה - להעתקה לפנייה לעורך דין */}
+          {bouncesQuery.isError && (
+            <div className="bg-white rounded-xl shadow-sm border border-rose-200 p-6 flex items-center justify-between gap-3">
+              <p className="text-sm text-red-700">לא ניתן לטעון את היסטוריית ההחזרות</p>
+              <button type="button" onClick={() => bouncesQuery.refetch()}
+                className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-semibold text-xs hover:bg-indigo-700 flex-shrink-0">
+                נסה שוב
+              </button>
+            </div>
+          )}
           {leaseBounces.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-rose-200 p-6">
               <h2 className="text-lg font-bold text-rose-700 flex items-center gap-2">
