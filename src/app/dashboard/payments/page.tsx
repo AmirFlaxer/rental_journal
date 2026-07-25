@@ -117,8 +117,8 @@ export default function PaymentsPage() {
   const properties = useMemo(() => propertiesQuery.data ?? [], [propertiesQuery.data]);
   const bounces = useMemo(() => bouncesQuery.data ?? [], [bouncesQuery.data]);
 
-  const isPending = paymentsQuery.isPending || leasesQuery.isPending || propertiesQuery.isPending;
-  const failedQuery = [paymentsQuery, leasesQuery, propertiesQuery].find((q) => q.isError);
+  const isPending = paymentsQuery.isPending || leasesQuery.isPending || propertiesQuery.isPending || bouncesQuery.isPending;
+  const failedQuery = [paymentsQuery, leasesQuery, propertiesQuery, bouncesQuery].find((q) => q.isError);
 
   const [filterProp, setFilterProp] = useState("");
   const [showPaid, setShowPaid] = useState(false);
@@ -143,6 +143,13 @@ export default function PaymentsPage() {
     queryClient.invalidateQueries({ queryKey: queryKeys.checkBounces });
   };
 
+  // מאפס את טופס הסימון לברירת המחדל - נדרש גם בפתיחת חלונית על שורה חדשה וגם בביטול,
+  // אחרת ערכי השורה הקודמת (תאריך/סיבה) "דולפים" לשורה הבאה שנפתחת
+  const resetBounceForm = () => {
+    setBounceDate(new Date().toISOString().slice(0, 10));
+    setBounceReason("nsf");
+  };
+
   const saveBounce = async (paymentId: string) => {
     setSavingBounce(true);
     try {
@@ -153,8 +160,7 @@ export default function PaymentsPage() {
       });
       if (res.ok) {
         setBounceOpenId(null);
-        setBounceDate(new Date().toISOString().slice(0, 10));
-        setBounceReason("nsf");
+        resetBounceForm();
         invalidateAfterPaymentChange();
       }
     } finally {
@@ -397,7 +403,7 @@ export default function PaymentsPage() {
                   className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-semibold hover:bg-red-100 hover:text-red-700">
                   בטל
                 </button>
-                <button onClick={() => setBounceOpenId(bounceOpenId === p.id ? null : p.id)}
+                <button onClick={() => { setBounceOpenId(bounceOpenId === p.id ? null : p.id); resetBounceForm(); }}
                   className="px-3 py-1.5 bg-white border border-rose-300 text-rose-700 rounded-lg text-xs font-semibold hover:bg-rose-50">
                   שק חזר
                 </button>
@@ -469,7 +475,7 @@ export default function PaymentsPage() {
                 className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-semibold hover:bg-rose-700 disabled:opacity-50">
                 {savingBounce ? "..." : "סמן שהשק חזר"}
               </button>
-              <button onClick={() => setBounceOpenId(null)}
+              <button onClick={() => { setBounceOpenId(null); resetBounceForm(); }}
                 className="px-3 py-1.5 bg-white border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold">
                 ביטול
               </button>
