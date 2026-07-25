@@ -8,6 +8,7 @@ import { listRentMonths, coveredPropertyMonths, propertyMonthKey, todayStr } fro
 import { parsePartialPaid, parsePartialReason, getDebtAmount } from "@/lib/domain/partial-payment";
 import { diffDays } from "@/lib/domain/dates";
 import { apiGet, queryKeys } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/domain/money";
 
 interface Payment {
   id: string;
@@ -70,7 +71,7 @@ function buildDebtList(payments: Payment[], leases: Lease[]): DebtItem[] {
   }
 
   // Virtual overdue slots (past due, no payment record)
-  // dedup לפי נכס+חודש — מונע כפילות כשיש שני חוזים פעילים לאותו נכס
+  // dedup לפי נכס+חודש - מונע כפילות כשיש שני חוזים פעילים לאותו נכס
   const covered = coveredPropertyMonths(payments);
 
   for (const lease of leases) {
@@ -144,7 +145,7 @@ export default function DebtsPage() {
   if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        {/* ספינר אדום בכוונה — עקבי עם ערכת הצבע הסמנטית של המסך (חובות = אדום/rose:
+        {/* ספינר אדום בכוונה - עקבי עם ערכת הצבע הסמנטית של המסך (חובות = אדום/rose:
             hero, סכומים, badges). שאר המסכים שאינם עוסקים בחוב/מס משתמשים ב-border-indigo-600 (accent). */}
         <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
       </div>
@@ -178,7 +179,7 @@ export default function DebtsPage() {
         <span className="absolute -top-4 -left-3 opacity-15 select-none"><Icon name="debts" size={64} /></span>
         <div className="relative">
           <p className="text-sm font-semibold text-white/80">סה״כ חוב פתוח</p>
-          <p className="text-3xl font-extrabold mt-1 drop-shadow-sm">₪{totalDebt.toLocaleString()}</p>
+          <p className="text-3xl font-extrabold mt-1 drop-shadow-sm">{formatCurrency(totalDebt)}</p>
         </div>
         <div className="text-right text-sm text-white/80 space-y-0.5 relative">
           <p>{debts.length} רשומות חוב</p>
@@ -198,7 +199,7 @@ export default function DebtsPage() {
             <div key={key} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
               <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
                 <p className="font-bold text-gray-800">{group.title || "נכס לא ידוע"}</p>
-                <p className="font-bold text-red-600">₪{group.total.toLocaleString()}</p>
+                <p className="font-bold text-red-600">{formatCurrency(group.total)}</p>
               </div>
               <div className="divide-y divide-gray-100">
                 {group.items.map((d) => {
@@ -209,17 +210,18 @@ export default function DebtsPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-800">
                           שכ״ד{" "}
-                          <span className="num-ltr">{new Date(d.due_date).toLocaleDateString("he-IL", { month: "long", year: "numeric" })}</span>
+                          {/* בלי num-ltr - "יולי 2026" הוא טקסט עברי עם ספרות, ו-direction:ltr הופך את סדרו */}
+                          <span>{new Date(d.due_date).toLocaleDateString("he-IL", { month: "long", year: "numeric" })}</span>
                           {d.isVirtual && <span className="text-xs font-normal text-gray-400 mr-1"> · לא נרשם</span>}
                         </p>
                         {d.status === "partial" && partialPaid != null && (
                           <p className="text-xs text-blue-600 mt-0.5">
-                            שולם <span className="num-ltr">₪{partialPaid.toLocaleString()}</span>
+                            שולם <span className="num-ltr">{formatCurrency(partialPaid)}</span>
                             {reason && ` · ${reason}`}
                           </p>
                         )}
                         <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-2">
-                          <span>מועד: <span className="num-ltr">{new Date(d.due_date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</span></span>
+                          <span>מועד: <span>{new Date(d.due_date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</span></span>
                           {(() => {
                             const days = diffDays(todayStr(), d.due_date);
                             if (days <= 0) return null;
@@ -232,9 +234,9 @@ export default function DebtsPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-red-700">₪{d.debtAmount.toLocaleString()}</p>
+                        <p className="font-bold text-red-700">{formatCurrency(d.debtAmount)}</p>
                         {d.status === "partial" && (
-                          <p className="text-xs text-gray-400">מתוך <span className="num-ltr">₪{d.amount.toLocaleString()}</span></p>
+                          <p className="text-xs text-gray-400">מתוך <span className="num-ltr">{formatCurrency(d.amount)}</span></p>
                         )}
                       </div>
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${STATUS_COLOR[d.status] || "bg-gray-100 text-gray-600"}`}>

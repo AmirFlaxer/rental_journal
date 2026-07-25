@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { getReceivedAmount } from "@/lib/domain/partial-payment";
 import { Icon } from "@/components/Icon";
+import { formatCurrency } from "@/lib/domain/money";
 
 const MONTHS_SHORT = [
   "ינו׳", "פבר׳", "מרץ", "אפר׳", "מאי", "יוני",
@@ -17,14 +18,13 @@ const MONTHS_HE = [
   "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
 ];
 
+/** בטבלה החודשית - חודש בלי תנועה מוצג כמקף ולא כ-₪0 */
 function fmt(n: number) {
-  if (n === 0) return "—";
-  return `₪${Math.round(n).toLocaleString("he-IL")}`;
+  if (n === 0) return "-";
+  return formatCurrency(n);
 }
 
-function fmtFull(n: number) {
-  return `₪${Math.round(n).toLocaleString("he-IL")}`;
-}
+const fmtFull = formatCurrency;
 
 interface RawPayment {
   id: string;
@@ -121,7 +121,7 @@ export default function TaxReportPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        {/* ספינר כתום בכוונה — עקבי עם ערכת הצבע הסמנטית של המסך (מס = כתום/amber:
+        {/* ספינר כתום בכוונה - עקבי עם ערכת הצבע הסמנטית של המסך (מס = כתום/amber:
             כפתורים, כרטיסי סיכום, שורת סה"כ בטבלה). שאר המסכים שאינם עוסקים בחוב/מס
             משתמשים ב-border-indigo-600 (accent). */}
         <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -219,7 +219,7 @@ export default function TaxReportPage() {
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-bold text-gray-900">
-                  תקבולים לפי נכס וחודש — {selectedYear}
+                  תקבולים לפי נכס וחודש - {selectedYear}
                 </h2>
                 <p className="text-xs text-gray-400 mt-0.5">כל הסכומים בש&quot;ח · בסיס מזומן (תאריך פירעון)</p>
               </div>
@@ -302,9 +302,9 @@ export default function TaxReportPage() {
 
         {/* הסבר */}
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-900 space-y-1">
-          <p className="font-bold text-amber-800">מסלול מס 10% — מה מוצג כאן?</p>
+          <p className="font-bold text-amber-800">מסלול מס 10% - מה מוצג כאן?</p>
           <p>טבלה זו מציגה את כלל תקבולי שכ&quot;ד <strong>ששולמו בפועל</strong> בשנת {selectedYear}, לפי נכס וחודש.</p>
-          <p>שורת &quot;מס הכנסה 10%&quot; מחשבת את חבות המס לפי מסלול המס המוקטן — 10% מסך התקבולים.</p>
+          <p>שורת &quot;מס הכנסה 10%&quot; מחשבת את חבות המס לפי מסלול המס המוקטן - 10% מסך התקבולים.</p>
           <p className="text-amber-700">בחרת במסלול אחר? כבה את החישוב האוטומטי <Link href="/dashboard/settings" className="underline font-bold text-amber-800">בהגדרות</Link>.</p>
         </div>
 

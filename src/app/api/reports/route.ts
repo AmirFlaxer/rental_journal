@@ -20,14 +20,14 @@ export async function GET() {
     if (error) return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
 
     const propertyStats = (properties as PropertyWithLeases[] ?? []).map((p) => {
-      // מסנן לפי תאריכים ולא רק status — חוזים ישנים שנשארו "active" לא נספרים
+      // מסנן לפי תאריכים ולא רק status - חוזים ישנים שנשארו "active" לא נספרים
       const currentLeases = (p.leases ?? []).filter((l: Lease) => isLeaseCurrentlyActive(l));
       const monthlyRent = currentLeases.reduce((s, l) => s + l.monthly_rent, 0);
       const sortedLeases = [...(p.leases ?? [])].sort(
         (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
       );
       const lastMonthlyRent = sortedLeases.length > 0 ? sortedLeases[0].monthly_rent : 0;
-      // מסנן הוצאות מס אוטומטיות (is_auto_tax) — המס מוצג בנפרד כשורת 10% בדוחות,
+      // מסנן הוצאות מס אוטומטיות (is_auto_tax) - המס מוצג בנפרד כשורת 10% בדוחות,
       // כך שלא ייספר פעמיים (גם כהוצאה וגם כחישוב 10%).
       const realExpenses = (p.expenses ?? []).filter((e) => !e.is_auto_tax);
       const totalExpenses = realExpenses.reduce((s, e) => s + e.amount, 0);

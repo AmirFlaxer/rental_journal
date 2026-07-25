@@ -8,6 +8,7 @@ import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 import { listRentMonths, coveredPropertyMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
 import { parsePartialPaid, parsePartialReason, getDebtAmount } from "@/lib/domain/partial-payment";
 import { apiGet, queryKeys } from "@/lib/api-client";
+import { formatAmount, formatCurrency } from "@/lib/domain/money";
 
 const TYPE_HE: Record<string, string> = {
   Rent: "שכ״ד",
@@ -313,7 +314,7 @@ export default function PaymentsPage() {
             </div>
             {p.status === "partial" && partialPaid != null && (
               <p className="text-xs text-blue-600 mt-0.5">
-                שולם <span className="num-ltr">₪{partialPaid.toLocaleString()}</span> · יתרה: <span className="num-ltr">₪{remaining!.toLocaleString()}</span>
+                שולם <span className="num-ltr">{formatCurrency(partialPaid)}</span> · יתרה: <span className="num-ltr">{formatCurrency(remaining!)}</span>
                 {partialReasonText && ` · ${partialReasonText}`}
               </p>
             )}
@@ -322,7 +323,7 @@ export default function PaymentsPage() {
           {/* Amount + actions */}
           <div className="flex items-center gap-3 flex-shrink-0">
             <span className={`font-bold text-sm ${isPaid ? "text-emerald-700" : isFuture ? "text-gray-500" : "text-gray-900"}`}>
-              ₪{p.amount.toLocaleString()}
+              {formatCurrency(p.amount)}
             </span>
             {!isPaid && !isFuture && (
               <div className="flex gap-1.5">
@@ -370,7 +371,7 @@ export default function PaymentsPage() {
                 <NumberInput
                   value={partialAmount}
                   onChange={setPartialAmount}
-                  placeholder={`מתוך ${p.amount.toLocaleString()}`}
+                  placeholder={`מתוך ${formatAmount(p.amount)}`}
                   className="w-28 outline-none text-gray-900 text-xs"
                 />
               </div>
@@ -383,7 +384,7 @@ export default function PaymentsPage() {
               />
             </div>
             {partialAmount && partialAmount > 0 && partialAmount < p.amount && (
-              <p className="text-xs text-blue-600">יתרת חוב: <span className="num-ltr">₪{(p.amount - partialAmount).toLocaleString()}</span></p>
+              <p className="text-xs text-blue-600">יתרת חוב: <span className="num-ltr">{formatCurrency((p.amount - partialAmount))}</span></p>
             )}
             <div className="flex gap-2">
               <button onClick={() => savePartial(p, isVirtual)} disabled={savingPartial || !partialAmount || partialAmount <= 0 || partialAmount >= p.amount}
@@ -447,15 +448,15 @@ export default function PaymentsPage() {
       <div className="grid grid-cols-3 gap-3">
         <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-rose-500 to-rose-700 text-white">
           <p className="text-xs text-white/80 font-semibold">לתשלום</p>
-          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">₪{totalDue.toLocaleString()}</p>
+          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">{formatCurrency(totalDue)}</p>
         </div>
         <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-amber-700 text-white">
           <p className="text-xs text-white/80 font-semibold">יתרה חלקית</p>
-          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">₪{totalDebt.toLocaleString()}</p>
+          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">{formatCurrency(totalDebt)}</p>
         </div>
         <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-500 to-emerald-700 text-white">
           <p className="text-xs text-white/80 font-semibold">שולם</p>
-          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">₪{totalPaidAmt.toLocaleString()}</p>
+          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">{formatCurrency(totalPaidAmt)}</p>
         </div>
       </div>
 
@@ -493,7 +494,7 @@ export default function PaymentsPage() {
             className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors"
           >
             <Icon name={showPaid ? "caretDown" : "caretRight"} size={12} />
-            שולמו ({paidItems.length}) · <span className="num-ltr">₪{totalPaidAmt.toLocaleString()}</span>
+            שולמו ({paidItems.length}) · <span className="num-ltr">{formatCurrency(totalPaidAmt)}</span>
           </button>
           {showPaid && (
             <div className="space-y-2">

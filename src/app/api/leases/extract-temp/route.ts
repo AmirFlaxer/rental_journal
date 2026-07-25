@@ -26,13 +26,13 @@ async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
 
 const SYSTEM = `אתה מנתח חוזי שכירות ונספחי הארכה בישראל.
 חלץ את כל הנתונים הבאים מהמסמך והחזר JSON בלבד ללא שום טקסט נוסף, ללא markdown, ללא הסברים.
-אם שדה לא קיים — הכנס null.
+אם שדה לא קיים - הכנס null.
 שים לב: המסמך יכול להיות חוזה שכירות מקורי (new_lease) או נספח הארכת שכירות/אופציה (extension_annex).`;
 
 const buildPrompt = (text: string) => `חלץ מהמסמך הבא את הנתונים בדיוק בפורמט JSON זה:
 
 {
-  "documentType": "new_lease או extension_annex — אם המסמך הוא נספח הארכה/אופציה הכנס extension_annex",
+  "documentType": "new_lease או extension_annex - אם המסמך הוא נספח הארכה/אופציה הכנס extension_annex",
   "property": {
     "address": "שם הרחוב בלבד (ללא מספר)",
     "houseNumber": "מספר הבית בלבד",
@@ -53,8 +53,8 @@ const buildPrompt = (text: string) => `חלץ מהמסמך הבא את הנתו�
     "email": "מייל שוכר שני"
   },
   "lease": {
-    "startDate": "תאריך תחילת השכירות המקורית בפורמט YYYY-MM-DD (אם נספח — תאריך תחילת החוזה המקורי)",
-    "endDate": "תאריך סיום השכירות המקורית בפורמט YYYY-MM-DD (אם נספח — תאריך סיום החוזה המקורי לפני ההארכה)",
+    "startDate": "תאריך תחילת השכירות המקורית בפורמט YYYY-MM-DD (אם נספח - תאריך תחילת החוזה המקורי)",
+    "endDate": "תאריך סיום השכירות המקורית בפורמט YYYY-MM-DD (אם נספח - תאריך סיום החוזה המקורי לפני ההארכה)",
     "monthlyRent": 0,
     "depositAmount": 0,
     "terms": "תנאים מיוחדים חשובים עד 500 תווים"
@@ -74,8 +74,8 @@ const buildPrompt = (text: string) => `חלץ מהמסמך הבא את הנתו�
     "optionTerms": null
   },
   "extension": {
-    "extensionStartDate": "אם נספח הארכה — תאריך תחילת תקופת ההארכה בפורמט YYYY-MM-DD, אחרת null",
-    "extensionEndDate": "אם נספח הארכה — תאריך סיום תקופת ההארכה בפורמט YYYY-MM-DD, אחרת null",
+    "extensionStartDate": "אם נספח הארכה - תאריך תחילת תקופת ההארכה בפורמט YYYY-MM-DD, אחרת null",
+    "extensionEndDate": "אם נספח הארכה - תאריך סיום תקופת ההארכה בפורמט YYYY-MM-DD, אחרת null",
     "extensionRent": null,
     "extensionTerms": null
   },
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
         return;
       }
 
-      // Step 1 — read file
+      // Step 1 - read file
       await send({ type: "status", step: 1, text: "קורא את הקובץ..." });
       const formData = await request.formData();
       const file = formData.get("file") as File | null;
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
         await send({ type: "error", text: "הקובץ גדול מדי (מקסימום 10MB)" }); return;
       }
 
-      // Step 2 — extract text
+      // Step 2 - extract text
       await send({ type: "status", step: 2, text: `מחלץ טקסט מ-${mimeType === MIME_PDF ? "PDF" : "DOCX"}...` });
       const buffer = Buffer.from(await file.arrayBuffer());
       const text = await extractText(buffer, mimeType).catch(() => "");
@@ -154,22 +154,22 @@ export async function POST(request: NextRequest) {
       const needsGeminiVision = isScanned && !text.trim();
 
       if (isDoc && !text.trim()) {
-        await send({ type: "error", text: "קובץ DOC ישן אינו נתמך — פתח ב-Word ושמור כ-DOCX או PDF ונסה שוב" }); return;
+        await send({ type: "error", text: "קובץ DOC ישן אינו נתמך - פתח ב-Word ושמור כ-DOCX או PDF ונסה שוב" }); return;
       }
       if (!text.trim() && !needsGeminiVision) {
         await send({ type: "error", text: "לא ניתן לחלץ טקסט מהקובץ" }); return;
       }
       if (needsGeminiVision && provider !== "gemini") {
-        await send({ type: "error", text: "PDF סרוק מזוהה — יש לבחור Gemini בהגדרות" }); return;
+        await send({ type: "error", text: "PDF סרוק מזוהה - יש לבחור Gemini בהגדרות" }); return;
       }
 
       if (needsGeminiVision) {
-        await send({ type: "status", step: 2, text: "PDF סרוק — שולח ישירות ל-Gemini לזיהוי תמונה..." });
+        await send({ type: "status", step: 2, text: "PDF סרוק - שולח ישירות ל-Gemini לזיהוי תמונה..." });
       } else {
         await send({ type: "status", step: 2, text: `חולץ טקסט (${text.length.toLocaleString()} תווים)` });
       }
 
-      // Step 3 — LLM
+      // Step 3 - LLM
       const modelLabel = provider === "ollama"
         ? `Ollama / ${process.env.OLLAMA_MODEL || "qwen2.5:7b"}`
         : provider === "gemini"
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
         const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
         const model = process.env.OLLAMA_MODEL || "qwen2.5:7b";
 
-        // Use Ollama native /api/chat — supports think:false directly
+        // Use Ollama native /api/chat - supports think:false directly
         const res = await fetch(`${baseUrl}/api/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -243,13 +243,13 @@ export async function POST(request: NextRequest) {
         const parts = needsGeminiVision
           ? [
               { inline_data: { mime_type: "application/pdf", data: buffer.toString("base64") } },
-              { text: `${SYSTEM}\n\n${buildPrompt("[ראה את הקובץ המצורף — קרא את הטקסט ממנו ישירות]")}` },
+              { text: `${SYSTEM}\n\n${buildPrompt("[ראה את הקובץ המצורף - קרא את הטקסט ממנו ישירות]")}` },
             ]
           : [{ text: `${SYSTEM}\n\n${prompt}` }];
 
         const body = JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { temperature: 0 } });
 
-        // Models to try in order — if the primary model is overloaded, fall back
+        // Models to try in order - if the primary model is overloaded, fall back
         const modelChain = [modelName];
         if (modelName === "gemini-2.5-flash") modelChain.push("gemini-2.5-pro", "gemini-1.5-flash");
         else if (!modelChain.includes("gemini-1.5-flash")) modelChain.push("gemini-1.5-flash");
@@ -286,10 +286,10 @@ export async function POST(request: NextRequest) {
                     await new Promise((r) => setTimeout(r, 2000 * attempt));
                     continue;
                   }
-                  // Exhausted attempts for this model — try next model in chain
+                  // Exhausted attempts for this model - try next model in chain
                   continue outerModels;
                 }
-                // Non-retryable API error — bail out immediately
+                // Non-retryable API error - bail out immediately
                 throw new Error(`Gemini: ${json.error.message}`);
               }
 
@@ -317,7 +317,7 @@ export async function POST(request: NextRequest) {
           throw new Error(`כשל בחיבור ל-Gemini: ${detail}. בדוק חיבור לאינטרנט / חומת אש / פרוקסי.`);
         }
         const token = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-        if (!token) throw new Error("Gemini החזיר תגובה ריקה — ייתכן שהמסמך נחסם ע״י מסנני התוכן");
+        if (!token) throw new Error("Gemini החזיר תגובה ריקה - ייתכן שהמסמך נחסם ע״י מסנני התוכן");
         rawResponse = token;
         await send({ type: "token", text: token });
       } else {
@@ -339,7 +339,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Step 4 — parse
+      // Step 4 - parse
       await send({ type: "status", step: 4, text: "מעבד תוצאות..." });
       const match = rawResponse.trim().match(/\{[\s\S]*\}/);
       if (!match) {
@@ -355,7 +355,7 @@ export async function POST(request: NextRequest) {
     }
   };
 
-  run(); // fire and forget — stream handles lifecycle
+  run(); // fire and forget - stream handles lifecycle
 
   return new Response(stream.readable, {
     headers: {

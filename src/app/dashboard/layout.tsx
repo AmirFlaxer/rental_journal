@@ -6,12 +6,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { QueryProvider } from "@/components/query-provider";
 import { Icon } from "@/components/Icon";
-import { NAV_ITEMS, MOBILE_NAV_ITEMS, type NavItem as NavItemType } from "@/lib/nav-items";
+import { NAV_ITEMS, MOBILE_NAV_ITEMS, isNavItemActive, type NavItem as NavItemType } from "@/lib/nav-items";
 import { chapterAnchorFor } from "@/lib/domain/help-anchor";
 
-function NavItem({ href, label, icon, exact }: NavItemType) {
+function NavItem(item: NavItemType) {
+  const { href, label, icon } = item;
   const pathname = usePathname();
-  const isActive = exact ? pathname === href : pathname.startsWith(href);
+  const isActive = isNavItemActive(pathname, item, NAV_ITEMS);
 
   return (
     <Link
@@ -125,7 +126,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar (mobile) — גובה + safe-area-top ל-standalone */}
+        {/* Top bar (mobile) - גובה + safe-area-top ל-standalone */}
         <header className="flex items-center px-4 gap-3 lg:hidden"
           style={{
             background: "var(--bg-surface)",
@@ -145,7 +146,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
 
-        {/* Mobile bottom nav — 5 פריטים ראשיים בלבד לעמידה ב-44px touch target */}
+        {/* Mobile bottom nav - 5 פריטים ראשיים בלבד לעמידה ב-44px touch target */}
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 flex items-center justify-around px-2"
           style={{
             background: "var(--bg-surface)",
@@ -163,9 +164,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 }
 
-function MobileNavItem({ href, label, icon, exact }: NavItemType) {
+function MobileNavItem(item: NavItemType) {
+  const { href, label, icon } = item;
   const pathname = usePathname();
-  const isActive = exact ? pathname === href : pathname.startsWith(href);
+  const isActive = isNavItemActive(pathname, item, MOBILE_NAV_ITEMS);
   return (
     <Link href={href} className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg min-w-0 flex-1 min-h-[44px] justify-center"
       style={{ color: isActive ? "var(--accent)" : "var(--text-3)" }}>

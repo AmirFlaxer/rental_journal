@@ -13,6 +13,7 @@ import { heldCashDepositTotal, heldPaperCount } from "@/lib/domain/securities-su
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { Icon } from "@/components/Icon";
 import type { IconName } from "@/lib/icons";
+import { formatCurrency } from "@/lib/domain/money";
 
 const EXPENSE_CAT_HE: Record<string, string> = {
   Maintenance: "תחזוקה",
@@ -501,7 +502,7 @@ export default function PropertyDetailPage() {
                 <ul className="text-sm text-gray-700 mb-6 space-y-1 bg-gray-50 rounded-lg p-3">
                   <li>תאריך התחלה: <strong className="num-ltr">{new Date(l.option_start ?? l.end_date).toLocaleDateString("he-IL")}</strong></li>
                   <li>תאריך סיום: <strong className="num-ltr">{l.option_end ? new Date(l.option_end).toLocaleDateString("he-IL") : "-"}</strong></li>
-                  {l.option_rent && <li>שכ&quot;ד חדש: <strong className="num-ltr">₪{Number(l.option_rent).toLocaleString()}</strong></li>}
+                  {l.option_rent && <li>שכ&quot;ד חדש: <strong className="num-ltr">{formatCurrency(Number(l.option_rent))}</strong></li>}
                 </ul>
               );
             })()}
@@ -887,7 +888,8 @@ export default function PropertyDetailPage() {
                 }`}>
                   <span>
                     <Icon name={isExpired ? "expired" : days <= 30 ? "expiringSoon" : "expiringSoon"} size={16} color={isExpired ? "var(--rose,#be123c)" : days <= 30 ? "var(--rose,#be123c)" : "var(--amber,#92400e)"} />&nbsp;
-                    חוזה {l.tenant?.first_name} {l.tenant?.last_name} —&nbsp;
+                    {/* רווחים קשיחים משני צדי המקף - רווח רגיל מצד אחד נבלע ברינדור והמקף נדבק לשם הדייר */}
+                    חוזה {l.tenant?.first_name} {l.tenant?.last_name}&nbsp;-&nbsp;
                     {isExpired ? "פג תוקף לפני " + Math.abs(days) + " ימים" : `מסתיים בעוד ${days} ימים`}
                   </span>
                   <div className="flex gap-2">
@@ -919,13 +921,13 @@ export default function PropertyDetailPage() {
           <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
             <div className="text-xs font-semibold text-gray-400 uppercase mb-1">שכ&quot;ד חודשי</div>
             <div className="text-xl font-bold text-green-600">
-              {monthlyRent > 0 ? `₪${monthlyRent.toLocaleString()}` : "—"}
+              {monthlyRent > 0 ? formatCurrency(monthlyRent) : "-"}
             </div>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
             <div className="text-xs font-semibold text-gray-400 uppercase mb-1">הוצאות</div>
             <div className="text-xl font-bold text-red-500">
-              {totalExpenses > 0 ? `₪${totalExpenses.toLocaleString()}` : "—"}
+              {totalExpenses > 0 ? formatCurrency(totalExpenses) : "-"}
             </div>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
@@ -994,7 +996,7 @@ export default function PropertyDetailPage() {
               {property.purchase_price != null && (
                 <div className="col-span-2">
                   <span className="text-gray-500">מחיר רכישה: </span>
-                  <span className="font-semibold text-gray-800 num-ltr">₪{property.purchase_price.toLocaleString()}</span>
+                  <span className="font-semibold text-gray-800 num-ltr">{formatCurrency(property.purchase_price)}</span>
                 </div>
               )}
               {property.zip_code && (
@@ -1111,7 +1113,7 @@ export default function PropertyDetailPage() {
                         {new Date(lease.end_date).toLocaleDateString("he-IL")}
                       </td>
                       <td className="px-6 py-4 font-semibold text-gray-900">
-                        ₪{Number(lease.monthly_rent).toLocaleString()}
+                        {formatCurrency(Number(lease.monthly_rent))}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -1141,7 +1143,7 @@ export default function PropertyDetailPage() {
                             ))}
                           </div>
                         ) : (
-                          <span className="text-gray-300 text-xs">—</span>
+                          <span className="text-gray-300 text-xs">-</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -1256,7 +1258,7 @@ export default function PropertyDetailPage() {
                     : cashHeld === 0 && paperHeld === 0
                     ? "אין בטחונות מוחזקים"
                     : <>
-                        <span className="num-ltr">₪{cashHeld.toLocaleString()}</span> פיקדון כספי · {paperHeld} שקים/שטרות מוחזקים
+                        <span className="num-ltr">{formatCurrency(cashHeld)}</span> פיקדון כספי · {paperHeld} שקים/שטרות מוחזקים
                       </>}
                 </span>
               </span>
@@ -1272,7 +1274,7 @@ export default function PropertyDetailPage() {
               <div className="flex items-center justify-between gap-2 px-6 py-3 flex-wrap">
                 <div className="flex gap-2 flex-wrap text-sm">
                   <span className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
-                    פיקדונות כספיים מוחזקים <b className="num-ltr">₪{cashHeld.toLocaleString()}</b>
+                    פיקדונות כספיים מוחזקים <b className="num-ltr">{formatCurrency(cashHeld)}</b>
                   </span>
                   <span className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
                     שקים/שטרות מוחזקים <b>{paperHeld}</b>
@@ -1314,7 +1316,7 @@ export default function PropertyDetailPage() {
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                           {s.amount != null && (
-                            <span className="font-bold text-gray-900 num-ltr">₪{Number(s.amount).toLocaleString()}</span>
+                            <span className="font-bold text-gray-900 num-ltr">{formatCurrency(Number(s.amount))}</span>
                           )}
                           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${SECURITY_STATUS_CLASS[s.status]}`}>
                             {SECURITY_STATUS_HE[s.status]}
@@ -1403,7 +1405,7 @@ export default function PropertyDetailPage() {
                       <span className="mx-2 text-gray-400">·</span>
                       <span>{r.month}</span>
                       <span className="mx-2 text-gray-400">·</span>
-                      <span className="num-ltr">₪{Number(r.lease.monthly_rent).toLocaleString()}</span>
+                      <span className="num-ltr">{formatCurrency(Number(r.lease.monthly_rent))}</span>
                     </div>
                     <span className="font-bold text-xs px-2 py-1 rounded-full">
                       {r.status === "paid" ? <span className="flex items-center gap-1"><Icon name="paid" size={16} color="var(--emerald,#047857)" /> התקבל</span>
@@ -1415,7 +1417,7 @@ export default function PropertyDetailPage() {
                 ))}
               </div>
               <p className="text-xs text-amber-600 mt-3">
-                לרישום קבלת שק — <Link href={`/dashboard/properties/${property.id}/add-payment`} className="underline font-semibold">הוסף תקבול</Link>
+                לרישום קבלת שק - <Link href={`/dashboard/properties/${property.id}/add-payment`} className="underline font-semibold">הוסף תקבול</Link>
               </p>
             </div>
           );
@@ -1488,7 +1490,7 @@ export default function PropertyDetailPage() {
                           <tr key={expense.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 font-medium">{EXPENSE_CAT_HE[expense.category] ?? expense.category}</td>
                             <td className="px-4 py-3 text-gray-600">{expense.description}</td>
-                            <td className="px-4 py-3 font-semibold text-orange-600">₪{expense.amount.toLocaleString()}</td>
+                            <td className="px-4 py-3 font-semibold text-orange-600">{formatCurrency(expense.amount)}</td>
                             <td className="px-4 py-3 text-gray-500">{new Date(expense.date).toLocaleDateString("he-IL")}</td>
                           </tr>
                         ))}
@@ -1498,7 +1500,7 @@ export default function PropertyDetailPage() {
                           <td colSpan={2} className="px-4 py-3 font-bold text-gray-700">
                             סה&quot;כ{selectedExpenseYear ? ` ${selectedExpenseYear}` : ""}
                           </td>
-                          <td className="px-4 py-3 font-bold text-orange-600">₪{yearTotal.toLocaleString()}</td>
+                          <td className="px-4 py-3 font-bold text-orange-600">{formatCurrency(yearTotal)}</td>
                           <td />
                         </tr>
                       </tfoot>
@@ -1537,9 +1539,9 @@ export default function PropertyDetailPage() {
                   {property.payments.map((payment) => (
                     <tr key={payment.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium">{PAYMENT_TYPE_HE[payment.payment_type] ?? payment.payment_type}</td>
-                      <td className="px-4 py-3 font-semibold text-green-700">₪{payment.amount.toLocaleString()}</td>
+                      <td className="px-4 py-3 font-semibold text-green-700">{formatCurrency(payment.amount)}</td>
                       <td className="px-4 py-3 text-gray-500">{new Date(payment.due_date).toLocaleDateString("he-IL")}</td>
-                      <td className="px-4 py-3 text-gray-500">{payment.paid_date ? new Date(payment.paid_date).toLocaleDateString("he-IL") : "—"}</td>
+                      <td className="px-4 py-3 text-gray-500">{payment.paid_date ? new Date(payment.paid_date).toLocaleDateString("he-IL") : "-"}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
                           payment.status === "paid" ? "bg-green-100 text-green-700" :

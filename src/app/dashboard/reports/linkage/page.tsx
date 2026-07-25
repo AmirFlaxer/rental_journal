@@ -7,6 +7,7 @@ import { apiGet, queryKeys } from "@/lib/api-client";
 import { calcEffectiveRent, pickRate, type IndexRate, type LinkageType, type LinkageFrequency } from "@/lib/linkage";
 import { localMonthKey } from "@/lib/domain/dates";
 import { Icon } from "@/components/Icon";
+import { formatCurrency } from "@/lib/domain/money";
 
 interface Lease {
   id: string;
@@ -76,7 +77,7 @@ function buildHistory(
     return [{ period: localMonthKey(leaseBaseDate), rateValue: null, rent: base, diff: 0 }];
   }
 
-  // Find base rate — use lease base date, or fall back to earliest available rate
+  // Find base rate - use lease base date, or fall back to earliest available rate
   let baseRate = pickRate(rates, type, leaseBaseDate);
   let effectiveStart = leaseBaseDate;
   if (!baseRate) {
@@ -178,9 +179,14 @@ export default function LinkageComparisonPage() {
     },
     onSuccess: async (json) => {
       const total = (json.results ?? []).reduce((s, r) => s + r.inserted, 0);
+      // שתי שכבות קאש חסמו את הרענון: fetchQuery מכבד את staleTime (דקה) ומחזיר
+      // את הערך השמור בלי לפנות לשרת, ומעליו קאש ה-HTTP של הראוט (שעה). בלי
+      // לעקוף את שתיהן הכפתור דיווח "נוספו N נקודות" בזמן שהמסך המשיך להציג
+      // את המדדים הישנים.
       const updated = await queryClient.fetchQuery({
         queryKey: queryKeys.indexRates,
-        queryFn: () => apiGet<IndexRate[]>("/api/index-rates"),
+        queryFn: () => apiGet<IndexRate[]>("/api/index-rates", { fresh: true }),
+        staleTime: 0,
       });
       setRefreshMsg(total > 0 ? `נוספו ${total} נקודות נתונים` : updated.length > 0 ? "קיימים נתונים בDB" : "השרתים החיצוניים לא החזירו נתונים");
     },
@@ -205,7 +211,7 @@ export default function LinkageComparisonPage() {
             <span className="text-gray-600">השוואת מסלולי הצמדה</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">השוואת מסלולי הצמדה</h1>
-          <p className="text-sm text-gray-500 mt-0.5">בחר חוזה ומסלול — תראה כיצד היה משתנה שכ&quot;ד לאורך הזמן</p>
+          <p className="text-sm text-gray-500 mt-0.5">בחר חוזה ומסלול - תראה כיצד היה משתנה שכ&quot;ד לאורך הזמן</p>
         </div>
       </div>
 
@@ -258,7 +264,7 @@ export default function LinkageComparisonPage() {
                           <span className="text-gray-400">·</span>
                           <span className="text-gray-700">{tenantName}</span>
                           <span className="text-gray-400">·</span>
-                          <span className="text-indigo-700 font-semibold">₪{(l.monthly_rent ?? 0).toLocaleString()}</span>
+                          <span className="text-indigo-700 font-semibold">{formatCurrency((l.monthly_rent ?? 0))}</span>
                         </span>
                       );
                     })()}
@@ -291,7 +297,7 @@ export default function LinkageComparisonPage() {
                             <span className="text-gray-400 flex-shrink-0">·</span>
                             <span className="text-gray-700 truncate">{tenantName}</span>
                             <span className="text-gray-400 flex-shrink-0 mr-auto">·</span>
-                            <span className="text-indigo-700 font-semibold flex-shrink-0">₪{(l.monthly_rent ?? 0).toLocaleString()}</span>
+                            <span className="text-indigo-700 font-semibold flex-shrink-0">{formatCurrency((l.monthly_rent ?? 0))}</span>
                             <span className="text-gray-400 text-xs flex-shrink-0">{startY}-{endY}</span>
                           </button>
                         );
@@ -301,7 +307,7 @@ export default function LinkageComparisonPage() {
                 </div>
                 {lease && (
                   <p className="text-xs text-gray-400 mt-2">
-                    {new Date(lease.start_date).toLocaleDateString("he-IL")} –{" "}
+                    {new Date(lease.start_date).toLocaleDateString("he-IL")} -{" "}
                     {new Date(lease.end_date).toLocaleDateString("he-IL")} ·{" "}
                     הצמדה נוכחית: {TYPE_LABELS[lease.linkage_type ?? "none"]}
                   </p>
@@ -352,8 +358,18 @@ export default function LinkageComparisonPage() {
                   בחר מסלול לפירוט חישוב
                 </p>
                 {(["none", "usd", "cpi"] as const).map((type) => {
+                  // נפילה חזרה ל-monthly_rent/start_date כשלחוזה אין בסיס הצמדה מוגדר -
+                  // אותו בסיס שבו משתמשת טבלת הפירוט (buildHistory). בלעדיה
+                  // calcEffectiveRent מחזיר את שכ"ד המקורי לכל מסלול, וכל השורות
+                  // הציגו "ללא שינוי (+0.0%)" - בדיוק ההשוואה שהמסך אמור להראות.
                   const effective = calcEffectiveRent(
-                    { linkage_type: type, linkage_frequency: frequency, base_amount: lease.base_amount ?? null, base_date: lease.base_date ?? null, monthly_rent: lease.monthly_rent },
+                    {
+                      linkage_type: type,
+                      linkage_frequency: frequency,
+                      base_amount: lease.base_amount ?? lease.monthly_rent,
+                      base_date: lease.base_date ?? lease.start_date,
+                      monthly_rent: lease.monthly_rent,
+                    },
                     rates
                   );
                   const diff = effective - lease.monthly_rent;
@@ -384,7 +400,7 @@ export default function LinkageComparisonPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={`font-bold text-sm ${isSelected ? "text-white" : "text-gray-900"}`}>
-                          ₪{effective.toLocaleString("he-IL")} / חודש
+                          {formatCurrency(effective)} / חודש
                         </span>
                         {type !== "none" && (
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
@@ -394,7 +410,7 @@ export default function LinkageComparisonPage() {
                               : diff < 0 ? "bg-red-100 text-red-700"
                               : "bg-gray-100 text-gray-500"
                           }`}>
-                            {diff >= 0 ? "+" : ""}{diff !== 0 ? `₪${Math.abs(diff).toLocaleString()}` : "ללא שינוי"} ({diff >= 0 ? "+" : ""}{pct}%)
+                            {diff >= 0 ? "+" : ""}{diff !== 0 ? formatCurrency(Math.abs(diff)) : "ללא שינוי"} ({diff >= 0 ? "+" : ""}{pct}%)
                           </span>
                         )}
                         <span className={`text-sm ${isSelected ? "text-white/70" : "text-gray-400"}`}>
@@ -413,10 +429,10 @@ export default function LinkageComparisonPage() {
                 <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
                   <div>
                     <h2 className="text-base font-bold text-gray-900">
-                      פירוט — {TYPE_LABELS[selectedType]} · {FREQ_LABELS[frequency]}
+                      פירוט - {TYPE_LABELS[selectedType]} · {FREQ_LABELS[frequency]}
                     </h2>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      בסיס: ₪{lease.monthly_rent.toLocaleString()} ·{" "}
+                      בסיס: {formatCurrency(lease.monthly_rent)} ·{" "}
                       {new Date(lease.start_date).toLocaleDateString("he-IL")} עד היום
                     </p>
                   </div>
@@ -424,7 +440,7 @@ export default function LinkageComparisonPage() {
 
                 {history.length === 0 ? (
                   <div className="px-5 py-8 text-center text-sm text-gray-400">
-                    אין נתוני שערים לתקופה זו — לחץ &quot;רענן מדדים&quot; למעלה
+                    אין נתוני שערים לתקופה זו - לחץ &quot;רענן מדדים&quot; למעלה
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -453,18 +469,18 @@ export default function LinkageComparisonPage() {
                                   ? selectedType === "usd"
                                     ? `$${row.rateValue.toFixed(3)}`
                                     : row.rateValue.toFixed(2)
-                                  : "—"}
+                                  : "-"}
                               </td>
                             )}
                             <td className="px-4 py-2.5 font-bold text-gray-900">
-                              ₪{row.rent.toLocaleString("he-IL")}
+                              {formatCurrency(row.rent)}
                             </td>
                             <td className="px-4 py-2.5">
                               {row.diff === 0 ? (
-                                <span className="text-gray-400">—</span>
+                                <span className="text-gray-400">-</span>
                               ) : (
                                 <span className={`font-semibold ${row.diff > 0 ? "text-green-600" : "text-red-500"}`}>
-                                  {row.diff > 0 ? "+" : ""}₪{row.diff.toLocaleString("he-IL")}
+                                  {row.diff > 0 ? "+" : ""}{formatCurrency(row.diff)}
                                 </span>
                               )}
                             </td>
@@ -477,10 +493,10 @@ export default function LinkageComparisonPage() {
                             * חישוב תיאורטי בלבד
                           </td>
                           <td className="px-4 py-3 font-bold text-indigo-700">
-                            ₪{calcEffectiveRent(
+                            {formatCurrency(calcEffectiveRent(
                               { linkage_type: selectedType, linkage_frequency: frequency, base_amount: lease.base_amount ?? null, base_date: lease.base_date ?? null, monthly_rent: lease.monthly_rent },
                               rates
-                            ).toLocaleString("he-IL")}
+                            ))}
                           </td>
                           <td className="px-4 py-3 text-xs text-gray-400">שכ&quot;ד נוכחי</td>
                         </tr>

@@ -4,6 +4,13 @@ import { getReceivedAmount } from "@/lib/domain/partial-payment";
 import { localDateStr } from "@/lib/domain/dates";
 import type { Payment } from "@/types/database";
 
+/**
+ * התיאור של הוצאת המס האוטומטית - תווית שהמערכת מייצרת, לא טקסט של המשתמש.
+ * מרוכז כאן כדי שכל מקומות היצירה יסכימו עליו, ושרשומות ישנות ייושרו אליו
+ * בעת התאמה (רשומות שנוצרו לפני שינוי התווית נשארות עד לעדכון התקבול שלהן).
+ */
+export const AUTO_TAX_DESCRIPTION = 'מס הכנסה 10% - תקבול שכ"ד אוטומטי';
+
 export async function isAutoTaxEnabled(userId: string): Promise<boolean> {
   const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId);
   return user?.user_metadata?.auto_tax_enabled !== false;
@@ -42,7 +49,7 @@ export async function reconcileAutoTax(
 
   const { data: existing } = await supabase
     .from("expenses")
-    .select("id, amount, date, property_id")
+    .select("id, amount, date, property_id, description")
     .eq("user_id", userId)
     .eq("source_payment_id", payment.id)
     .eq("is_auto_tax", true)
@@ -71,7 +78,7 @@ export async function reconcileAutoTax(
       user_id: userId,
       property_id: payment.property_id,
       category: "Tax",
-      description: 'מס הכנסה 10% — תקבול שכ"ד אוטומטי',
+      description: AUTO_TAX_DESCRIPTION,
       amount: taxAmount,
       date: taxDate,
       paid_by: "landlord",
@@ -86,17 +93,18 @@ export async function reconcileAutoTax(
   const changed =
     existing.amount !== taxAmount ||
     existing.property_id !== payment.property_id ||
-    existing.date !== taxDate;
+    existing.date !== taxDate ||
+    existing.description !== AUTO_TAX_DESCRIPTION;
 
   if (changed) {
     await supabase
       .from("expenses")
-      .update({ amount: taxAmount, property_id: payment.property_id, date: taxDate })
+      .update({ amount: taxAmount, property_id: payment.property_id, date: taxDate, description: AUTO_TAX_DESCRIPTION })
       .eq("id", existing.id);
   }
 }
 
-// מחיקת כל הוצאות המס האוטומטיות של המשתמש — בעת כיבוי מסלול 10%.
+// מחיקת כל הוצאות המס האוטומטיות של המשתמש - בעת כיבוי מסלול 10%.
 export async function deleteAllAutoTaxExpenses(
   supabase: SupabaseClient,
   userId: string
@@ -146,7 +154,7 @@ export async function backfillAutoTaxForYear(
         user_id: userId,
         property_id: p.property_id,
         category: "Tax",
-        description: 'מס הכנסה 10% — תקבול שכ"ד אוטומטי',
+        description: AUTO_TAX_DESCRIPTION,
         amount: Math.round(received * 0.1 * 100) / 100,
         date: p.paid_date,
         paid_by: "landlord",

@@ -7,6 +7,7 @@ import { localMonthKey } from "@/lib/domain/dates";
 import Link from "next/link";
 import type { Lease, Expense, Payment } from "@/types/database";
 import { Icon } from "@/components/Icon";
+import { formatCurrency } from "@/lib/domain/money";
 
 const EXPENSE_CAT_HE: Record<string, string> = {
   Maintenance: "תחזוקה",
@@ -49,9 +50,7 @@ interface ReportData {
   payments: Payment[];
 }
 
-function fmt(n: number) {
-  return `₪${Math.round(n).toLocaleString("he-IL")}`;
-}
+const fmt = formatCurrency;
 
 function Bar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = max > 0 ? Math.min(Math.round((value / max) * 100), 100) : 0;
@@ -161,7 +160,7 @@ export default function PropertyReportPage() {
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: "שכ\"ד חודשי", value: report.monthly_rent > 0 ? fmt(report.monthly_rent) : "—", icon: "leases" as const, gradient: "from-pink-500 to-pink-700" },
+                  { label: "שכ\"ד חודשי", value: report.monthly_rent > 0 ? fmt(report.monthly_rent) : "-", icon: "leases" as const, gradient: "from-pink-500 to-pink-700" },
                   { label: "הכנסה כוללת", value: fmt(report.total_paid), icon: "rentCollection" as const, gradient: "from-emerald-500 to-emerald-700" },
                   { label: "הוצאות כוללות", value: fmt(report.total_expenses), icon: "expenses" as const, gradient: "from-rose-500 to-rose-700" },
                   showTax
@@ -252,7 +251,7 @@ export default function PropertyReportPage() {
                       </span>
                     </div>
                     <div className="text-xs text-gray-500">
-                      {new Date(lease.start_date).toLocaleDateString("he-IL")} — {new Date(lease.end_date).toLocaleDateString("he-IL")}
+                      {new Date(lease.start_date).toLocaleDateString("he-IL")} - {new Date(lease.end_date).toLocaleDateString("he-IL")}
                     </div>
                     <div className="text-sm font-semibold text-green-600 mt-1">{fmt(lease.monthly_rent)} / חודש</div>
                   </div>
@@ -262,7 +261,7 @@ export default function PropertyReportPage() {
           </div>
         </div>
 
-        {/* Monthly rent schedule — only active leases */}
+        {/* Monthly rent schedule - only active leases */}
         {(report.leases || []).filter((l) => effectiveLeaseStatus(l) === "active").map((lease) => {
           const start = new Date(lease.start_date);
           const end = new Date(lease.end_date);
@@ -293,11 +292,11 @@ export default function PropertyReportPage() {
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">
-                    לוח תקבולים — {lease.tenant?.first_name} {lease.tenant?.last_name}
+                    לוח תקבולים - {lease.tenant?.first_name} {lease.tenant?.last_name}
                   </h2>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {new Date(lease.start_date).toLocaleDateString("he-IL")} — {new Date(lease.end_date).toLocaleDateString("he-IL")}
-                    {" · "}₪{Number(lease.monthly_rent).toLocaleString()} / חודש
+                    {new Date(lease.start_date).toLocaleDateString("he-IL")} - {new Date(lease.end_date).toLocaleDateString("he-IL")}
+                    {" · "}{formatCurrency(Number(lease.monthly_rent))} / חודש
                   </p>
                 </div>
                 <span className={`text-xs px-3 py-1 rounded-full font-bold ${
@@ -381,7 +380,7 @@ export default function PropertyReportPage() {
                         <td className="px-4 py-3 text-gray-700">{PAYMENT_TYPE_HE[pay.payment_type] ?? pay.payment_type}</td>
                         <td className="px-4 py-3 text-gray-600">{new Date(pay.due_date).toLocaleDateString("he-IL")}</td>
                         <td className="px-4 py-3 text-gray-600">
-                          {pay.paid_date ? new Date(pay.paid_date).toLocaleDateString("he-IL") : "—"}
+                          {pay.paid_date ? new Date(pay.paid_date).toLocaleDateString("he-IL") : "-"}
                         </td>
                         <td className="px-4 py-3 font-semibold text-gray-900">{fmt(pay.amount)}</td>
                         <td className="px-4 py-3">

@@ -7,6 +7,7 @@ import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
 import { Icon } from "@/components/Icon";
 import type { IconName } from "@/lib/icons";
+import { formatCurrency } from "@/lib/domain/money";
 
 const CAT_HE: Record<string, string> = {
   Maintenance: "תחזוקה",
@@ -279,7 +280,7 @@ export default function ExpensesPage() {
             className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">נקה סינון <Icon name="cancel" size={14} /></button>
         )}
         <div className="mr-auto px-3.5 py-1.5 bg-gradient-to-br from-rose-500 to-rose-700 text-white rounded-lg text-sm font-bold drop-shadow-sm">
-          סה״כ: ₪{total.toLocaleString()}
+          סה״כ: {formatCurrency(total)}
         </div>
       </div>
 
@@ -299,7 +300,7 @@ export default function ExpensesPage() {
                   required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
                   <option value="">בחר נכס...</option>
                   {properties.map((p) => (
-                    <option key={p.id} value={p.id}>{p.title} — {p.city}</option>
+                    <option key={p.id} value={p.id}>{p.title} - {p.city}</option>
                   ))}
                 </select>
               </div>
@@ -419,7 +420,7 @@ export default function ExpensesPage() {
                       {e.notes && <p className="text-xs text-gray-500 mt-0.5 truncate flex items-center gap-1"><Icon name="note" size={12} /> {e.notes}</p>}
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-rose-700">₪{e.amount.toLocaleString()}</p>
+                      <p className="font-bold text-rose-700">{formatCurrency(e.amount)}</p>
                       <p className="text-xs text-gray-400">{new Date(e.date).toLocaleDateString("he-IL")}</p>
                     </div>
                     <div className="flex gap-1.5">

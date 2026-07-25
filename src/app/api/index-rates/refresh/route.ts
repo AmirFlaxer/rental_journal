@@ -2,11 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-// GET — קריאה מהקליינט על ידי משתמש מחובר
-export async function GET() {
+// GET - שני קוראים: משתמש מחובר (כפתור "עדכן מדדים") ו-Vercel Cron.
+// Vercel Cron שולח תמיד GET עם Authorization: Bearer <CRON_SECRET> - ולא POST.
+// כשהבדיקה הזו ישבה רק על POST הקרון החודשי קיבל 401 והמדדים נתקעו.
+export async function GET(request: NextRequest) {
+  if (isCronRequest(request)) return runRefresh();
+
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   return runRefresh();
+}
+
+function isCronRequest(request: NextRequest): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
+  return request.headers.get("authorization") === `Bearer ${secret}`;
 }
 
 async function runRefresh(): Promise<NextResponse> {
@@ -27,11 +37,11 @@ async function runRefresh(): Promise<NextResponse> {
     results.push({ type: "usd", inserted: 0, error: String(e) });
   }
 
-  // --- CPI: הלמ"ס — מדד המחירים לצרכן כללי ---
+  // --- CPI: הלמ"ס - מדד המחירים לצרכן כללי ---
   try {
     const cpiResult = await fetchCpi();
     if (cpiResult.length > 0) {
-      // ignoreDuplicates: false — מעדכן ערכים קיימים (נרמול עקבי)
+      // ignoreDuplicates: false - מעדכן ערכים קיימים (נרמול עקבי)
       const { error } = await supabaseAdmin
         .from("index_rates")
         .upsert(cpiResult, { onConflict: "type,period_date", ignoreDuplicates: false });
@@ -46,11 +56,9 @@ async function runRefresh(): Promise<NextResponse> {
   return NextResponse.json({ ok: true, results });
 }
 
-// POST — Vercel Cron (Authorization: Bearer <CRON_SECRET>)
+// POST - הפעלה ידנית עם CRON_SECRET (נשמר לתאימות; הקרון עצמו משתמש ב-GET)
 export async function POST(request: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  const authHeader = request.headers.get("authorization");
-  if (!secret || authHeader !== `Bearer ${secret}`) {
+  if (!isCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -58,7 +66,7 @@ export async function POST(request: NextRequest) {
 }
 
 // ----------------------------------------------------------------
-// Frankfurter — שער יציג USD/ILS ממוצע חודשי (מנתונים יומיים)
+// Frankfurter - שער יציג USD/ILS ממוצע חודשי (מנתונים יומיים)
 // ----------------------------------------------------------------
 async function fetchUsd(): Promise<{ type: string; period_date: string; value: number }[]> {
   const today = new Date();
@@ -90,9 +98,9 @@ async function fetchUsd(): Promise<{ type: string; period_date: string; value: n
 }
 
 // ----------------------------------------------------------------
-// הלמ"ס — מדד המחירים לצרכן כללי (id=120010)
+// הלמ"ס - מדד המחירים לצרכן כללי (id=120010)
 // API: https://api.cbs.gov.il/index/data/price
-// מנרמל ערכים בשרשור רציף מהנתון הישן ביותר — כדי לאפשר השוואה
+// מנרמל ערכים בשרשור רציף מהנתון הישן ביותר - כדי לאפשר השוואה
 // תקינה בין תקופות עם בסיסי מדד שונים
 // ----------------------------------------------------------------
 async function fetchCpi(): Promise<{ type: string; period_date: string; value: number }[]> {
@@ -134,7 +142,7 @@ async function fetchCpi(): Promise<{ type: string; period_date: string; value: n
     prev = v;
   }
 
-  // מציאת ינואר 2020 כנקודת ייחוס — כך שהערכים בממשק נראים סבירים (~100)
+  // מציאת ינואר 2020 כנקודת ייחוס - כך שהערכים בממשק נראים סבירים (~100)
   const refIdx = allMonths.findIndex((d) => d.year === 2020 && d.month === 1);
   const refRaw = refIdx >= 0 ? rawValues[refIdx] : rawValues[rawValues.length - 1];
   const factor = 100.0 / refRaw;

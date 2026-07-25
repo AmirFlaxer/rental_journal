@@ -8,8 +8,8 @@ import type { IconName } from "@/lib/icons";
 // ── ניתן לעריכה בקלות ─────────────────────────────────────
 const DEV = {
   name: "אמיר",
-  // ספר על עצמך — הטקסט הזה מוצג בקטע "המפתח". ערוך כרצונך.
-  bio: "מפתח עצמאי שבונה מוצרים מקצה לקצה. את היומן הזה בניתי כדי לנהל נכסי השכרה בצורה פשוטה, מסודרת ומדויקת — בלי גיליונות אקסל מפוזרים. אני מאמין בכלים שחוסכים זמן, שומרים על הנתונים מסודרים, ומציגים את התמונה הפיננסית בבירור.",
+  // ספר על עצמך - הטקסט הזה מוצג בקטע "המפתח". ערוך כרצונך.
+  bio: "מפתח עצמאי שבונה מוצרים מקצה לקצה. את היומן הזה בניתי כדי לנהל נכסי השכרה בצורה פשוטה, מסודרת ומדויקת - בלי גיליונות אקסל מפוזרים. אני מאמין בכלים שחוסכים זמן, שומרים על הנתונים מסודרים, ומציגים את התמונה הפיננסית בבירור.",
   email: "benqueman@gmail.com",
   github: "", // אופציונלי: כתובת GitHub מלאה, למשל https://github.com/username
 };
@@ -22,7 +22,7 @@ const APP_FEATURES: { icon: IconName; title: string; desc: string }[] = [
   { icon: "payments", title: "תקבולים וחובות", desc: "מעקב תשלומים, תשלומים חלקיים, וחישוב חובות אוטומטי" },
   { icon: "taxReport", title: "מס הכנסה 10%", desc: "חישוב מס אוטומטי ודוח מס שנתי מוכן להדפסה" },
   { icon: "reports", title: "דוחות ואנליטיקה", desc: "הכנסות, הוצאות ורווח לפי נכס, חודש ושנה" },
-  { icon: "tasks", title: "תזכורות", desc: "שיקים, סיום חוזים ומשימות — שלא תשכח כלום" },
+  { icon: "tasks", title: "תזכורות", desc: "שיקים, סיום חוזים ומשימות - שלא תשכח כלום" },
 ];
 
 type FeedbackType = "bug" | "feature";
@@ -39,10 +39,10 @@ export default function AboutPage() {
   const subjectPrefix = type === "bug" ? "דיווח באג" : "בקשת פיצ'ר";
   const subject = `[${type === "bug" ? "באג" : "בקשה"}] ${title || "ללא כותרת"}`;
   const body =
-    `${subjectPrefix} — יומן השכרות\n\n` +
+    `${subjectPrefix} - יומן השכרות\n\n` +
     `כותרת: ${title}\n\n` +
     `פירוט:\n${details}\n\n` +
-    `———\nנשלח מתוך האפליקציה · ${new Date().toLocaleString("he-IL")}`;
+    `---\nנשלח מתוך האפליקציה · ${new Date().toLocaleString("he-IL")}`;
 
   const mailtoHref = `mailto:${DEV.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   const canSend = title.trim().length > 0 && details.trim().length > 0;
@@ -97,13 +97,13 @@ export default function AboutPage() {
         </h1>
       </div>
 
-      {/* Hero — about the app */}
+      {/* Hero - about the app */}
       <div className="relative overflow-hidden rounded-2xl p-6 grad-accent-diag text-white">
         <span className="absolute -top-4 -left-3 opacity-15 select-none"><Icon name="dashboard" size={64} color="white" /></span>
         <div className="relative">
           <h2 className="text-xl font-extrabold drop-shadow-sm">יומן השכרות</h2>
           <p className="text-sm text-white/85 mt-1 leading-relaxed max-w-lg">
-            ניהול נכסי השכרה מקצה לקצה — נכסים, חוזים, תקבולים, הוצאות, מס ודוחות. הכל במקום אחד, בעברית, ומותאם לנייד.
+            ניהול נכסי השכרה מקצה לקצה - נכסים, חוזים, תקבולים, הוצאות, מס ודוחות. הכל במקום אחד, בעברית, ומותאם לנייד.
           </p>
           <span className="inline-block mt-3 text-xs font-semibold bg-white/20 rounded-full px-3 py-1">גרסה {APP_VERSION}</span>
         </div>
@@ -258,7 +258,7 @@ export default function AboutPage() {
             </p>
           )}
           <p className="text-xs text-gray-400 leading-relaxed">
-            הכפתור פותח את אפליקציית האימייל שלך עם הפנייה מוכנה ל-{DEV.email}. אם אין אצלך אימייל מוגדר — לחץ &quot;העתק&quot; ושלח ידנית.
+            הכפתור פותח את אפליקציית האימייל שלך עם הפנייה מוכנה ל-{DEV.email}. אם אין אצלך אימייל מוגדר - לחץ &quot;העתק&quot; ושלח ידנית.
           </p>
         </div>
       </section>

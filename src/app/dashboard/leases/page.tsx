@@ -9,6 +9,7 @@ import { formatPhone } from "@/lib/phone";
 import { calcEffectiveRent, LINKAGE_TYPE_LABELS } from "@/lib/linkage";
 import type { IndexRate, LinkageType, LinkageFrequency } from "@/lib/linkage";
 import { apiGet, queryKeys } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/domain/money";
 
 interface Lease {
   id: string;
@@ -34,9 +35,9 @@ function daysUntilExpiry(lease: Lease): number {
 }
 
 function leaseStatus(lease: Lease): "active" | "future" | "ended" {
-  // חוזים שבוטלו/הסתיימו במפורש — תמיד לא בתוקף
+  // חוזים שבוטלו/הסתיימו במפורש - תמיד לא בתוקף
   if (lease.status === "terminated" || lease.status === "expired" || lease.status === "ended") return "ended";
-  // לכל היתר (כולל status="active") — קובעים לפי תאריכים ולא לפי שדה status:
+  // לכל היתר (כולל status="active") - קובעים לפי תאריכים ולא לפי שדה status:
   // חוזים ישנים עלולים להישאר status="active" אחרי שתוקפם פג (ה-cron לא תמיד רץ),
   // ולכן תאריך הסיום הוא מקור האמת. הנתונים עצמם נשמרים כהיסטוריה.
   const today = new Date();
@@ -85,7 +86,7 @@ export default function LeasesPage() {
 
   // איחוד כפילויות: חוזים עם אותו נכס ואותם תאריכים (חוזה שיובא יותר מפעם אחת,
   // או חידוש שנרשם בנפרד) מוצגים פעם אחת בלבד. שומרים נציג אחד לפי עדיפות
-  // בתוקף > עתידי > הסתיים — בלי למחוק את הנתונים עצמם.
+  // בתוקף > עתידי > הסתיים - בלי למחוק את הנתונים עצמם.
   const STATUS_RANK: Record<string, number> = { active: 0, future: 1, ended: 2 };
   const dupKey = (l: (typeof withStatus)[number]) =>
     `${l.properties?.id ?? l.id}|${(l.start_date ?? "").slice(0, 10)}|${(l.end_date ?? "").slice(0, 10)}`;
@@ -225,7 +226,9 @@ export default function LeasesPage() {
                       )}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      <span className="num-ltr">{formatDate(lease.start_date)} – {formatDate(lease.end_date)}</span>
+                      {/* בלי num-ltr - formatDate מחזיר עברית עם ספרות, וכפיית direction:ltr
+                          על מחרוזת מעורבת מפרקת אותה (יום ההתחלה נתלש אל שנת הסיום) */}
+                      <span>{formatDate(lease.start_date)} - {formatDate(lease.end_date)}</span>
                       {lease.has_option && lease.option_months && (
                         <span className="mr-2 text-indigo-500">+ אופציה {lease.option_months} חודשים</span>
                       )}
@@ -247,13 +250,13 @@ export default function LeasesPage() {
                       const changed = effective !== lease.monthly_rent;
                       return (
                         <>
-                          <p className="font-bold text-gray-900">₪{effective.toLocaleString()}</p>
-                          {changed && <p className="text-xs text-gray-400 line-through">₪{lease.monthly_rent.toLocaleString()}</p>}
+                          <p className="font-bold text-gray-900">{formatCurrency(effective)}</p>
+                          {changed && <p className="text-xs text-gray-400 line-through">{formatCurrency(lease.monthly_rent)}</p>}
                           <p className="text-xs text-indigo-500">{LINKAGE_TYPE_LABELS[lease.linkage_type!]}</p>
                         </>
                       );
                     })() : (
-                      <p className="font-bold text-gray-900">₪{lease.monthly_rent.toLocaleString()}</p>
+                      <p className="font-bold text-gray-900">{formatCurrency(lease.monthly_rent)}</p>
                     )}
                     <p className="text-xs text-gray-400">לחודש</p>
                     <span className="text-gray-400 text-lg leading-none">›</span>
