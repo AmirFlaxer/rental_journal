@@ -325,6 +325,24 @@ alter table property_utilities enable row level security;
 create policy "property_utilities_owner" on property_utilities for all using (user_id = auth.uid());
 
 -- ----------------------------------------------------------------
+create table if not exists check_bounces (
+  id          text        primary key default gen_random_uuid()::text,
+  user_id     uuid        not null references auth.users(id) on delete cascade,
+  payment_id  text        references payments(id) on delete set null,
+  lease_id    text        not null references leases(id) on delete cascade,
+  bounced_at  date        not null,
+  reason      text        not null
+                check (reason in ('nsf','restricted','cancelled','other')),
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists check_bounces_lease_idx on check_bounces(lease_id);
+create index if not exists check_bounces_payment_idx on check_bounces(payment_id);
+
+alter table check_bounces enable row level security;
+create policy "check_bounces_owner" on check_bounces for all using (user_id = auth.uid());
+
+-- ----------------------------------------------------------------
 -- ROW LEVEL SECURITY (RLS)
 -- מאפשר לכל משתמש לגשת רק לנתונים שלו
 -- ----------------------------------------------------------------
@@ -336,6 +354,7 @@ alter table expenses      enable row level security;
 alter table payments      enable row level security;
 alter table tasks         enable row level security;
 alter table property_assets enable row level security;
+alter table check_bounces enable row level security;
 
 -- Properties
 create policy "properties_owner" on properties for all using (user_id = auth.uid());
@@ -361,6 +380,9 @@ create policy "tasks_owner" on tasks for all using (user_id = auth.uid());
 
 -- Property assets
 create policy "property_assets_owner" on property_assets for all using (user_id = auth.uid());
+
+-- Check bounces
+create policy "check_bounces_owner" on check_bounces for all using (user_id = auth.uid());
 
 -- ----------------------------------------------------------------
 -- GRANTS - נדרש מ-30 אוקטובר 2026 (Supabase Data API change)
