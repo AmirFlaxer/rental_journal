@@ -119,6 +119,15 @@ interface Property {
   title: string;
 }
 
+/** שורה חלקית מ-/api/payments - רק השדות הדרושים לזיהוי תקבול קיים לפי חוזה+חודש */
+interface PaymentLite {
+  id: string;
+  lease_id: string | null;
+  payment_type: string;
+  due_date: string;
+  status: string;
+}
+
 /** שורה גולמית מ-/api/property-utilities - בלי property_title (מצטרף מ-/api/properties בצד לקוח) */
 interface PropertyUtilityRow {
   id: string;
@@ -191,6 +200,23 @@ function generateVirtualCheckTasks(leases: Lease[], dbTasks: Task[]): Task[] {
   return virtual;
 }
 
+/**
+ * תזכורת הפקדת שק - מסומנת דרך התקבול ולא דרך המשימה.
+ *
+ * בדיקת שיטת התשלום חיונית ואסור להשמיט אותה: שני נתיבי התקבולים בשרת
+ * מפעילים את closeCheckReminderForPayment רק כש-isCheckPaymentMethod מתקיים.
+ * אם נשלח לשם תזכורת ישנה של חוזה בהעברה בנקאית, ייווצר תקבול אבל המשימה
+ * תישאר פתוחה - והמשתמש ילחץ שוב וייצור תקבול כפול. חוזה שאינו בשקים
+ * ממשיך במסלול הישן של עדכון המשימה בלבד.
+ */
+function isCheckDepositReminder(t: Task, leaseById: Map<string, Lease>): boolean {
+  if (t.category !== "Rent Collection" || t.related_entity_type !== "lease" || !t.related_entity_id) {
+    return false;
+  }
+  const method = leaseById.get(t.related_entity_id)?.payment_method?.toLowerCase();
+  return method === "check" || method === "checks";
+}
+
 // "רלוונטי" = פג מועד או עד 30 יום קדימה
 // חשבונות שירות ותזכורות סיום חוזה כבר מסוננים לחלון הרלוונטי שלהם ביצירה
 // (generateVirtualUtilityTasks / generateVirtualLeaseRenewalTasks) - תמיד "רלוונטי", גם אם ה-due_date רחוק מ-30 יום
@@ -233,10 +259,17 @@ export default function TasksPage() {
     queryFn: () => apiGet<PropertyUtilityRow[]>("/api/property-utilities"),
     retry: false,
   });
+  // דרוש למסלול "סימון תזכורת שק רושם את התקבול" ב-complete - איתור תקבול קיים לאותו חוזה+חודש
+  const paymentsQuery = useQuery({
+    queryKey: queryKeys.payments,
+    queryFn: () => apiGet<PaymentLite[]>("/api/payments"),
+  });
   const dbTasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const leases = useMemo(() => leasesQuery.data ?? [], [leasesQuery.data]);
   const properties = useMemo(() => propertiesQuery.data ?? [], [propertiesQuery.data]);
   const utilityRows = useMemo(() => utilitiesQuery.data ?? [], [utilitiesQuery.data]);
+  const payments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
+  const leaseById = useMemo(() => new Map(leases.map((l) => [l.id, l])), [leases]);
   const isPending = tasksQuery.isPending || leasesQuery.isPending || propertiesQuery.isPending;
   const failedQuery = [tasksQuery, leasesQuery, propertiesQuery].find((q) => q.isError);
   const [completingId, setCompletingId] = useState<string | null>(null);
@@ -465,6 +498,45 @@ export default function TasksPage() {
     const key = t.isVirtual ? `virtual-${t.due_date}-${t.related_entity_id}` : t.id;
     setCompletingId(key);
     try {
+      if (isCheckDepositReminder(t, leaseById)) {
+        // תזכורת הפקדת שק - לא מעדכנים את המשימה ישירות. מנתבים דרך ה-API של
+        // התקבולים, ו-closeCheckReminderForPayment בצד השרת סוגר ומקשר אותה
+        // (source_payment_id) - כדי לא ליצור מסלול-סימון כפול מול מסך התקבולים.
+        const monthKey = t.due_date.slice(0, 7);
+        const existing = payments.find(
+          (p) =>
+            p.lease_id === t.related_entity_id &&
+            p.payment_type === "Rent" &&
+            p.due_date.slice(0, 7) === monthKey
+        );
+        const now = new Date().toISOString();
+
+        const res = existing
+          ? await fetch(`/api/payments/${existing.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "paid", paid_date: now }),
+            })
+          : await fetch("/api/payments", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                property_id: leaseById.get(t.related_entity_id!)?.properties?.id,
+                lease_id: t.related_entity_id,
+                payment_type: "Rent",
+                amount: leaseById.get(t.related_entity_id!)?.monthly_rent,
+                due_date: t.due_date,
+                paid_date: now,
+                status: "paid",
+              }),
+            });
+
+        if (!res.ok) { showListError("שגיאה ברישום התקבול"); return; }
+        // closeCheckReminderForPayment בצד השרת סוגר ומקשר את המשימה
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+        queryClient.invalidateQueries({ queryKey: queryKeys.payments });
+        return;
+      }
       if (t.isVirtual) {
         const createRes = await fetch("/api/tasks", {
           method: "POST",
