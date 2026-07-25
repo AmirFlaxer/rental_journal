@@ -525,12 +525,12 @@ new:
 
 old (194-195):
 ```tsx
-    { label: "הכנסה חודשית", value: monthlyIncome > 0 ? `₪${monthlyIncome.toLocaleString()}` : "—", subValue: monthlyIncome > 0 ? `₪${Math.round(monthlyIncome * 0.9).toLocaleString()} לאחר מס` : undefined, icon: "💰", gradient: "from-emerald-500 to-emerald-700", href: "/dashboard/reports" },
+    { label: "הכנסה חודשית", value: monthlyIncome > 0 ? `₪${monthlyIncome.toLocaleString()}` : "-", subValue: monthlyIncome > 0 ? `₪${Math.round(monthlyIncome * 0.9).toLocaleString()} לאחר מס` : undefined, icon: "💰", gradient: "from-emerald-500 to-emerald-700", href: "/dashboard/reports" },
     { label: "הוצאות כוללות", value: totalExpenses > 0 ? `₪${totalExpenses.toLocaleString()}` : "₪0", icon: "💸", gradient: "from-rose-500 to-rose-700", href: "/dashboard/expenses" },
 ```
 new:
 ```tsx
-    { label: "הכנסה חודשית", value: monthlyIncome > 0 ? `₪${monthlyIncome.toLocaleString()}` : "—", subValue: monthlyIncome > 0 ? `₪${Math.round(monthlyIncome * 0.9).toLocaleString()} לאחר מס` : undefined, icon: "rentCollection" as const, gradient: "from-emerald-500 to-emerald-700", href: "/dashboard/reports" },
+    { label: "הכנסה חודשית", value: monthlyIncome > 0 ? `₪${monthlyIncome.toLocaleString()}` : "-", subValue: monthlyIncome > 0 ? `₪${Math.round(monthlyIncome * 0.9).toLocaleString()} לאחר מס` : undefined, icon: "rentCollection" as const, gradient: "from-emerald-500 to-emerald-700", href: "/dashboard/reports" },
     { label: "הוצאות כוללות", value: totalExpenses > 0 ? `₪${totalExpenses.toLocaleString()}` : "₪0", icon: "expenses" as const, gradient: "from-rose-500 to-rose-700", href: "/dashboard/expenses" },
 ```
 
@@ -1201,7 +1201,7 @@ new (שורה 310 נשארת ללא שינוי - היא רק destructure; שור
 
 old (163-168):
 ```tsx
-                  { label: "שכ\"ד חודשי", value: report.monthly_rent > 0 ? fmt(report.monthly_rent) : "—", icon: "📄", gradient: "from-pink-500 to-pink-700" },
+                  { label: "שכ\"ד חודשי", value: report.monthly_rent > 0 ? fmt(report.monthly_rent) : "-", icon: "📄", gradient: "from-pink-500 to-pink-700" },
                   { label: "הכנסה כוללת", value: fmt(report.total_paid), icon: "💰", gradient: "from-emerald-500 to-emerald-700" },
                   { label: "הוצאות כוללות", value: fmt(report.total_expenses), icon: "💸", gradient: "from-rose-500 to-rose-700" },
                   ...(showTax
@@ -1210,7 +1210,7 @@ old (163-168):
 ```
 new:
 ```tsx
-                  { label: "שכ\"ד חודשי", value: report.monthly_rent > 0 ? fmt(report.monthly_rent) : "—", icon: "leases" as const, gradient: "from-pink-500 to-pink-700" },
+                  { label: "שכ\"ד חודשי", value: report.monthly_rent > 0 ? fmt(report.monthly_rent) : "-", icon: "leases" as const, gradient: "from-pink-500 to-pink-700" },
                   { label: "הכנסה כוללת", value: fmt(report.total_paid), icon: "rentCollection" as const, gradient: "from-emerald-500 to-emerald-700" },
                   { label: "הוצאות כוללות", value: fmt(report.total_expenses), icon: "expenses" as const, gradient: "from-rose-500 to-rose-700" },
                   ...(showTax
@@ -1509,11 +1509,11 @@ new:
 
 old (696):
 ```tsx
-              ⚠️ לנכס זה יש חוזה פעיל — הוא יועבר לארכיון ולא יימחק
+              ⚠️ לנכס זה יש חוזה פעיל - הוא יועבר לארכיון ולא יימחק
 ```
 new:
 ```tsx
-              <Icon name="unpaid" size={16} className="inline text-amber-700" /> לנכס זה יש חוזה פעיל — הוא יועבר לארכיון ולא יימחק
+              <Icon name="unpaid" size={16} className="inline text-amber-700" /> לנכס זה יש חוזה פעיל - הוא יועבר לארכיון ולא יימחק
 ```
 
 old (704):
@@ -1873,7 +1873,7 @@ const APP_FEATURES = [
   { icon: "💳", title: "תקבולים וחובות", desc: "מעקב תשלומים, תשלומים חלקיים, וחישוב חובות אוטומטי" },
   { icon: "📋", title: "מס הכנסה 10%", desc: "חישוב מס אוטומטי ודוח מס שנתי מוכן להדפסה" },
   { icon: "📊", title: "דוחות ואנליטיקה", desc: "הכנסות, הוצאות ורווח לפי נכס, חודש ושנה" },
-  { icon: "🔔", title: "תזכורות", desc: "שיקים, סיום חוזים ומשימות — שלא תשכח כלום" },
+  { icon: "🔔", title: "תזכורות", desc: "שיקים, סיום חוזים ומשימות - שלא תשכח כלום" },
 ];
 ```
 new (עם `import { Icon } from "@/components/Icon"; import type { IconName } from "@/lib/icons";` בראש הקובץ):
@@ -1884,7 +1884,7 @@ const APP_FEATURES: { icon: IconName; title: string; desc: string }[] = [
   { icon: "payments", title: "תקבולים וחובות", desc: "מעקב תשלומים, תשלומים חלקיים, וחישוב חובות אוטומטי" },
   { icon: "taxReport", title: "מס הכנסה 10%", desc: "חישוב מס אוטומטי ודוח מס שנתי מוכן להדפסה" },
   { icon: "reports", title: "דוחות ואנליטיקה", desc: "הכנסות, הוצאות ורווח לפי נכס, חודש ושנה" },
-  { icon: "tasks", title: "תזכורות", desc: "שיקים, סיום חוזים ומשימות — שלא תשכח כלום" },
+  { icon: "tasks", title: "תזכורות", desc: "שיקים, סיום חוזים ומשימות - שלא תשכח כלום" },
 ];
 ```
 
@@ -2015,11 +2015,11 @@ git commit -m "refactor(about): מעבר לאייקוני Phosphor - פיצ'רי
 
 old:
 ```tsx
-      title: `⚠️ חוזה עומד לפוג — ${propTitle}`,
+      title: `⚠️ חוזה עומד לפוג - ${propTitle}`,
 ```
 new:
 ```tsx
-      title: `חוזה עומד לפוג — ${propTitle}`,
+      title: `חוזה עומד לפוג - ${propTitle}`,
 ```
 
 - [ ] **Step 2: כותרת-תזכורת-שק (שורה 90)**

@@ -1,5 +1,5 @@
 -- ============================================================
--- Rental Journal – Supabase SQL Schema
+-- Rental Journal - Supabase SQL Schema
 -- הרץ את הסקריפט הזה ב: Supabase Dashboard → SQL Editor
 -- ============================================================
 
@@ -158,7 +158,7 @@ create table if not exists expenses (
 );
 
 -- ----------------------------------------------------------------
--- EXPENSES (המשך — עמודות מס אוטומטי)
+-- EXPENSES (המשך - עמודות מס אוטומטי)
 -- הרץ ALTER אם הטבלה כבר קיימת:
 --   ALTER TABLE expenses
 --     ADD COLUMN IF NOT EXISTS is_auto_tax boolean NOT NULL DEFAULT false,
@@ -212,7 +212,7 @@ create table if not exists tasks (
 );
 
 -- ----------------------------------------------------------------
--- TASKS (המשך — קישור לתקבול מקור, לסגירת תזכורת שק אוטומטית)
+-- TASKS (המשך - קישור לתקבול מקור, לסגירת תזכורת שק אוטומטית)
 -- הרץ ALTER אם הטבלה כבר קיימת:
 --   ALTER TABLE tasks
 --     ADD COLUMN IF NOT EXISTS source_payment_id text references payments(id) on delete set null;
@@ -363,16 +363,16 @@ create policy "tasks_owner" on tasks for all using (user_id = auth.uid());
 create policy "property_assets_owner" on property_assets for all using (user_id = auth.uid());
 
 -- ----------------------------------------------------------------
--- GRANTS — נדרש מ-30 אוקטובר 2026 (Supabase Data API change)
+-- GRANTS - נדרש מ-30 אוקטובר 2026 (Supabase Data API change)
 -- טבלאות ב-public חייבות GRANT מפורש כדי להיות נגישות ל-API
 -- ----------------------------------------------------------------
 
--- index_rates — ציבורי לקריאה
+-- index_rates - ציבורי לקריאה
 grant select                            on public.index_rates       to anon;
 grant select                            on public.index_rates       to authenticated;
 grant select, insert, update, delete    on public.index_rates       to service_role;
 
--- טבלאות פרטיות — רק משתמשים מחוברים (RLS מגן על הנתונים)
+-- טבלאות פרטיות - רק משתמשים מחוברים (RLS מגן על הנתונים)
 grant select, insert, update, delete    on public.properties        to authenticated;
 grant select, insert, update, delete    on public.tenants           to authenticated;
 grant select, insert, update, delete    on public.leases            to authenticated;
