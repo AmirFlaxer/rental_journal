@@ -13,6 +13,8 @@ import { readAndStampVisit, summarizeSince } from "@/lib/domain/last-visit";
 import { weekGroupLabel } from "@/lib/domain/dates";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/domain/money";
+import { greetingFor } from "@/lib/domain/greeting";
+import { useUserName } from "@/lib/use-user-name";
 import type { CheckBounce } from "@/lib/domain/check-bounce";
 
 interface Property {
@@ -96,6 +98,7 @@ function pendingPaymentsSummary(leases: Lease[], dbPayments: Payment[]): { count
 }
 
 export default function Dashboard() {
+  const userName = useUserName();
   const propertiesQuery = useQuery({ queryKey: queryKeys.properties, queryFn: () => apiGet<Property[]>("/api/properties") });
   const leasesQuery = useQuery({ queryKey: queryKeys.leases, queryFn: () => apiGet<Lease[]>("/api/leases") });
   const paymentsQuery = useQuery({ queryKey: queryKeys.payments, queryFn: () => apiGet<Payment[]>("/api/payments") });
@@ -206,7 +209,7 @@ export default function Dashboard() {
       <div>
         <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
           <span className="inline-block w-1.5 h-7 rounded-full tick-accent" />
-          שלום
+          {greetingFor(userName)}
         </h1>
         <p className="text-gray-500 mt-1 text-sm">
           {new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -8,6 +8,7 @@ import { QueryProvider } from "@/components/query-provider";
 import { Icon } from "@/components/Icon";
 import { NAV_ITEMS, MOBILE_NAV_ITEMS, isNavItemActive, type NavItem as NavItemType } from "@/lib/nav-items";
 import { chapterAnchorFor } from "@/lib/domain/help-anchor";
+import { useUserName } from "@/lib/use-user-name";
 
 function NavItem(item: NavItemType) {
   const { href, label, icon } = item;
@@ -36,15 +37,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [userName, setUserName] = useState("");
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      const name = data.user?.user_metadata?.name as string | undefined;
-      if (name) setUserName(name);
-    });
-  }, []);
+  const userName = useUserName();
 
   async function handleSignOut() {
     const supabase = createClient();
