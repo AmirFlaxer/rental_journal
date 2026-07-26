@@ -11,7 +11,7 @@ import { hasOpenBounce, bounceChainForPayment, BOUNCE_REASON_LABELS, type CheckB
 import { isCheckPaymentMethod } from "@/lib/check-reminders";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { formatAmount, formatCurrency } from "@/lib/domain/money";
-import { localDateStr } from "@/lib/domain/dates";
+import { localDateStr, appNoonIso } from "@/lib/domain/dates";
 
 const TYPE_HE: Record<string, string> = {
   Rent: "שכ״ד",
@@ -166,6 +166,15 @@ export default function PaymentsPage() {
         body: JSON.stringify({ bounced_at: bounceDate, reason: bounceReason }),
       });
       if (res.ok) {
+        // ההחזרה נרשמה, אבל התאמה נגזרת (הוצאת-מס / תזכורת) יכולה להיכשל בנפרד -
+        // השרת מחזיר warnings, והחלונית נשארת פתוחה כדי שההודעה לא תיעלם מהמשתמש
+        const body = await res.json().catch(() => null);
+        const warnings: string[] | undefined = body?.warnings;
+        if (warnings?.length) {
+          setBounceError(`ההחזרה נרשמה, אך ${warnings.join(" ו")}`);
+          invalidateAfterPaymentChange();
+          return;
+        }
         setBounceOpenId(null);
         resetBounceForm();
         invalidateAfterPaymentChange();
@@ -234,7 +243,7 @@ export default function PaymentsPage() {
   const togglePaid = async (payment: Payment) => {
     const nowPaid = payment.status !== "paid";
     const body = nowPaid
-      ? { status: "paid", paid_date: new Date().toISOString() }
+      ? { status: "paid", paid_date: appNoonIso() }
       : { status: "pending", paid_date: null };
     const res = await fetch(`/api/payments/${payment.id}`, {
       method: "PUT",
@@ -269,7 +278,7 @@ export default function PaymentsPage() {
             payment_type: "Rent",
             amount: payment.amount,
             due_date: payment.due_date,
-            paid_date: new Date().toISOString(),
+            paid_date: appNoonIso(),
             status: "partial",
             partial_paid_amount: amt,
             notes: partialReason,
@@ -284,7 +293,7 @@ export default function PaymentsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             status: "partial",
-            paid_date: new Date().toISOString(),
+            paid_date: appNoonIso(),
             partial_paid_amount: amt,
             notes: partialReason,
           }),
@@ -313,7 +322,7 @@ export default function PaymentsPage() {
           payment_type: "Rent",
           amount: slot.amount,
           due_date: slot.due_date,
-          paid_date: new Date().toISOString(),
+          paid_date: appNoonIso(),
           status: "paid",
         }),
       });

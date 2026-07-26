@@ -47,14 +47,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!isCheckPaymentMethod(lease.payment_method))
       return NextResponse.json({ error: "אפשר לסמן החזרה רק על חוזה שמשולם בשקים" }, { status: 400 });
 
-    const { error: insertErr } = await supabase.from("check_bounces").insert({
-      user_id: session.user.id,
-      payment_id: payment.id,
-      lease_id: payment.lease_id,
-      bounced_at: data.bounced_at,
-      reason: data.reason,
-    });
-    if (insertErr) return NextResponse.json({ error: "שגיאה ברישום ההחזרה" }, { status: 500 });
+    // שתי הכתיבות הבאות הן ליבת הפעולה, והן חייבות להצליח או להיכשל יחד: שורת-החזרה
+    // בלי החזרת התקבול ל-pending היא החזרה שלא עשתה כלום (hasOpenBounce מדלג על paid),
+    // כלומר המשתמש מקבל "בוצע" בזמן שהחוב לא חזר והוצאת-המס נשארה. אין טרנזקציה חוצה-
+    // בקשות ב-supabase-js, ולכן: אם הכתיבה השנייה נכשלת, הראשונה מבוטלת בפעולה מפצה.
+    const { data: bounce, error: insertErr } = await supabase
+      .from("check_bounces")
+      .insert({
+        user_id: session.user.id,
+        payment_id: payment.id,
+        lease_id: payment.lease_id,
+        bounced_at: data.bounced_at,
+        reason: data.reason,
+      })
+      .select("id")
+      .single();
+    if (insertErr || !bounce) return NextResponse.json({ error: "שגיאה ברישום ההחזרה" }, { status: 500 });
 
     const { data: updated, error: updateErr } = await supabase
       .from("payments")
@@ -63,23 +71,51 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .eq("user_id", session.user.id)
       .select()
       .single();
-    if (updateErr) return NextResponse.json({ error: "שגיאה בעדכון התקבול" }, { status: 500 });
 
-    // הסכום שהתקבל בפועל הפך ל-0, ולכן הוצאת המס האוטומטית נמחקת מעצמה
-    await reconcileAutoTax(supabase, session.user.id, {
-      id: updated.id,
-      payment_type: updated.payment_type,
-      property_id: updated.property_id,
-      amount: updated.amount,
-      status: updated.status,
-      paid_date: updated.paid_date,
-      notes: updated.notes,
-      partial_paid_amount: updated.partial_paid_amount,
-    });
+    if (updateErr || !updated) {
+      const { error: rollbackErr } = await supabase
+        .from("check_bounces")
+        .delete()
+        .eq("id", bounce.id)
+        .eq("user_id", session.user.id);
+      // אם גם הביטול נכשל, השורה נשארה והמצב חלקי - זה חייב להגיע למשתמש ולא להיעלם
+      return NextResponse.json(
+        {
+          error: rollbackErr
+            ? "ההחזרה נרשמה אך התקבול לא עודכן, והביטול נכשל - יש לבדוק את שרשרת ההחזרות בדף החוזה"
+            : "שגיאה בעדכון התקבול - ההחזרה לא נרשמה, אפשר לנסות שוב",
+        },
+        { status: 500 }
+      );
+    }
 
-    await reopenCheckReminderForPayment(supabase, session.user.id, id);
+    // מכאן והלאה: התאמות נגזרות ממצב התקבול, כולן idempotent. כשל בהן אינו מצב חלקי
+    // (הליבה כבר עקבית) אבל גם אינו שקוף - הוא מוחזר כאזהרה כדי שלא ייעלם.
+    const warnings: string[] = [];
 
-    return NextResponse.json({ ok: true, payment: updated });
+    try {
+      // הסכום שהתקבל בפועל הפך ל-0, ולכן הוצאת המס האוטומטית נמחקת מעצמה
+      await reconcileAutoTax(supabase, session.user.id, {
+        id: updated.id,
+        payment_type: updated.payment_type,
+        property_id: updated.property_id,
+        amount: updated.amount,
+        status: updated.status,
+        paid_date: updated.paid_date,
+        notes: updated.notes,
+        partial_paid_amount: updated.partial_paid_amount,
+      });
+    } catch {
+      warnings.push("הוצאת המס האוטומטית לא עודכנה");
+    }
+
+    try {
+      await reopenCheckReminderForPayment(supabase, session.user.id, id);
+    } catch {
+      warnings.push("תזכורת הפקדת השק לא נפתחה מחדש");
+    }
+
+    return NextResponse.json({ ok: true, payment: updated, ...(warnings.length ? { warnings } : {}) });
   } catch (error) {
     if (error instanceof z.ZodError)
       return NextResponse.json({ error: "Validation failed", details: error.flatten() }, { status: 400 });
