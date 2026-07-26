@@ -5,8 +5,10 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
+import { localDateStr } from "@/lib/domain/dates";
 
-const today = () => new Date().toISOString().slice(0, 10);
+// localDateStr ולא toISOString - ב-UTC+ הוא מחזיר בין חצות ל-03:00 את יום האתמול
+const today = () => localDateStr();
 
 const CATEGORIES = [
   { value: "Maintenance",       label: "תחזוקה ותיקונים" },

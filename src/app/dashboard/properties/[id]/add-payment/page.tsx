@@ -7,6 +7,7 @@ import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 import { formatCurrency } from "@/lib/domain/money";
+import { localDateStr } from "@/lib/domain/dates";
 
 interface Lease {
   id: string;
@@ -17,7 +18,8 @@ interface Lease {
   end_date: string;
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+// localDateStr ולא toISOString - ב-UTC+ הוא מחזיר בין חצות ל-03:00 את יום האתמול
+const today = () => localDateStr();
 
 export default function AddPaymentPage() {
   const router = useRouter();

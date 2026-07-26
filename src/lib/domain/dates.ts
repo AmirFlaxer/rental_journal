@@ -6,6 +6,33 @@ export function localDateStr(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// אזור-הזמן של האפליקציה. הקהל ישראלי, אבל השרת (Vercel) רץ ב-UTC - ולכן
+// "מקומי" בצד השרת אינו מה שהמשתמש רואה. שתי הפונקציות למטה קובעות את היום
+// לפי ישראל במפורש, ולא תלויות באזור-הזמן של התהליך או של הדפדפן.
+const APP_TIME_ZONE = "Asia/Jerusalem";
+
+/** YYYY-MM-DD של "היום" בשעון ישראל, בלי תלות באזור-הזמן של התהליך */
+export function appDateStr(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: APP_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+/**
+ * חותמת-זמן לשדה timestamptz שממנו ייגזר במורד-הזרם **תאריך** (paid_date, ומשם
+ * תאריך הוצאת-המס וחודש הדוח). מקבעת צהריים-UTC על היום הישראלי, כך שכל גזירה -
+ * `.slice(0,10)`, `toISOString().slice(0,7)` או `new Date(iso)` - תסכים על אותו
+ * יום קלנדרי. `new Date().toISOString()` היה מחזיר בין חצות ל-03:00 את יום האתמול
+ * (אומת בדאטה: תקבול מ-26.7 02:37 קיבל הוצאת-מס ב-25.7), ובגבול חודש זה מזיז
+ * שורה בין חודשי דוח-המס. שעת-האמת של הפעולה נשמרת ממילא ב-created_at.
+ */
+export function appNoonIso(now: Date = new Date()): string {
+  return `${appDateStr(now)}T12:00:00.000Z`;
+}
+
 /** מחרוזת YYYY-MM מרכיבי תאריך מקומיים */
 export function localMonthKey(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;

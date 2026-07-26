@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { paymentSchema } from "@/lib/validations";
 import { reconcileAutoTax } from "@/lib/auto-tax";
 import { isCheckPaymentMethod, closeCheckReminderForPayment } from "@/lib/check-reminders";
+import { appNoonIso } from "@/lib/domain/dates";
 import { z } from "zod";
 
 export async function GET() {
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
           row.id,
           data.lease_id,
           new Date(data.due_date).toISOString(),
-          row.paid_date ?? new Date().toISOString()
+          row.paid_date ?? appNoonIso()
         );
       }
     }

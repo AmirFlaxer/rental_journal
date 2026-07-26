@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getReceivedAmount } from "@/lib/domain/partial-payment";
-import { localDateStr } from "@/lib/domain/dates";
+import { appDateStr } from "@/lib/domain/dates";
 import type { Payment } from "@/types/database";
 
 /**
@@ -69,7 +69,7 @@ export async function reconcileAutoTax(
   }
 
   const taxAmount = Math.round(received * 0.1 * 100) / 100;
-  const taxDate = payment.paid_date ?? localDateStr();
+  const taxDate = payment.paid_date ?? appDateStr();
 
   if (!existing) {
     const enabled = await isAutoTaxEnabled(userId);

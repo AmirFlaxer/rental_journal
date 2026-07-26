@@ -8,6 +8,7 @@ import {
   closeCheckReminderForPayment,
   reopenCheckReminderForPayment,
 } from "@/lib/check-reminders";
+import { appNoonIso } from "@/lib/domain/dates";
 import { z } from "zod";
 
 interface RouteParams { params: Promise<{ id: string }> }
@@ -90,7 +91,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         : leaseRelation?.payment_method;
       if (isNowRent && isNowPaid && !wasPaid) {
         if (leaseId && isCheckPaymentMethod(leasePaymentMethod)) {
-          const paidDate = row.paid_date ?? new Date().toISOString();
+          const paidDate = row.paid_date ?? appNoonIso();
           await closeCheckReminderForPayment(supabase, session.user.id, id, leaseId, row.due_date, paidDate);
         }
       } else if (wasPaid && !isNowPaid) {

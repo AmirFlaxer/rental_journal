@@ -8,6 +8,7 @@ import { NumberInput } from "@/components/number-input";
 import { Icon } from "@/components/Icon";
 import type { IconName } from "@/lib/icons";
 import { formatCurrency } from "@/lib/domain/money";
+import { localDateStr } from "@/lib/domain/dates";
 
 const CAT_HE: Record<string, string> = {
   Maintenance: "תחזוקה",
@@ -63,7 +64,7 @@ const emptyForm = () => ({
   amount: "",
   vendor_name: "",
   notes: "",
-  date: new Date().toISOString().split("T")[0],
+  date: localDateStr(),
   recurring: false,
   recurring_freq: "monthly",
   paid_by: "landlord",

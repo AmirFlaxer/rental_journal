@@ -6,6 +6,7 @@ import { DateInput } from "@/components/date-input";
 import { Icon } from "@/components/Icon";
 import type { IconName } from "@/lib/icons";
 import { listRentMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
+import { appNoonIso } from "@/lib/domain/dates";
 import { generateVirtualUtilityTasks, type PropertyUtilityLike } from "@/lib/domain/utility-schedule";
 import { generateVirtualLeaseRenewalTasks } from "@/lib/domain/lease-reminders";
 import { apiGet, queryKeys } from "@/lib/api-client";
@@ -509,14 +510,9 @@ export default function TasksPage() {
             p.payment_type === "Rent" &&
             p.due_date.slice(0, 7) === monthKey
         );
-        // paid_date הוא timestamptz - לא ניתן לשלוח תאריך-בלבד. אבל new Date().toISOString()
-        // ממיר ל-UTC, ובין חצות ל-03:00 שעון ישראל זה עדיין "אתמול" ב-UTC - וממנו
-        // reconcileAutoTax גוזר את תאריך הוצאת המס (ודוחות המס גוזרים חודש דרך
-        // toISOString().slice). קיבוע השעה לצהריים מקומיים מבטיח שהיום הקלנדרי
-        // שייגזר מה-UTC יישאר זהה ליום המקומי, בלי לגעת בשעת-האמת של הפעולה עצמה.
-        const localNoon = new Date();
-        localNoon.setHours(12, 0, 0, 0);
-        const now = localNoon.toISOString();
+        // paid_date הוא timestamptz שממנו נגזר תאריך הוצאת-המס וחודש הדוח - ולכן
+        // appNoonIso ולא new Date().toISOString(). הנימוק המלא ב-dates.ts.
+        const now = appNoonIso();
 
         const res = existing
           ? await fetch(`/api/payments/${existing.id}`, {

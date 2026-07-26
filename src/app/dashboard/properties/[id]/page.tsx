@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Lease, Expense, Payment, LeaseDocument, PropertyUtility, PropertyUtilityType, PropertyUtilityFrequency, PropertyUtilityResponsibility, LeaseSecurity, SecurityKind, SecurityStatus, SecurityUtilityType } from "@/types/database";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 import { listRentMonths } from "@/lib/domain/rent-schedule";
-import { isoMonthKey, isoDateParts, localMonthKey } from "@/lib/domain/dates";
+import { isoMonthKey, isoDateParts, localMonthKey, localDateStr } from "@/lib/domain/dates";
 import { utilityTypeLabel } from "@/lib/domain/utility-schedule";
 import { heldCashDepositTotal, heldPaperCount } from "@/lib/domain/securities-summary";
 import { apiGet, queryKeys } from "@/lib/api-client";
@@ -186,7 +186,7 @@ export default function PropertyDetailPage() {
   // Early termination modal
   const [terminateLease, setTerminateLease] = useState<(Lease & { tenant?: { first_name: string; last_name: string } }) | null>(null);
   const [termBy, setTermBy] = useState<"tenant" | "landlord">("tenant");
-  const [termDate, setTermDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [termDate, setTermDate] = useState(() => localDateStr());
   const [termReason, setTermReason] = useState("");
   const [termLoading, setTermLoading] = useState(false);
   const [termResult, setTermResult] = useState<{ effectiveDate: string; noticeMonths: number } | null>(null);
@@ -900,7 +900,7 @@ export default function PropertyDetailPage() {
                       </button>
                     )}
                     {!l.early_term_protection && (
-                      <button onClick={() => { setTerminateLease(l); setTermBy("tenant"); setTermDate(new Date().toISOString().slice(0,10)); setTermReason(""); }}
+                      <button onClick={() => { setTerminateLease(l); setTermBy("tenant"); setTermDate(localDateStr()); setTermReason(""); }}
                         className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs font-bold">
                         סיום מוקדם
                       </button>
@@ -1155,7 +1155,7 @@ export default function PropertyDetailPage() {
                             </button>
                           )}
                           {!lease.early_term_protection && isLeaseCurrentlyActive(lease) && (
-                            <button onClick={(e) => { e.stopPropagation(); setTerminateLease(lease); setTermBy("tenant"); setTermDate(new Date().toISOString().slice(0,10)); setTermReason(""); }}
+                            <button onClick={(e) => { e.stopPropagation(); setTerminateLease(lease); setTermBy("tenant"); setTermDate(localDateStr()); setTermReason(""); }}
                               className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-semibold hover:bg-red-200">
                               <Icon name="earlyTermination" size={14} className="inline" /> סיום
                             </button>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { localDateStr, localMonthKey, isoDateParts, isoMonthKey, diffDays, weekGroupLabel } from "@/lib/domain/dates";
+import { localDateStr, localMonthKey, isoDateParts, isoMonthKey, diffDays, weekGroupLabel, appDateStr, appNoonIso } from "@/lib/domain/dates";
 
 describe("localDateStr / localMonthKey", () => {
   it("בונים מחרוזת מרכיבי תאריך מקומיים (לא UTC)", () => {
@@ -53,5 +53,42 @@ describe("weekGroupLabel", () => {
   it("תומך בפורמט timestamptz מלא מה-DB", () => {
     expect(weekGroupLabel("2026-07-08T00:00:00+00:00", "2026-07-10")).toBe("השבוע");
     expect(weekGroupLabel("2026-06-20T15:30:00+00:00", "2026-07-10")).toBe("יוני 2026");
+  });
+});
+
+describe("appDateStr", () => {
+  // המקרה שאומת בדאטה: תקבול שנרשם 26.7.2026 בשעה 02:37 שעון ישראל נשמר עם
+  // הוצאת מס בתאריך 25.7, כי toISOString החזיר את היום הקודם ב-UTC.
+  it("מחזיר את היום הישראלי גם בשעות שבהן UTC עדיין אתמול", () => {
+    expect(appDateStr(new Date("2026-07-25T23:37:00Z"))).toBe("2026-07-26");
+    expect(appDateStr(new Date("2026-07-25T21:00:00Z"))).toBe("2026-07-26");
+  });
+
+  it("לא מקדים את היום כשישראל עדיין באותו תאריך", () => {
+    expect(appDateStr(new Date("2026-07-26T20:59:00Z"))).toBe("2026-07-26");
+    expect(appDateStr(new Date("2026-07-26T05:00:00Z"))).toBe("2026-07-26");
+  });
+
+  it("חוצה נכון גבול חודש - הנקודה שמזיזה שורה בדוח המס", () => {
+    expect(appDateStr(new Date("2026-07-31T22:00:00Z"))).toBe("2026-08-01");
+    expect(appDateStr(new Date("2026-07-31T20:59:00Z"))).toBe("2026-07-31");
+  });
+
+  it("נכון גם בשעון חורף (UTC+2) ולא רק בקיץ (UTC+3)", () => {
+    expect(appDateStr(new Date("2026-01-31T22:30:00Z"))).toBe("2026-02-01");
+    expect(appDateStr(new Date("2026-01-31T21:30:00Z"))).toBe("2026-01-31");
+  });
+});
+
+describe("appNoonIso", () => {
+  it("מקבע צהריים-UTC על היום הישראלי, כך שכל גזירת-תאריך במורד הזרם תסכים", () => {
+    const iso = appNoonIso(new Date("2026-07-25T23:37:00Z"));
+    expect(iso).toBe("2026-07-26T12:00:00.000Z");
+    expect(iso.slice(0, 10)).toBe("2026-07-26");
+    expect(new Date(iso).toISOString().slice(0, 7)).toBe("2026-07");
+  });
+
+  it("שומר על היום הנכון גם בגבול חודש", () => {
+    expect(appNoonIso(new Date("2026-07-31T22:00:00Z"))).toBe("2026-08-01T12:00:00.000Z");
   });
 });
