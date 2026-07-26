@@ -8,8 +8,10 @@ import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 import { listRentMonths, coveredPropertyMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
 import { parsePartialPaid, parsePartialReason, getDebtAmount } from "@/lib/domain/partial-payment";
 import { hasOpenBounce, bounceChainForPayment, BOUNCE_REASON_LABELS, type CheckBounce, type BounceReason } from "@/lib/domain/check-bounce";
+import { isCheckPaymentMethod } from "@/lib/check-reminders";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { formatAmount, formatCurrency } from "@/lib/domain/money";
+import { localDateStr } from "@/lib/domain/dates";
 
 const TYPE_HE: Record<string, string> = {
   Rent: "שכ״ד",
@@ -61,6 +63,7 @@ interface Lease {
   end_date: string;
   monthly_rent: number;
   status: string;
+  payment_method?: string | null;
   properties?: { id: string; title: string };
   tenant?: { first_name: string; last_name: string };
 }
@@ -114,6 +117,7 @@ export default function PaymentsPage() {
 
   const payments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
   const leases = useMemo(() => leasesQuery.data ?? [], [leasesQuery.data]);
+  const leaseById = useMemo(() => new Map(leases.map((l) => [l.id, l])), [leases]);
   const properties = useMemo(() => propertiesQuery.data ?? [], [propertiesQuery.data]);
   const bounces = useMemo(() => bouncesQuery.data ?? [], [bouncesQuery.data]);
 
@@ -130,9 +134,10 @@ export default function PaymentsPage() {
   const [savingPartial, setSavingPartial] = useState(false);
 
   const [bounceOpenId, setBounceOpenId] = useState<string | null>(null);
-  const [bounceDate, setBounceDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [bounceDate, setBounceDate] = useState(() => localDateStr());
   const [bounceReason, setBounceReason] = useState<BounceReason>("nsf");
   const [savingBounce, setSavingBounce] = useState(false);
+  const [bounceError, setBounceError] = useState<string | null>(null);
 
   // תקבול שהתקבל/עודכן משפיע גם על סגירת תזכורת "שק" (tasks), הוצאת מס אוטומטית (expenses)
   // וגם על מקטע השקים-שחזרו (checkBounces) - השרת מטפל בזה
@@ -146,12 +151,14 @@ export default function PaymentsPage() {
   // מאפס את טופס הסימון לברירת המחדל - נדרש גם בפתיחת חלונית על שורה חדשה וגם בביטול,
   // אחרת ערכי השורה הקודמת (תאריך/סיבה) "דולפים" לשורה הבאה שנפתחת
   const resetBounceForm = () => {
-    setBounceDate(new Date().toISOString().slice(0, 10));
+    setBounceDate(localDateStr());
     setBounceReason("nsf");
+    setBounceError(null);
   };
 
   const saveBounce = async (paymentId: string) => {
     setSavingBounce(true);
+    setBounceError(null);
     try {
       const res = await fetch(`/api/payments/${paymentId}/bounce`, {
         method: "POST",
@@ -162,6 +169,9 @@ export default function PaymentsPage() {
         setBounceOpenId(null);
         resetBounceForm();
         invalidateAfterPaymentChange();
+      } else {
+        const body = await res.json().catch(() => null);
+        setBounceError(body?.error ?? "שגיאה בסימון ההחזרה");
       }
     } finally {
       setSavingBounce(false);
@@ -324,6 +334,10 @@ export default function PaymentsPage() {
     const isPartialOpen = partialOpenId === p.id;
     const isPaid = p.status === "paid";
     const isFuture = p.status === "future";
+    // "שק חזר" רלוונטי רק לתקבול שכ"ד בחוזה שמשולם בשקים - לא לפיקדון/חשבון,
+    // ולא בחוזה שמשולם בהעברה בנקאית (אין שם "שק" שיכול לחזור)
+    const lease = p.lease_id ? leaseById.get(p.lease_id) : undefined;
+    const canBounce = p.payment_type === "Rent" && isCheckPaymentMethod(lease?.payment_method);
 
     return (
       <div key={p.id} className={`bg-white rounded-xl px-4 py-3.5 shadow-sm border ${isPaid ? "border-gray-100 opacity-75" : isFuture ? "border-gray-100" : "border-gray-200"}`}>
@@ -403,10 +417,12 @@ export default function PaymentsPage() {
                   className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-semibold hover:bg-red-100 hover:text-red-700">
                   בטל
                 </button>
-                <button onClick={() => { setBounceOpenId(bounceOpenId === p.id ? null : p.id); resetBounceForm(); }}
-                  className="px-3 py-1.5 bg-white border border-rose-300 text-rose-700 rounded-lg text-xs font-semibold hover:bg-rose-50">
-                  שק חזר
-                </button>
+                {canBounce && (
+                  <button onClick={() => { setBounceOpenId(bounceOpenId === p.id ? null : p.id); resetBounceForm(); }}
+                    className="px-3 py-1.5 bg-white border border-rose-300 text-rose-700 rounded-lg text-xs font-semibold hover:bg-rose-50">
+                    שק חזר
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -470,6 +486,7 @@ export default function PaymentsPage() {
                 ))}
               </div>
             </div>
+            {bounceError && <p className="text-red-600 text-xs">{bounceError}</p>}
             <div className="flex gap-2">
               <button onClick={() => saveBounce(p.id)} disabled={savingBounce}
                 className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-semibold hover:bg-rose-700 disabled:opacity-50">

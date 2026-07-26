@@ -269,7 +269,10 @@ export default function Dashboard() {
                 item.kind === "bounced" ? "bg-rose-50 border border-rose-200 hover:bg-rose-100" : "bg-gray-50 hover:bg-gray-100"
               }`}>
               <span className={`text-sm font-semibold ${item.kind === "bounced" ? "text-rose-700" : "text-gray-800"}`}>{item.label}</span>
-              <span className={`text-xs font-bold num-ltr ${item.kind === "bounced" ? "text-rose-700" : "text-gray-500"}`}>{item.sub}</span>
+              {/* "bounced" ה-sub הוא מחרוזת מעורבת (סכום · סיבה בעברית · תאריך) - num-ltr
+                  הופך direction ל-ltr לכל המחרוזת ומהפך את סדר שלושת המקטעים חזותית.
+                  שאר הסוגים מציגים מקטע יחיד (מספר/טקסט "בעוד X ימים") ולא נפגעים מזה */}
+              <span className={`text-xs font-bold ${item.kind === "bounced" ? "text-rose-700" : "num-ltr text-gray-500"}`}>{item.sub}</span>
             </Link>
           ))}
         </div>

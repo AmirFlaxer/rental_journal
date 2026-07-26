@@ -509,7 +509,14 @@ export default function TasksPage() {
             p.payment_type === "Rent" &&
             p.due_date.slice(0, 7) === monthKey
         );
-        const now = new Date().toISOString();
+        // paid_date הוא timestamptz - לא ניתן לשלוח תאריך-בלבד. אבל new Date().toISOString()
+        // ממיר ל-UTC, ובין חצות ל-03:00 שעון ישראל זה עדיין "אתמול" ב-UTC - וממנו
+        // reconcileAutoTax גוזר את תאריך הוצאת המס (ודוחות המס גוזרים חודש דרך
+        // toISOString().slice). קיבוע השעה לצהריים מקומיים מבטיח שהיום הקלנדרי
+        // שייגזר מה-UTC יישאר זהה ליום המקומי, בלי לגעת בשעת-האמת של הפעולה עצמה.
+        const localNoon = new Date();
+        localNoon.setHours(12, 0, 0, 0);
+        const now = localNoon.toISOString();
 
         const res = existing
           ? await fetch(`/api/payments/${existing.id}`, {
