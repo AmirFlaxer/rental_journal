@@ -6,6 +6,7 @@ import Link from "next/link";
 import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
+import { formatCurrency } from "@/lib/domain/money";
 
 interface Lease {
   id: string;
@@ -117,10 +118,10 @@ export default function AddPaymentPage() {
               <div>
                 <label className="block text-gray-700 font-semibold mb-1">חוזה / דייר</label>
                 <select value={leaseId} onChange={(e) => handleLeaseChange(e.target.value)} className={inp}>
-                  <option value="">— ללא חוזה ספציפי —</option>
+                  <option value="">- ללא חוזה ספציפי -</option>
                   {leases.map((l) => (
                     <option key={l.id} value={l.id}>
-                      {l.tenant?.first_name} {l.tenant?.last_name} — ₪{Number(l.monthly_rent).toLocaleString()}
+                      {l.tenant?.first_name} {l.tenant?.last_name} - {formatCurrency(Number(l.monthly_rent))}
                     </option>
                   ))}
                 </select>

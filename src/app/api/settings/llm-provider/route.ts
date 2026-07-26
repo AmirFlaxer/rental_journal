@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "ספק לא תקין" }, { status: 400 });
   }
 
-  // שמירה ב-Supabase user_metadata — מסונכרן בין מכשירים
+  // שמירה ב-Supabase user_metadata - מסונכרן בין מכשירים
   await supabaseAdmin.auth.admin.updateUserById(session.user.id, {
     user_metadata: { llm_provider: provider },
   });

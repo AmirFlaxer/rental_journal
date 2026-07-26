@@ -7,6 +7,7 @@ import { apiGet, queryKeys } from "@/lib/api-client";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 import { Icon } from "@/components/Icon";
 import type { IconName } from "@/lib/icons";
+import { formatCurrency } from "@/lib/domain/money";
 
 const TYPE_HE: Record<string, string> = { Apartment: "דירה", House: "בית", Commercial: "מסחרי" };
 const TYPE_ICON: Record<string, IconName> = { Apartment: "apartment", House: "house", Commercial: "commercial" };
@@ -133,7 +134,7 @@ export default function PropertiesPage() {
                   </div>
                   <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
                     {rent > 0 ? (
-                      <span className="text-sm font-bold text-emerald-700">₪{rent.toLocaleString()} / חודש</span>
+                      <span className="text-sm font-bold text-emerald-700">{formatCurrency(rent)} / חודש</span>
                     ) : (
                       <span className="text-sm text-gray-400">אין חוזה פעיל</span>
                     )}

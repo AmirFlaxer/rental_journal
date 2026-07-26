@@ -48,7 +48,7 @@ h1, h2 {
   letter-spacing: -0.005em;
 }
 
-/* ── חתימה: "קו היומן" — קו בסיס דק עם סימן דיו בתחילתו ─── */
+/* ── חתימה: "קו היומן" - קו בסיס דק עם סימן דיו בתחילתו ─── */
 .ledger-rule {
   position: relative;
   padding-bottom: 0.6rem;
@@ -68,7 +68,7 @@ h1, h2 {
 /* עזר: פונט החתימה לשימוש מפורש (מספרים-גיבור, כותרות הירו) */
 .font-display { font-family: var(--font-display), var(--font-rubik), sans-serif; }
 
-/* ── Tailwind overrides — backgrounds ───────────────── */
+/* ── Tailwind overrides - backgrounds ───────────────── */
 .bg-white          { background-color: var(--bg-surface)  !important; }
 .bg-gray-50,
 .bg-slate-50       { background-color: var(--bg-base)     !important; }
@@ -87,7 +87,7 @@ h1, h2 {
 .text-gray-500     { color: #7d7560     !important; }
 .text-gray-400     { color: #9a9077     !important; }
 
-/* ── Card borders — visible but subtle ──────────────── */
+/* ── Card borders - visible but subtle ──────────────── */
 .border,
 .border-gray-100,
 .border-gray-200,
@@ -146,22 +146,22 @@ select option { background: var(--bg-elevated); color: var(--text-1); }
 .text-pink-700             { color: var(--accent-hover) !important; }
 /* ⚠ deprecated: המיפויים למעלה (pink → accent) הם רשת ביטחון היסטורית.
    לשימושים חדשים/מוחלפים יש להשתמש ב-.tick-accent / .grad-accent-diag / .grad-accent-fade-l
-   למטה — הם לא תלויים בזה שמישהו כתב "pink" בקוד, ולכן פחות שבירים. אל תמחקו את מיפויי ה-pink -
+   למטה - הם לא תלויים בזה שמישהו כתב "pink" בקוד, ולכן פחות שבירים. אל תמחקו את מיפויי ה-pink -
    דפים שעדיין לא הומרו מסתמכים עליהם. */
 
-/* ── Semantic accent-gradient classes — יציבים, לא תלויים במיפוי pink→accent ─
+/* ── Semantic accent-gradient classes - יציבים, לא תלויים במיפוי pink→accent ─
    מייצרים בדיוק את אותו מראה כמו הגרדיאנטים מ-pink למעלה (from-pink / to-pink),
    בלי להסתמך על "לכידת" שם מחלקה ורוד. */
 .tick-accent {
-  /* מחליף: bg-gradient-to-b from-pink-400 to-pink-600 — פס-סימון אנכי ליד כותרות */
+  /* מחליף: bg-gradient-to-b from-pink-400 to-pink-600 - פס-סימון אנכי ליד כותרות */
   background-image: linear-gradient(to bottom, var(--accent), var(--accent-hover)) !important;
 }
 .grad-accent-diag {
-  /* מחליף: bg-gradient-to-br from-pink-500 to-pink-700 — כרטיסי/אייקוני מותג */
+  /* מחליף: bg-gradient-to-br from-pink-500 to-pink-700 - כרטיסי/אייקוני מותג */
   background-image: linear-gradient(to bottom right, var(--accent), var(--accent-hover)) !important;
 }
 .grad-accent-fade-l {
-  /* מחליף: bg-gradient-to-l from-pink-500/10 via-transparent to-transparent — כתם רקע דקורטיבי */
+  /* מחליף: bg-gradient-to-l from-pink-500/10 via-transparent to-transparent - כתם רקע דקורטיבי */
   background-image: linear-gradient(to left, rgba(124,131,255,0.10), transparent, transparent) !important;
 }
 
@@ -210,7 +210,7 @@ tfoot tr th {
 ::-webkit-scrollbar-thumb { background: #cfc5ac; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
-/* ── Numbers — tabular ──────────────────────────────── */
+/* ── Numbers - tabular ──────────────────────────────── */
 td, th, .font-semibold, .font-bold {
   font-variant-numeric: tabular-nums;
 }
@@ -235,11 +235,11 @@ td, th, .font-semibold, .font-bold {
       box-shadow: none !important; }
   /* כותרות */
   h1, h2 { color: #000 !important; }
-  /* שורת תקבולים — ירוק בהדפסה */
+  /* שורת תקבולים - ירוק בהדפסה */
   tfoot tr:first-child td { background-color: #f0fdf4 !important; color: #166534 !important; font-weight: 700; }
-  /* שורת מס — כתום בהדפסה */
+  /* שורת מס - כתום בהדפסה */
   tfoot tr:last-child td  { background-color: #fff7ed !important; color: #9a3412 !important; font-weight: 700; }
-  /* טבלה — גבולות ברורים */
+  /* טבלה - גבולות ברורים */
   table { border-collapse: collapse; width: 100%; }
   td, th { border: 1px solid #ccc !important; padding: 4px 6px !important; }
   thead th { background-color: #f9fafb !important; }

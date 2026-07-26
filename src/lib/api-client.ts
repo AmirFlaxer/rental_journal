@@ -1,8 +1,13 @@
 // fetcher אחיד לצד לקוח - לשימוש עם TanStack Query.
 // זורק שגיאה על תשובה לא תקינה כדי ש-useQuery יעבור למצב error.
 
-export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(path);
+/**
+ * @param opts.fresh - לעקוף את קאש ה-HTTP של הדפדפן. נחוץ אחרי פעולה שכתבה לשרת
+ *   ורוצים לראות את התוצאה מיד: /api/index-rates מוגש עם max-age של שעה, ולכן
+ *   רענון המדדים דיווח על הצלחה בזמן שהמסך המשיך להציג את הנתונים הישנים.
+ */
+export async function apiGet<T>(path: string, opts?: { fresh?: boolean }): Promise<T> {
+  const res = await fetch(path, opts?.fresh ? { cache: "no-store" } : undefined);
   if (!res.ok) {
     let message = "שגיאת שרת";
     try {
@@ -28,4 +33,5 @@ export const queryKeys = {
   indexRates: ["index-rates"] as const,
   propertyUtilities: ["property-utilities"] as const,
   leaseSecurities: ["lease-securities"] as const,
+  checkBounces: ["check-bounces"] as const,
 };

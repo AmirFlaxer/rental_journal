@@ -30,10 +30,10 @@ export async function GET(req: NextRequest) {
     const requests: Promise<{ שם_רחוב: string; שם_ישוב: string }[]>[] = [];
 
     if (city) {
-      // Request 1: all streets for this city (up to 500) — broad coverage
+      // Request 1: all streets for this city (up to 500) - broad coverage
       requests.push(fetchStreets(city, 500, controller.signal));
 
-      // Request 2: specific street query within city — covers large cities (Jerusalem, Tel Aviv)
+      // Request 2: specific street query within city - covers large cities (Jerusalem, Tel Aviv)
       if (q.length >= 2) {
         requests.push(fetchStreets(`${q} ${city}`, 20, controller.signal));
       }

@@ -1,6 +1,9 @@
 // "דורש טיפול" - הכרטיס הראשון בדשבורד. פונקציה טהורה: הקורא מספק
 // חוזים פעילים בלבד (isLeaseCurrentlyActive) ומשימות פתוחות בלבד (completed_at === null).
 import { getDebtAmount } from "./partial-payment";
+import { formatCurrency } from "./money";
+import { hasOpenBounce, bounceChainForPayment, BOUNCE_REASON_LABELS, type CheckBounce } from "./check-bounce";
+import { isoDateParts } from "./dates";
 
 export interface AttentionPayment {
   id: string;
@@ -26,7 +29,7 @@ export interface AttentionTask {
 
 export interface AttentionItem {
   id: string;
-  kind: "overdue" | "task" | "lease_ending";
+  kind: "bounced" | "overdue" | "task" | "lease_ending";
   label: string;
   sub: string;
   href: string;
@@ -34,6 +37,12 @@ export interface AttentionItem {
 
 const TASK_HORIZON_DAYS = 7;
 const LEASE_HORIZON_DAYS = 90;
+
+// פורמט תאריך עקבי עם שאר המסכים (26.7.2026) - לא ה-YYYY-MM-DD הגולמי מה-DB
+function formatDateHe(iso: string): string {
+  const { year, month, day } = isoDateParts(iso);
+  return `${day}.${month}.${year}`;
+}
 
 // הפרש ימים בין שני תאריכי YYYY-MM-DD בזמן מקומי (בלי מלכודת UTC)
 // תומך גם ב-timestamptz מלא מה-DB (למשל "2026-07-25T00:00:00+00:00") - נחתך ליום בלבד.
@@ -49,18 +58,37 @@ export function buildAttentionItems(input: {
   payments: AttentionPayment[];
   activeLeases: AttentionLease[];
   openTasks: AttentionTask[];
+  bounces: CheckBounce[];
   today: string;
 }): AttentionItem[] {
-  const { payments, activeLeases, openTasks, today } = input;
+  const { payments, activeLeases, openTasks, bounces, today } = input;
   const items: AttentionItem[] = [];
 
+  const bouncedIds = new Set<string>();
   for (const p of payments) {
+    if (!hasOpenBounce({ id: p.id, status: p.status }, bounces)) continue;
+    bouncedIds.add(p.id);
+    const chain = bounceChainForPayment(p.id, bounces);
+    const last = chain[chain.length - 1];
+    items.push({
+      id: `bounced-${p.id}`,
+      kind: "bounced",
+      label: `שק חזר - ${p.property?.title ?? "נכס"}`,
+      sub: last
+        ? `${formatCurrency(p.amount)} · ${BOUNCE_REASON_LABELS[last.reason]} · ${formatDateHe(last.bounced_at)}`
+        : formatCurrency(p.amount),
+      href: "/dashboard/payments",
+    });
+  }
+
+  for (const p of payments) {
+    if (bouncedIds.has(p.id)) continue;
     if (p.status === "paid" || p.due_date.slice(0, 10) >= today) continue;
     items.push({
       id: `overdue-${p.id}`,
       kind: "overdue",
       label: `תקבול באיחור - ${p.property?.title ?? "נכס"}`,
-      sub: `₪${getDebtAmount(p).toLocaleString()}`,
+      sub: formatCurrency(getDebtAmount(p)),
       href: "/dashboard/debts",
     });
   }
@@ -89,6 +117,6 @@ export function buildAttentionItems(input: {
     });
   }
 
-  const rank: Record<AttentionItem["kind"], number> = { overdue: 0, task: 1, lease_ending: 2 };
+  const rank: Record<AttentionItem["kind"], number> = { bounced: 0, overdue: 1, task: 2, lease_ending: 3 };
   return items.sort((a, b) => rank[a.kind] - rank[b.kind]);
 }

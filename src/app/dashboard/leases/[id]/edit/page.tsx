@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
@@ -9,6 +10,9 @@ import { PhoneInput } from "@/components/phone-input";
 import { Icon } from "@/components/Icon";
 import { formatPhone } from "@/lib/phone";
 import { pickRate, type IndexRate } from "@/lib/linkage";
+import { formatCurrency } from "@/lib/domain/money";
+import { apiGet, queryKeys } from "@/lib/api-client";
+import { BOUNCE_REASON_LABELS, type CheckBounce } from "@/lib/domain/check-bounce";
 
 interface LeaseDocument {
   id: string;
@@ -82,6 +86,18 @@ export default function EditLeasePage() {
   const router = useRouter();
   const { id } = useParams() as { id: string };
 
+  // שרשרת ההחזרות של החוזה - רק לחוזה הזה, לא נגררת לשוכר הבא באותו נכס
+  const bouncesQuery = useQuery({
+    queryKey: queryKeys.checkBounces,
+    queryFn: () => apiGet<CheckBounce[]>("/api/check-bounces"),
+  });
+  const leaseBounces = useMemo(
+    () => (bouncesQuery.data ?? [])
+      .filter((b) => b.lease_id === id)
+      .sort((a, b) => a.bounced_at.localeCompare(b.bounced_at)),
+    [bouncesQuery.data, id]
+  );
+
   const [isFetching, setIsFetching] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -92,7 +108,7 @@ export default function EditLeasePage() {
   const [uploadError, setUploadError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // מחיקת מסמך — אישור דו-שלבי במקום confirm() ילידי
+  // מחיקת מסמך - אישור דו-שלבי במקום confirm() ילידי
   const [confirmDeleteDocId, setConfirmDeleteDocId] = useState<string | null>(null);
   const confirmDeleteDocTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
@@ -179,11 +195,11 @@ export default function EditLeasePage() {
         setOptionRent(lease.option_rent || undefined);
         setOptionTerms(lease.option_terms || "");
 
-        // חישוב תאריכי אופציה: אם null בDB או לא הגיוניים — חשב מתאריך הסיום
+        // חישוב תאריכי אופציה: אם null בDB או לא הגיוניים - חשב מתאריך הסיום
         const endStr = toDateInput(lease.end_date);
         let optStart = toDateInput(lease.option_start);
         let optEnd   = toDateInput(lease.option_end);
-        // אופציה חייבת להתחיל אחרי סיום החוזה — אם לא, מאפסים
+        // אופציה חייבת להתחיל אחרי סיום החוזה - אם לא, מאפסים
         if (lease.has_option && optStart && endStr && optStart <= endStr) {
           optStart = "";
           optEnd = "";
@@ -285,13 +301,13 @@ export default function EditLeasePage() {
     if (lease.monthlyRent) setMonthlyRent(lease.monthlyRent);
     if (lease.depositAmount) setDepositAmount(lease.depositAmount);
     if (lease.terms) setTerms(lease.terms);
-    // Store tenant extracted data for display — cannot change tenantId here
+    // Store tenant extracted data for display - cannot change tenantId here
     setExtractedData(null);
     setExtractingDocId(null);
     // Show extracted tenant info as a note if present
     if (tenant.firstName || tenant.lastName) {
       const name = [tenant.firstName, tenant.lastName].filter(Boolean).join(" ");
-      setApplySuccessMsg(`נתוני השכירות הוחלו בהצלחה — שם השוכר בחוזה: ${name}${tenant.idNumber ? ` · ת.ז.: ${tenant.idNumber}` : ""}${tenant.phone ? ` · טלפון: ${formatPhone(tenant.phone)}` : ""}`);
+      setApplySuccessMsg(`נתוני השכירות הוחלו בהצלחה - שם השוכר בחוזה: ${name}${tenant.idNumber ? ` · ת.ז.: ${tenant.idNumber}` : ""}${tenant.phone ? ` · טלפון: ${formatPhone(tenant.phone)}` : ""}`);
     }
   };
 
@@ -327,7 +343,7 @@ export default function EditLeasePage() {
   };
 
   // אישור מחיקה דו-שלבי: לחיצה ראשונה הופכת את הכפתור ל"בטוח?", מתאפס אחרי 3 שניות
-  // (אותו דפוס כמו במסך תזכורות — src/app/dashboard/tasks/page.tsx)
+  // (אותו דפוס כמו במסך תזכורות - src/app/dashboard/tasks/page.tsx)
   const requestDeleteDoc = (docId: string) => {
     if (confirmDeleteDocTimer.current) clearTimeout(confirmDeleteDocTimer.current);
     setConfirmDeleteDocId(docId);
@@ -557,13 +573,13 @@ export default function EditLeasePage() {
                       <div className="flex gap-4 flex-wrap">
                         <span>
                           <span className="font-semibold">שכ&quot;ד בסיס: </span>
-                          ₪{effectiveBase?.toLocaleString("he-IL") ?? "—"}
+                          {effectiveBase != null ? formatCurrency(effectiveBase) : "-"}
                         </span>
                         <span>
                           <span className="font-semibold">תאריך בסיס: </span>
                           {effectiveDate
                             ? new Date(effectiveDate).toLocaleDateString("he-IL", { month: "long", year: "numeric" })
-                            : "—"}
+                            : "-"}
                         </span>
                         {baseRateRow ? (
                           <span>
@@ -595,7 +611,7 @@ export default function EditLeasePage() {
                   עריכת פרטים ›
                 </a>
               </div>
-              <p className="text-sm" style={{ color: "var(--text-2)" }}>{tenantName || "—"}</p>
+              <p className="text-sm" style={{ color: "var(--text-2)" }}>{tenantName || "-"}</p>
             </div>
           )}
 
@@ -693,7 +709,7 @@ export default function EditLeasePage() {
                 <p className="text-sm text-gray-500">הגנה מפני סיום לפני תאריך</p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-600">{earlyTermProtection ? "מוגן — אין סיום מוקדם" : "מותר סיום מוקדם"}</span>
+                <span className="text-sm text-gray-600">{earlyTermProtection ? "מוגן - אין סיום מוקדם" : "מותר סיום מוקדם"}</span>
                 <Toggle on={earlyTermProtection} onToggle={() => setEarlyTermProtection(!earlyTermProtection)} />
               </div>
             </div>
@@ -715,6 +731,38 @@ export default function EditLeasePage() {
               </div>
             )}
           </div>
+
+          {/* שרשרת ההחזרות של החוזה - להעתקה לפנייה לעורך דין */}
+          {bouncesQuery.isError && (
+            <div className="bg-white rounded-xl shadow-sm border border-rose-200 p-6 flex items-center justify-between gap-3">
+              <p className="text-sm text-red-700">לא ניתן לטעון את היסטוריית ההחזרות</p>
+              <button type="button" onClick={() => bouncesQuery.refetch()}
+                className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-semibold text-xs hover:bg-indigo-700 flex-shrink-0">
+                נסה שוב
+              </button>
+            </div>
+          )}
+          {leaseBounces.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-rose-200 p-6">
+              <h2 className="text-lg font-bold text-rose-700 flex items-center gap-2">
+                <Icon name="debts" size={18} />
+                שקים שחזרו בחוזה זה: {leaseBounces.length}
+              </h2>
+              <p className="text-sm text-gray-500 mt-0.5 mb-4">
+                שרשרת ההחזרות המלאה, ממוינת כרונולוגית
+              </p>
+              <div className="divide-y divide-gray-100">
+                {leaseBounces.map((b) => (
+                  <div key={b.id} className="py-2 flex items-center justify-between gap-3 text-sm">
+                    <span className="text-gray-500 num-ltr">
+                      {new Date(b.bounced_at).toLocaleDateString("he-IL")}
+                    </span>
+                    <span className="text-gray-800 font-semibold">{BOUNCE_REASON_LABELS[b.reason]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Documents */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -781,7 +829,7 @@ export default function EditLeasePage() {
                       >
                         {extractingDocId === doc.id ? <><Icon name="aiLoading" size={14} className="inline" /> מחלץ...</> : <><Icon name="aiMagic" size={14} className="inline" /> שאוב נתונים</>}
                       </button>
-                      {/* מחיקה — אישור דו-שלבי: לחיצה ראשונה הופכת ל"בטוח?", מתאפס אחרי 3 שניות */}
+                      {/* מחיקה - אישור דו-שלבי: לחיצה ראשונה הופכת ל"בטוח?", מתאפס אחרי 3 שניות */}
                       {confirmDeleteDocId === doc.id ? (
                         <button
                           type="button"
@@ -853,7 +901,7 @@ export default function EditLeasePage() {
                     <><dt className="text-gray-500">אימייל</dt><dd className="font-medium">{extractedData.tenant.email}</dd></>
                   )}
                 </dl>
-                <p className="text-xs text-purple-600 mt-2">* פרטי השוכר מוצגים לעיונך — לא ישונו בחוזה הנוכחי</p>
+                <p className="text-xs text-purple-600 mt-2">* פרטי השוכר מוצגים לעיונך - לא ישונו בחוזה הנוכחי</p>
               </div>
             )}
 
@@ -869,10 +917,10 @@ export default function EditLeasePage() {
                     <><dt className="text-gray-500">תאריך סיום</dt><dd className="font-medium">{extractedData.lease.endDate}</dd></>
                   )}
                   {extractedData.lease.monthlyRent && (
-                    <><dt className="text-gray-500">שכ&quot;ד חודשי</dt><dd className="font-medium">₪{extractedData.lease.monthlyRent.toLocaleString()}</dd></>
+                    <><dt className="text-gray-500">שכ&quot;ד חודשי</dt><dd className="font-medium">{formatCurrency(extractedData.lease.monthlyRent)}</dd></>
                   )}
                   {extractedData.lease.depositAmount && (
-                    <><dt className="text-gray-500">פיקדון</dt><dd className="font-medium">₪{extractedData.lease.depositAmount.toLocaleString()}</dd></>
+                    <><dt className="text-gray-500">פיקדון</dt><dd className="font-medium">{formatCurrency(extractedData.lease.depositAmount)}</dd></>
                   )}
                   {extractedData.lease.terms && (
                     <><dt className="text-gray-500 col-span-2">תנאים</dt><dd className="font-medium col-span-2 text-xs">{extractedData.lease.terms}</dd></>

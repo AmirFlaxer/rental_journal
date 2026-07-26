@@ -392,15 +392,15 @@ export default function SettingsPage() {
       <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
         <div>
           <h2 className="text-base font-bold text-gray-800">חישוב מס הכנסה אוטומטי</h2>
-          <p className="text-xs text-gray-500 mt-0.5">בעת רישום תקבול שכ&quot;ד כ&quot;שולם&quot; — תיווצר הוצאת מס אוטומטית בגובה 10%</p>
+          <p className="text-xs text-gray-500 mt-0.5">בעת רישום תקבול שכ&quot;ד כ&quot;שולם&quot; - תיווצר הוצאת מס אוטומטית בגובה 10%</p>
         </div>
         <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-gray-50">
           <div>
             <p className="text-sm font-semibold text-gray-800">מסלול 10% על תקבולים</p>
             <p className="text-xs text-gray-500 mt-0.5">
               {autoTaxEnabled
-                ? "פעיל — הוצאת מס נוצרת אוטומטית עם כל תקבול"
-                : "כבוי — לא נוצרות הוצאות מס אוטומטיות"}
+                ? "פעיל - הוצאת מס נוצרת אוטומטית עם כל תקבול"
+                : "כבוי - לא נוצרות הוצאות מס אוטומטיות"}
             </p>
           </div>
           <button

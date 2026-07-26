@@ -10,7 +10,7 @@ export default async function Home() {
 
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: "var(--bg-base)" }}>
-      {/* רקע מרוּשט — שורות יומן דקות, אווירה של דף ספר חשבונות */}
+      {/* רקע מרוּשט - שורות יומן דקות, אווירה של דף ספר חשבונות */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.35]"
         style={{
@@ -35,7 +35,7 @@ export default async function Home() {
             נ
           </div>
           <span className="font-display text-lg font-bold" style={{ color: "var(--text-1)" }}>
-            ניהול נכסים
+            ניהול שכירויות
           </span>
         </header>
 
@@ -77,7 +77,7 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* אלמנט החתימה — כרטיס יומן עם שורות נכס אמיתיות */}
+          {/* אלמנט החתימה - כרטיס יומן עם שורות נכס אמיתיות */}
           <div className="mt-14 max-w-2xl">
             <div className="ledger-rule mb-3 flex items-baseline justify-between">
               <h2 className="font-display text-sm font-bold" style={{ color: "var(--text-2)" }}>
@@ -131,5 +131,5 @@ const TONE = {
 const LEDGER_ROWS = [
   { name: "דירה · רוטשילד 12, תל אביב", sub: "דייר: מ. כהן", rent: "₪6,200", linkage: "+2.1% מדד", status: "שולם",   tone: TONE.paid },
   { name: "דירה · נורדאו 58, תל אביב",  sub: "דייר: ש. לוי", rent: "₪7,875", linkage: "צמוד דולר",  status: "לתשלום", tone: TONE.due },
-  { name: "מסחרי · המלכה 5, תל אביב",   sub: "דייר: א. בר",  rent: "₪5,500", linkage: "—",          status: "ממתין",  tone: TONE.wait },
+  { name: "מסחרי · המלכה 5, תל אביב",   sub: "דייר: א. בר",  rent: "₪5,500", linkage: "-",          status: "ממתין",  tone: TONE.wait },
 ];

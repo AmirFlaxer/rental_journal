@@ -7,7 +7,11 @@ import { Icon } from "@/components/Icon";
 import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 import { listRentMonths, coveredPropertyMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
 import { parsePartialPaid, parsePartialReason, getDebtAmount } from "@/lib/domain/partial-payment";
+import { hasOpenBounce, bounceChainForPayment, BOUNCE_REASON_LABELS, type CheckBounce, type BounceReason } from "@/lib/domain/check-bounce";
+import { isCheckPaymentMethod } from "@/lib/check-reminders";
 import { apiGet, queryKeys } from "@/lib/api-client";
+import { formatAmount, formatCurrency } from "@/lib/domain/money";
+import { localDateStr } from "@/lib/domain/dates";
 
 const TYPE_HE: Record<string, string> = {
   Rent: "שכ״ד",
@@ -59,6 +63,7 @@ interface Lease {
   end_date: string;
   monthly_rent: number;
   status: string;
+  payment_method?: string | null;
   properties?: { id: string; title: string };
   tenant?: { first_name: string; last_name: string };
 }
@@ -105,13 +110,19 @@ export default function PaymentsPage() {
   const paymentsQuery = useQuery({ queryKey: queryKeys.payments, queryFn: () => apiGet<Payment[]>("/api/payments") });
   const leasesQuery = useQuery({ queryKey: queryKeys.leases, queryFn: () => apiGet<Lease[]>("/api/leases") });
   const propertiesQuery = useQuery({ queryKey: queryKeys.properties, queryFn: () => apiGet<Property[]>("/api/properties") });
+  const bouncesQuery = useQuery({
+    queryKey: queryKeys.checkBounces,
+    queryFn: () => apiGet<CheckBounce[]>("/api/check-bounces"),
+  });
 
   const payments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
   const leases = useMemo(() => leasesQuery.data ?? [], [leasesQuery.data]);
+  const leaseById = useMemo(() => new Map(leases.map((l) => [l.id, l])), [leases]);
   const properties = useMemo(() => propertiesQuery.data ?? [], [propertiesQuery.data]);
+  const bounces = useMemo(() => bouncesQuery.data ?? [], [bouncesQuery.data]);
 
-  const isPending = paymentsQuery.isPending || leasesQuery.isPending || propertiesQuery.isPending;
-  const failedQuery = [paymentsQuery, leasesQuery, propertiesQuery].find((q) => q.isError);
+  const isPending = paymentsQuery.isPending || leasesQuery.isPending || propertiesQuery.isPending || bouncesQuery.isPending;
+  const failedQuery = [paymentsQuery, leasesQuery, propertiesQuery, bouncesQuery].find((q) => q.isError);
 
   const [filterProp, setFilterProp] = useState("");
   const [showPaid, setShowPaid] = useState(false);
@@ -122,11 +133,49 @@ export default function PaymentsPage() {
   const [partialReason, setPartialReason] = useState("");
   const [savingPartial, setSavingPartial] = useState(false);
 
-  // תקבול שהתקבל/עודכן משפיע גם על סגירת תזכורת "שק" (tasks) וגם על הוצאת מס אוטומטית (expenses) - השרת מטפל בזה
+  const [bounceOpenId, setBounceOpenId] = useState<string | null>(null);
+  const [bounceDate, setBounceDate] = useState(() => localDateStr());
+  const [bounceReason, setBounceReason] = useState<BounceReason>("nsf");
+  const [savingBounce, setSavingBounce] = useState(false);
+  const [bounceError, setBounceError] = useState<string | null>(null);
+
+  // תקבול שהתקבל/עודכן משפיע גם על סגירת תזכורת "שק" (tasks), הוצאת מס אוטומטית (expenses)
+  // וגם על מקטע השקים-שחזרו (checkBounces) - השרת מטפל בזה
   const invalidateAfterPaymentChange = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.payments });
     queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
     queryClient.invalidateQueries({ queryKey: queryKeys.expenses });
+    queryClient.invalidateQueries({ queryKey: queryKeys.checkBounces });
+  };
+
+  // מאפס את טופס הסימון לברירת המחדל - נדרש גם בפתיחת חלונית על שורה חדשה וגם בביטול,
+  // אחרת ערכי השורה הקודמת (תאריך/סיבה) "דולפים" לשורה הבאה שנפתחת
+  const resetBounceForm = () => {
+    setBounceDate(localDateStr());
+    setBounceReason("nsf");
+    setBounceError(null);
+  };
+
+  const saveBounce = async (paymentId: string) => {
+    setSavingBounce(true);
+    setBounceError(null);
+    try {
+      const res = await fetch(`/api/payments/${paymentId}/bounce`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bounced_at: bounceDate, reason: bounceReason }),
+      });
+      if (res.ok) {
+        setBounceOpenId(null);
+        resetBounceForm();
+        invalidateAfterPaymentChange();
+      } else {
+        const body = await res.json().catch(() => null);
+        setBounceError(body?.error ?? "שגיאה בסימון ההחזרה");
+      }
+    } finally {
+      setSavingBounce(false);
+    }
   };
 
   const virtualSlots = useMemo(() => generateVirtualSlots(leases, payments), [leases, payments]);
@@ -139,17 +188,24 @@ export default function PaymentsPage() {
     [payments, virtualSlots, filterProp]
   );
 
+  // שקים שחזרו וטרם טופלו - מקטע נפרד מעל "לתשלום", לא מעורבב בחובות רגילים
+  const bouncedItems = useMemo(
+    () => allItems.filter((p) => !p.isVirtual && hasOpenBounce({ id: p.id, status: p.status }, bounces)),
+    [allItems, bounces]
+  );
+  const bouncedIds = useMemo(() => new Set(bouncedItems.map((p) => p.id)), [bouncedItems]);
+
   const actionItems = useMemo(
     () =>
       allItems
-        .filter((p) => ["due", "late", "overdue", "pending", "partial"].includes(p.status))
+        .filter((p) => ["due", "late", "overdue", "pending", "partial"].includes(p.status) && !bouncedIds.has(p.id))
         .sort((a, b) => {
           const pa = ACTION_PRIORITY[a.status] ?? 4;
           const pb = ACTION_PRIORITY[b.status] ?? 4;
           if (pa !== pb) return pa - pb;
           return a.due_date.localeCompare(b.due_date);
         }),
-    [allItems]
+    [allItems, bouncedIds]
   );
 
   const futureItems = useMemo(
@@ -278,6 +334,10 @@ export default function PaymentsPage() {
     const isPartialOpen = partialOpenId === p.id;
     const isPaid = p.status === "paid";
     const isFuture = p.status === "future";
+    // "שק חזר" רלוונטי רק לתקבול שכ"ד בחוזה שמשולם בשקים - לא לפיקדון/חשבון,
+    // ולא בחוזה שמשולם בהעברה בנקאית (אין שם "שק" שיכול לחזור)
+    const lease = p.lease_id ? leaseById.get(p.lease_id) : undefined;
+    const canBounce = p.payment_type === "Rent" && isCheckPaymentMethod(lease?.payment_method);
 
     return (
       <div key={p.id} className={`bg-white rounded-xl px-4 py-3.5 shadow-sm border ${isPaid ? "border-gray-100 opacity-75" : isFuture ? "border-gray-100" : "border-gray-200"}`}>
@@ -313,7 +373,7 @@ export default function PaymentsPage() {
             </div>
             {p.status === "partial" && partialPaid != null && (
               <p className="text-xs text-blue-600 mt-0.5">
-                שולם <span className="num-ltr">₪{partialPaid.toLocaleString()}</span> · יתרה: <span className="num-ltr">₪{remaining!.toLocaleString()}</span>
+                שולם <span className="num-ltr">{formatCurrency(partialPaid)}</span> · יתרה: <span className="num-ltr">{formatCurrency(remaining!)}</span>
                 {partialReasonText && ` · ${partialReasonText}`}
               </p>
             )}
@@ -322,7 +382,7 @@ export default function PaymentsPage() {
           {/* Amount + actions */}
           <div className="flex items-center gap-3 flex-shrink-0">
             <span className={`font-bold text-sm ${isPaid ? "text-emerald-700" : isFuture ? "text-gray-500" : "text-gray-900"}`}>
-              ₪{p.amount.toLocaleString()}
+              {formatCurrency(p.amount)}
             </span>
             {!isPaid && !isFuture && (
               <div className="flex gap-1.5">
@@ -352,10 +412,18 @@ export default function PaymentsPage() {
               </div>
             )}
             {isPaid && !isVirtual && (
-              <button onClick={() => togglePaid(p)}
-                className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-semibold hover:bg-red-100 hover:text-red-700">
-                בטל
-              </button>
+              <>
+                <button onClick={() => togglePaid(p)}
+                  className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-semibold hover:bg-red-100 hover:text-red-700">
+                  בטל
+                </button>
+                {canBounce && (
+                  <button onClick={() => { setBounceOpenId(bounceOpenId === p.id ? null : p.id); resetBounceForm(); }}
+                    className="px-3 py-1.5 bg-white border border-rose-300 text-rose-700 rounded-lg text-xs font-semibold hover:bg-rose-50">
+                    שק חזר
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -370,7 +438,7 @@ export default function PaymentsPage() {
                 <NumberInput
                   value={partialAmount}
                   onChange={setPartialAmount}
-                  placeholder={`מתוך ${p.amount.toLocaleString()}`}
+                  placeholder={`מתוך ${formatAmount(p.amount)}`}
                   className="w-28 outline-none text-gray-900 text-xs"
                 />
               </div>
@@ -383,7 +451,7 @@ export default function PaymentsPage() {
               />
             </div>
             {partialAmount && partialAmount > 0 && partialAmount < p.amount && (
-              <p className="text-xs text-blue-600">יתרת חוב: <span className="num-ltr">₪{(p.amount - partialAmount).toLocaleString()}</span></p>
+              <p className="text-xs text-blue-600">יתרת חוב: <span className="num-ltr">{formatCurrency((p.amount - partialAmount))}</span></p>
             )}
             <div className="flex gap-2">
               <button onClick={() => savePartial(p, isVirtual)} disabled={savingPartial || !partialAmount || partialAmount <= 0 || partialAmount >= p.amount}
@@ -392,6 +460,40 @@ export default function PaymentsPage() {
               </button>
               <button onClick={() => setPartialOpenId(null)}
                 className="px-3 py-1 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50">
+                ביטול
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Bounced check form */}
+        {bounceOpenId === p.id && (
+          <div className="mt-2 p-3 rounded-xl border border-rose-200 bg-rose-50 space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">תאריך החזרה</label>
+              <input type="date" value={bounceDate} onChange={(e) => setBounceDate(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">סיבה</label>
+              <div className="space-y-1">
+                {(Object.keys(BOUNCE_REASON_LABELS) as BounceReason[]).map((r) => (
+                  <label key={r} className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="radio" name={`reason-${p.id}`} checked={bounceReason === r}
+                      onChange={() => setBounceReason(r)} className="accent-rose-600" />
+                    {BOUNCE_REASON_LABELS[r]}
+                  </label>
+                ))}
+              </div>
+            </div>
+            {bounceError && <p className="text-red-600 text-xs">{bounceError}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => saveBounce(p.id)} disabled={savingBounce}
+                className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-semibold hover:bg-rose-700 disabled:opacity-50">
+                {savingBounce ? "..." : "סמן שהשק חזר"}
+              </button>
+              <button onClick={() => { setBounceOpenId(null); resetBounceForm(); }}
+                className="px-3 py-1.5 bg-white border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold">
                 ביטול
               </button>
             </div>
@@ -447,33 +549,69 @@ export default function PaymentsPage() {
       <div className="grid grid-cols-3 gap-3">
         <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-rose-500 to-rose-700 text-white">
           <p className="text-xs text-white/80 font-semibold">לתשלום</p>
-          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">₪{totalDue.toLocaleString()}</p>
+          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">{formatCurrency(totalDue)}</p>
         </div>
         <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-amber-700 text-white">
           <p className="text-xs text-white/80 font-semibold">יתרה חלקית</p>
-          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">₪{totalDebt.toLocaleString()}</p>
+          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">{formatCurrency(totalDebt)}</p>
         </div>
         <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-500 to-emerald-700 text-white">
           <p className="text-xs text-white/80 font-semibold">שולם</p>
-          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">₪{totalPaidAmt.toLocaleString()}</p>
+          <p className="text-xl font-extrabold mt-1 drop-shadow-sm">{formatCurrency(totalPaidAmt)}</p>
         </div>
       </div>
 
+      {/* Bounced checks - not yet resolved */}
+      {bouncedItems.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-bold text-rose-700 flex items-center gap-1.5">
+            <Icon name="debts" size={16} />
+            שקים שחזרו ({bouncedItems.length})
+          </h2>
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 divide-y divide-rose-100">
+            {bouncedItems.map((p) => {
+              const chain = bounceChainForPayment(p.id, bounces);
+              const last = chain[chain.length - 1];
+              return (
+                <div key={p.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">
+                      {p.property_title ?? p.property?.title}
+                    </p>
+                    <p className="text-xs text-rose-700 mt-0.5">
+                      {chain.length > 1 && `${chain.length} החזרות · `}
+                      {last && `${BOUNCE_REASON_LABELS[last.reason]} · ${new Date(last.bounced_at).toLocaleDateString("he-IL")}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="font-bold text-sm text-rose-700">{formatCurrency(p.amount)}</span>
+                    <button onClick={() => togglePaid(p)}
+                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
+                      שולם מחדש
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Action items */}
-      {actionItems.length === 0 ? (
+      {actionItems.length === 0 && bouncedItems.length === 0 ? (
         <div className="rounded-2xl py-10 text-center space-y-2 border border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 to-emerald-700/5">
           <div className="flex justify-center"><Icon name="paid" size={36} className="text-emerald-600" /></div>
           <p className="text-emerald-300 font-semibold">הכל מעודכן!</p>
           <p className="text-xs text-emerald-400/80">אין תקבולים הממתינים לסימון</p>
         </div>
-      ) : (
+      ) : actionItems.length > 0 ? (
         <section className="space-y-2">
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
             דורשים טיפול ({actionItems.length})
           </h2>
           {actionItems.map(renderCard)}
         </section>
-      )}
+      ) : null}
 
       {/* Future items */}
       {futureItems.length > 0 && (
@@ -493,7 +631,7 @@ export default function PaymentsPage() {
             className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors"
           >
             <Icon name={showPaid ? "caretDown" : "caretRight"} size={12} />
-            שולמו ({paidItems.length}) · <span className="num-ltr">₪{totalPaidAmt.toLocaleString()}</span>
+            שולמו ({paidItems.length}) · <span className="num-ltr">{formatCurrency(totalPaidAmt)}</span>
           </button>
           {showPaid && (
             <div className="space-y-2">

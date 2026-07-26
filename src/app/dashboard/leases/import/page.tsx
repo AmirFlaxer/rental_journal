@@ -137,13 +137,13 @@ export default function ImportLeasePage() {
 
     const ext = f.name.split(".").pop()?.toLowerCase();
     if (ext === "docx" && !isPK)
-      return "הקובץ נשמר בפורמט Word ישן (.doc) אך שונה שמו ל-.docx — פתח ב-Word ושמור מחדש כ-\"Word Document (*.docx)\"";
+      return "הקובץ נשמר בפורמט Word ישן (.doc) אך שונה שמו ל-.docx - פתח ב-Word ושמור מחדש כ-\"Word Document (*.docx)\"";
     if (ext === "doc" && !isOLE && !isPK)
-      return "קובץ DOC לא תקין — נסה לשמור מחדש מ-Word";
+      return "קובץ DOC לא תקין - נסה לשמור מחדש מ-Word";
     if (ext === "pdf" && !isPDF)
-      return "הקובץ אינו PDF תקני — נסה לייצא מחדש";
+      return "הקובץ אינו PDF תקני - נסה לייצא מחדש";
     if (ext === "doc")
-      return "קובץ DOC ישן אינו נתמך — שמור ב-Word כ-\"Word Document (*.docx)\"";
+      return "קובץ DOC ישן אינו נתמך - שמור ב-Word כ-\"Word Document (*.docx)\"";
     return "";
   };
 
@@ -327,7 +327,7 @@ export default function ImportLeasePage() {
       } else {
         // Create new property from extracted data
         if (!data.propertyAddress || !data.propertyCity) {
-          throw new Error("חסרה כתובת הנכס — מלא רחוב ועיר לפני השמירה");
+          throw new Error("חסרה כתובת הנכס - מלא רחוב ועיר לפני השמירה");
         }
         const title = `${data.propertyAddress}${data.propertyHouseNumber ? " " + data.propertyHouseNumber : ""}, ${data.propertyCity}`;
         const newProp = await fetch("/api/properties", {
@@ -349,7 +349,7 @@ export default function ImportLeasePage() {
         propertyId = prop.id;
       }
 
-      // 1b. Archive any active lease on this property (fresh fetch — not cached data)
+      // 1b. Archive any active lease on this property (fresh fetch - not cached data)
       const freshProp = await fetch(`/api/properties/${propertyId}`).then((r) => r.ok ? r.json() : null);
       const existingLeases = (freshProp?.leases || []) as Lease[];
       const activeLeases = existingLeases.filter(isLeaseCurrentlyActive);
@@ -460,7 +460,7 @@ export default function ImportLeasePage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><Icon name="leaseImport" size={24} /> ייבוא חוזה שכירות</h1>
-        <p className="text-gray-500 text-sm mt-1">העלה חוזה PDF/DOCX — המערכת תחלץ אוטומטית את הנתונים לבדיקה ואישורך</p>
+        <p className="text-gray-500 text-sm mt-1">העלה חוזה PDF/DOCX - המערכת תחלץ אוטומטית את הנתונים לבדיקה ואישורך</p>
       </div>
 
       {/* Steps indicator */}
@@ -498,8 +498,8 @@ export default function ImportLeasePage() {
             <p className="font-semibold flex items-center gap-1" style={{ color: "var(--accent)" }}><Icon name="taxReport" size={16} /> הנחיות לקובץ</p>
             <ul className="space-y-1 text-xs" style={{ color: "var(--text-2)" }}>
               <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>PDF:</span> נתמך. אם הקובץ סרוק (תמונה), יחולץ אוטומטית באמצעות Gemini</li>
-              <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>DOCX:</span> נתמך — <span className="font-semibold" style={{ color: "var(--text-1)" }}>חובה שהקובץ יהיה בפורמט Word החדש (.docx)</span>. אם יש לך קובץ DOC ישן, פתח אותו ב-Word, ואז שמור בשם, ובחר &quot;Word Document (*.docx)&quot;</li>
-              <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>DOC:</span> לא נתמך — יש להמיר ל-DOCX או PDF</li>
+              <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>DOCX:</span> נתמך - <span className="font-semibold" style={{ color: "var(--text-1)" }}>חובה שהקובץ יהיה בפורמט Word החדש (.docx)</span>. אם יש לך קובץ DOC ישן, פתח אותו ב-Word, ואז שמור בשם, ובחר &quot;Word Document (*.docx)&quot;</li>
+              <li>• <span className="font-medium" style={{ color: "var(--text-1)" }}>DOC:</span> לא נתמך - יש להמיר ל-DOCX או PDF</li>
             </ul>
           </div>
 
@@ -644,8 +644,8 @@ export default function ImportLeasePage() {
           {isExtensionAnnex && (
             <div className="p-4 rounded-xl text-sm" style={{ background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--text-1)" }}>
               <div className="font-bold mb-1 flex items-center gap-1" style={{ color: "var(--accent)" }}><Icon name="leaseRenewal" size={16} /> זוהה נספח הארכת שכירות</div>
-              <p>המסמך זוהה כנספח הארכה. תאריכי ההארכה מולאו אוטומטית בסעיף <strong>אופציה / הארכה</strong> — אנא בדוק ואשר את הנתונים.</p>
-              <p className="mt-1" style={{ color: "var(--text-2)" }}>תאריכי &quot;תחילה&quot; ו&quot;סיום&quot; למטה הם תאריכי החוזה המקורי — עדכן אותם אם הם לא מולאו נכון.</p>
+              <p>המסמך זוהה כנספח הארכה. תאריכי ההארכה מולאו אוטומטית בסעיף <strong>אופציה / הארכה</strong> - אנא בדוק ואשר את הנתונים.</p>
+              <p className="mt-1" style={{ color: "var(--text-2)" }}>תאריכי &quot;תחילה&quot; ו&quot;סיום&quot; למטה הם תאריכי החוזה המקורי - עדכן אותם אם הם לא מולאו נכון.</p>
             </div>
           )}
           {saveError && (
@@ -695,7 +695,7 @@ export default function ImportLeasePage() {
                   </div>
                   {propertyAction === "use-existing" && (matchedProperty.leases || []).some((l) => isLeaseCurrentlyActive(l)) && (
                     <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-                      <Icon name="unpaid" size={16} className="inline text-amber-700" /> לנכס זה יש חוזה פעיל — הוא יועבר לארכיון ולא יימחק
+                      <Icon name="unpaid" size={16} className="inline text-amber-700" /> לנכס זה יש חוזה פעיל - הוא יועבר לארכיון ולא יימחק
                     </p>
                   )}
                 </div>
@@ -722,7 +722,7 @@ export default function ImportLeasePage() {
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white">
                     <option value="">-- צור נכס חדש --</option>
                     {allProperties.map((p) => (
-                      <option key={p.id} value={p.id}>{p.title} — {p.city}</option>
+                      <option key={p.id} value={p.id}>{p.title} - {p.city}</option>
                     ))}
                   </select>
                 </div>
@@ -806,7 +806,7 @@ export default function ImportLeasePage() {
                 <option value="paybox">פייבוקס</option>
               </select>
             </div>
-            {/* Bank details — only for standing order */}
+            {/* Bank details - only for standing order */}
             {data.paymentMethod === "standing_order" && (
               <>
                 <Field label="שם הבנק" value={data.checkBank} onChange={set("checkBank")} />
@@ -814,7 +814,7 @@ export default function ImportLeasePage() {
                 <Field label="מספר חשבון" value={data.checkAccount} onChange={set("checkAccount")} />
               </>
             )}
-            {/* Reminder — only for checks */}
+            {/* Reminder - only for checks */}
             {data.paymentMethod === "checks" && (
               <div className="md:col-span-2 flex items-center gap-3">
                 <input type="checkbox" id="remChk" checked={data.checkDepositReminder}

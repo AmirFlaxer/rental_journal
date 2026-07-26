@@ -24,6 +24,11 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
+  // ניווטי-מסמך אינם עוברים דרכנו: HTML לא נשמר בקאש (ראה הסינון למטה), ולכן ברשת
+  // שנפלה ה-respondWith היה נפתר ל-undefined - והדפדפן מציג דף לבן במקום מסך
+  // שגיאת-הרשת הרגיל שלו. עדיף להשאיר את הניווט לדפדפן.
+  if (event.request.mode === "navigate") return;
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
@@ -36,7 +41,9 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      // גם כאן: כשהנכס אינו בקאש, Response.error() משחזר את התנהגות הדפדפן ללא SW,
+      // במקום undefined שנחשב חריגה ומפיל את הבקשה בלי הסבר.
+      .catch(async () => (await caches.match(event.request)) || Response.error())
   );
 });
 

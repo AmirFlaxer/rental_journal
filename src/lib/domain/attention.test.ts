@@ -9,6 +9,7 @@ describe("buildAttentionItems", () => {
       payments: [{ id: "p1", status: "pending", due_date: "2026-07-01", amount: 5500, property: { title: "נורדאו 58" } }],
       activeLeases: [{ id: "l1", end_date: "2026-10-07", properties: { title: "שלומציון המלכה 5" } }],
       openTasks: [{ id: "t1", title: "הפקדת שק שכ\"ד", due_date: "2026-07-12" }],
+      bounces: [],
       today: TODAY,
     });
     expect(items.map((i) => i.kind)).toEqual(["overdue", "task", "lease_ending"]);
@@ -22,6 +23,7 @@ describe("buildAttentionItems", () => {
       payments: [{ id: "p1", status: "paid", due_date: "2026-07-01", amount: 5500 }],
       activeLeases: [{ id: "l1", end_date: "2027-01-01", properties: { title: "x" } }],
       openTasks: [{ id: "t1", title: "רחוק", due_date: "2026-07-30" }],
+      bounces: [],
       today: TODAY,
     });
     expect(items).toEqual([]);
@@ -32,6 +34,7 @@ describe("buildAttentionItems", () => {
       payments: [],
       activeLeases: [{ id: "l1", end_date: TODAY, properties: { title: "x" } }],
       openTasks: [{ id: "t1", title: "לתקן דוד", due_date: TODAY }],
+      bounces: [],
       today: TODAY,
     });
     expect(items.find((i) => i.kind === "task")?.sub).toBe("היום");
@@ -40,7 +43,7 @@ describe("buildAttentionItems", () => {
 });
 
 describe("buildAttentionItems - גבולות אופק", () => {
-  const base = { payments: [], activeLeases: [], openTasks: [], today: TODAY };
+  const base = { payments: [], activeLeases: [], openTasks: [], bounces: [], today: TODAY };
 
   it("משימה בדיוק באופק 7 ימים נכללת; יום 8 לא", () => {
     const at7 = buildAttentionItems({ ...base, openTasks: [{ id: "t1", title: "x", due_date: "2026-07-17" }] });
@@ -76,9 +79,43 @@ describe("buildAttentionItems - גבולות אופק", () => {
         { id: "t1", title: "קרוב", due_date: "2026-07-12T00:00:00+00:00" },
         { id: "t2", title: "רחוק", due_date: "2026-08-20T00:00:00+00:00" },
       ],
+      bounces: [],
       today: TODAY,
     });
     expect(items).toHaveLength(1);
     expect(items[0].sub).toBe("בעוד 2 ימים");
+  });
+});
+
+describe("שקים שחזרו", () => {
+  const BOUNCE = {
+    id: "b1", payment_id: "p-bounced", lease_id: "l1",
+    bounced_at: "2026-07-26", reason: "nsf" as const,
+  };
+
+  it("פריט שק שחזר מופיע ראשון גם כשיש חוב ותיק יותר", () => {
+    const items = buildAttentionItems({
+      payments: [
+        { id: "p-old", status: "pending", due_date: "2026-01-01", amount: 5000, property: { title: "ותיק" } },
+        { id: "p-bounced", status: "pending", due_date: "2026-07-26", amount: 5500, property: { title: "שלומציון" } },
+      ],
+      activeLeases: [],
+      openTasks: [],
+      bounces: [BOUNCE],
+      today: "2026-07-27",
+    });
+    expect(items[0].kind).toBe("bounced");
+    expect(items[0].label).toContain("שק חזר");
+  });
+
+  it("לא מופיע אחרי שהשוכר שילם שוב", () => {
+    const items = buildAttentionItems({
+      payments: [{ id: "p-bounced", status: "paid", due_date: "2026-07-26", amount: 5500, property: { title: "שלומציון" } }],
+      activeLeases: [],
+      openTasks: [],
+      bounces: [BOUNCE],
+      today: "2026-07-27",
+    });
+    expect(items.some((i) => i.kind === "bounced")).toBe(false);
   });
 });

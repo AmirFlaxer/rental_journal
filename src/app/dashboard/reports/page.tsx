@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { Icon } from "@/components/Icon";
+import { formatCurrency } from "@/lib/domain/money";
 
 const PROPERTY_TYPE_HE: Record<string, string> = {
   Apartment: "דירה",
@@ -70,9 +71,7 @@ interface ReportsResponse { property_stats: PropertyRaw[]; }
 
 const EMPTY_PROPERTIES: PropertyRaw[] = [];
 
-function fmt(n: number) {
-  return `₪${Math.round(n).toLocaleString("he-IL")}`;
-}
+const fmt = formatCurrency;
 
 function Bar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
@@ -108,7 +107,7 @@ function computeStats(properties: PropertyRaw[], year: number | null): {
   expensesByCategory: Record<string, number>;
 } {
   const propertyStats: PropertyStat[] = properties.map((p) => {
-    // Filter by rent month (due_date) — consistent with the backend (/api/reports) and the monthly chart below.
+    // Filter by rent month (due_date) - consistent with the backend (/api/reports) and the monthly chart below.
     const payments = year
       ? p.payments.filter((pay) => pay.due_date && new Date(pay.due_date).getFullYear() === year)
       : p.payments;
@@ -337,7 +336,7 @@ export default function ReportsPage() {
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2.5">
               <span className="inline-block w-1 h-5 rounded-full tick-accent" />
-              סיכום לפי נכס{selectedYear ? ` — ${selectedYear}` : ""}
+              סיכום לפי נכס{selectedYear ? ` - ${selectedYear}` : ""}
             </h2>
           </div>
           {propertyStats.length === 0 ? (
@@ -371,11 +370,11 @@ export default function ReportsPage() {
                           ? <span className="text-green-600">{fmt(p.monthlyRent)}</span>
                           : p.lastMonthlyRent > 0
                             ? <span className="text-gray-400"><span className="num-ltr">{fmt(p.lastMonthlyRent)}</span> <span className="text-xs font-normal">(לא פעיל)</span></span>
-                            : "—"}
+                            : "-"}
                       </td>
-                      <td className="px-4 py-4 text-gray-700">{p.totalPaid > 0 ? fmt(p.totalPaid) : "—"}</td>
-                      <td className="px-4 py-4 text-red-500">{p.totalExpenses > 0 ? fmt(p.totalExpenses) : "—"}</td>
-                      {showTax && <td className="px-4 py-4 font-semibold text-amber-600">{p.tax10 > 0 ? fmt(p.tax10) : "—"}</td>}
+                      <td className="px-4 py-4 text-gray-700">{p.totalPaid > 0 ? fmt(p.totalPaid) : "-"}</td>
+                      <td className="px-4 py-4 text-red-500">{p.totalExpenses > 0 ? fmt(p.totalExpenses) : "-"}</td>
+                      {showTax && <td className="px-4 py-4 font-semibold text-amber-600">{p.tax10 > 0 ? fmt(p.tax10) : "-"}</td>}
                       <td className={`px-4 py-4 font-bold ${p.netIncome >= 0 ? "text-green-600" : "text-red-500"}`}>
                         {fmt(p.netIncome)}
                       </td>
@@ -417,7 +416,7 @@ export default function ReportsPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2.5">
               <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600" />
-              פעילות חודשית{selectedYear ? ` — ${selectedYear}` : ""}
+              פעילות חודשית{selectedYear ? ` - ${selectedYear}` : ""}
             </h2>
             {monthly.length === 0 ? (
               <p className="text-gray-400 text-sm">אין נתונים</p>
@@ -457,7 +456,7 @@ export default function ReportsPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2.5">
               <span className="inline-block w-1 h-5 rounded-full bg-gradient-to-b from-orange-400 to-orange-600" />
-              הוצאות לפי קטגוריה{selectedYear ? ` — ${selectedYear}` : ""}
+              הוצאות לפי קטגוריה{selectedYear ? ` - ${selectedYear}` : ""}
             </h2>
             {Object.keys(expensesByCategory).length === 0 ? (
               <p className="text-gray-400 text-sm">אין הוצאות</p>

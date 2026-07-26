@@ -1,5 +1,5 @@
 -- ============================================================
--- Rental Journal – Supabase SQL Schema
+-- Rental Journal - Supabase SQL Schema
 -- הרץ את הסקריפט הזה ב: Supabase Dashboard → SQL Editor
 -- ============================================================
 
@@ -158,7 +158,7 @@ create table if not exists expenses (
 );
 
 -- ----------------------------------------------------------------
--- EXPENSES (המשך — עמודות מס אוטומטי)
+-- EXPENSES (המשך - עמודות מס אוטומטי)
 -- הרץ ALTER אם הטבלה כבר קיימת:
 --   ALTER TABLE expenses
 --     ADD COLUMN IF NOT EXISTS is_auto_tax boolean NOT NULL DEFAULT false,
@@ -212,7 +212,7 @@ create table if not exists tasks (
 );
 
 -- ----------------------------------------------------------------
--- TASKS (המשך — קישור לתקבול מקור, לסגירת תזכורת שק אוטומטית)
+-- TASKS (המשך - קישור לתקבול מקור, לסגירת תזכורת שק אוטומטית)
 -- הרץ ALTER אם הטבלה כבר קיימת:
 --   ALTER TABLE tasks
 --     ADD COLUMN IF NOT EXISTS source_payment_id text references payments(id) on delete set null;
@@ -325,6 +325,48 @@ alter table property_utilities enable row level security;
 create policy "property_utilities_owner" on property_utilities for all using (user_id = auth.uid());
 
 -- ----------------------------------------------------------------
+create table if not exists check_bounces (
+  id          text        primary key default gen_random_uuid()::text,
+  user_id     uuid        not null references auth.users(id) on delete cascade,
+  payment_id  text        references payments(id) on delete set null,
+  lease_id    text        not null references leases(id) on delete cascade,
+  bounced_at  date        not null,
+  reason      text        not null
+                check (reason in ('nsf','restricted','cancelled','other')),
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists check_bounces_lease_idx on check_bounces(lease_id);
+create index if not exists check_bounces_payment_idx on check_bounces(payment_id);
+
+-- ----------------------------------------------------------------
+-- LEASE SECURITIES (בטחונות המוחזקים תחת חוזה - שק/שטר ביטחון, שקי חשבונות שירות, פיקדון כספי)
+-- ----------------------------------------------------------------
+create table if not exists lease_securities (
+  id            text        primary key default gen_random_uuid()::text,
+  user_id       uuid        not null references auth.users(id) on delete cascade,
+  lease_id      text        not null references leases(id) on delete cascade,
+  property_id   text        not null references properties(id) on delete cascade,
+  kind          text        not null
+                  check (kind in ('cash_deposit','security_check','promissory_note','utility_check','other')),
+  utility_type  text        check (utility_type in ('electricity','water','gas','municipal_tax')),
+  amount        numeric,
+  bank          text,
+  branch        text,
+  account       text,
+  check_number  text,
+  status        text        not null default 'held'
+                  check (status in ('held','returned','cashed')),
+  received_date date,
+  resolved_date date,
+  notes         text,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+alter table lease_securities enable row level security;
+create policy "lease_securities_owner" on lease_securities for all using (user_id = auth.uid());
+
+-- ----------------------------------------------------------------
 -- ROW LEVEL SECURITY (RLS)
 -- מאפשר לכל משתמש לגשת רק לנתונים שלו
 -- ----------------------------------------------------------------
@@ -336,6 +378,7 @@ alter table expenses      enable row level security;
 alter table payments      enable row level security;
 alter table tasks         enable row level security;
 alter table property_assets enable row level security;
+alter table check_bounces enable row level security;
 
 -- Properties
 create policy "properties_owner" on properties for all using (user_id = auth.uid());
@@ -362,17 +405,20 @@ create policy "tasks_owner" on tasks for all using (user_id = auth.uid());
 -- Property assets
 create policy "property_assets_owner" on property_assets for all using (user_id = auth.uid());
 
+-- Check bounces
+create policy "check_bounces_owner" on check_bounces for all using (user_id = auth.uid());
+
 -- ----------------------------------------------------------------
--- GRANTS — נדרש מ-30 אוקטובר 2026 (Supabase Data API change)
+-- GRANTS - נדרש מ-30 אוקטובר 2026 (Supabase Data API change)
 -- טבלאות ב-public חייבות GRANT מפורש כדי להיות נגישות ל-API
 -- ----------------------------------------------------------------
 
--- index_rates — ציבורי לקריאה
+-- index_rates - ציבורי לקריאה
 grant select                            on public.index_rates       to anon;
 grant select                            on public.index_rates       to authenticated;
 grant select, insert, update, delete    on public.index_rates       to service_role;
 
--- טבלאות פרטיות — רק משתמשים מחוברים (RLS מגן על הנתונים)
+-- טבלאות פרטיות - רק משתמשים מחוברים (RLS מגן על הנתונים)
 grant select, insert, update, delete    on public.properties        to authenticated;
 grant select, insert, update, delete    on public.tenants           to authenticated;
 grant select, insert, update, delete    on public.leases            to authenticated;
@@ -381,6 +427,10 @@ grant select, insert, update, delete    on public.expenses          to authentic
 grant select, insert, update, delete    on public.payments          to authenticated;
 grant select, insert, update, delete    on public.tasks             to authenticated;
 grant select, insert, update, delete    on public.property_assets   to authenticated;
+grant select, insert, update, delete    on public.feedback          to authenticated;
+grant select, insert, update, delete    on public.property_utilities to authenticated;
+grant select, insert, update, delete    on public.check_bounces     to authenticated;
+grant select, insert, update, delete    on public.lease_securities  to authenticated;
 
 grant select, insert, update, delete    on public.properties        to service_role;
 grant select, insert, update, delete    on public.tenants           to service_role;
@@ -390,6 +440,10 @@ grant select, insert, update, delete    on public.expenses          to service_r
 grant select, insert, update, delete    on public.payments          to service_role;
 grant select, insert, update, delete    on public.tasks             to service_role;
 grant select, insert, update, delete    on public.property_assets   to service_role;
+grant select, insert, update, delete    on public.feedback          to service_role;
+grant select, insert, update, delete    on public.property_utilities to service_role;
+grant select, insert, update, delete    on public.check_bounces     to service_role;
+grant select, insert, update, delete    on public.lease_securities  to service_role;
 
 -- ----------------------------------------------------------------
 -- STORAGE BUCKET

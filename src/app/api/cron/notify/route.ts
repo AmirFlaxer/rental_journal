@@ -63,14 +63,14 @@ export async function GET(req: Request) {
 
     const propTitle = (lease.properties as unknown as { title: string } | null)?.title ?? "נכס";
     const msg = {
-      title: `חוזה עומד לפוג — ${propTitle}`,
+      title: `חוזה עומד לפוג - ${propTitle}`,
       body: `נותרו ${daysLeft} ימים לסיום החוזה`,
     };
     if (!leaseNotifications[lease.user_id]) leaseNotifications[lease.user_id] = [];
     leaseNotifications[lease.user_id].push(msg);
   }
 
-  // ── 2. תזכורות שק — מחר ──────────────────────────────────────────
+  // ── 2. תזכורות שק - מחר ──────────────────────────────────────────
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = tomorrow.toISOString().slice(0, 10);

@@ -12,6 +12,10 @@ import { buildAttentionItems } from "@/lib/domain/attention";
 import { readAndStampVisit, summarizeSince } from "@/lib/domain/last-visit";
 import { weekGroupLabel } from "@/lib/domain/dates";
 import { apiGet, queryKeys } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/domain/money";
+import { greetingFor } from "@/lib/domain/greeting";
+import { useUserName } from "@/lib/use-user-name";
+import type { CheckBounce } from "@/lib/domain/check-bounce";
 
 interface Property {
   id: string;
@@ -94,20 +98,23 @@ function pendingPaymentsSummary(leases: Lease[], dbPayments: Payment[]): { count
 }
 
 export default function Dashboard() {
+  const userName = useUserName();
   const propertiesQuery = useQuery({ queryKey: queryKeys.properties, queryFn: () => apiGet<Property[]>("/api/properties") });
   const leasesQuery = useQuery({ queryKey: queryKeys.leases, queryFn: () => apiGet<Lease[]>("/api/leases") });
   const paymentsQuery = useQuery({ queryKey: queryKeys.payments, queryFn: () => apiGet<Payment[]>("/api/payments") });
   const expensesQuery = useQuery({ queryKey: queryKeys.expenses, queryFn: () => apiGet<Expense[]>("/api/expenses") });
   const tasksQuery = useQuery({ queryKey: queryKeys.tasks, queryFn: () => apiGet<Task[]>("/api/tasks") });
+  const checkBouncesQuery = useQuery({ queryKey: queryKeys.checkBounces, queryFn: () => apiGet<CheckBounce[]>("/api/check-bounces") });
 
   const properties = useMemo(() => propertiesQuery.data ?? [], [propertiesQuery.data]);
   const leases = useMemo(() => leasesQuery.data ?? [], [leasesQuery.data]);
   const payments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
   const expenses = useMemo(() => expensesQuery.data ?? [], [expensesQuery.data]);
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
+  const bounces = useMemo(() => checkBouncesQuery.data ?? [], [checkBouncesQuery.data]);
 
-  const isPending = propertiesQuery.isPending || leasesQuery.isPending || paymentsQuery.isPending || expensesQuery.isPending || tasksQuery.isPending;
-  const failedQuery = [propertiesQuery, leasesQuery, paymentsQuery, expensesQuery, tasksQuery].find((q) => q.isError);
+  const isPending = propertiesQuery.isPending || leasesQuery.isPending || paymentsQuery.isPending || expensesQuery.isPending || tasksQuery.isPending || checkBouncesQuery.isPending;
+  const failedQuery = [propertiesQuery, leasesQuery, paymentsQuery, expensesQuery, tasksQuery, checkBouncesQuery].find((q) => q.isError);
 
   const activeLeases = useMemo(
     () => properties.flatMap((p) => p.leases || []).filter(isLeaseCurrentlyActive),
@@ -134,9 +141,9 @@ export default function Dashboard() {
   const openTasks = useMemo(() => tasks.filter((t) => t.completed_at === null), [tasks]);
   const attention = useMemo(
     () => buildAttentionItems({
-      payments, activeLeases: leases.filter(isLeaseCurrentlyActive), openTasks, today,
+      payments, activeLeases: leases.filter(isLeaseCurrentlyActive), openTasks, bounces, today,
     }),
-    [payments, leases, openTasks, today]
+    [payments, leases, openTasks, bounces, today]
   );
 
   // חותמת ביקור - נקראת ומוטבעת פעם אחת per mount; עוטפים ב-try/catch כי
@@ -192,8 +199,8 @@ export default function Dashboard() {
   const { count: pendingCount } = pendingSummary;
 
   const incomeExpenseStats = [
-    { label: "הכנסה חודשית", value: monthlyIncome > 0 ? `₪${monthlyIncome.toLocaleString()}` : "—", subValue: monthlyIncome > 0 ? `₪${Math.round(monthlyIncome * 0.9).toLocaleString()} לאחר מס` : undefined, icon: "rentCollection" as const, gradient: "from-emerald-500 to-emerald-700", href: "/dashboard/reports" },
-    { label: "הוצאות כוללות", value: totalExpenses > 0 ? `₪${totalExpenses.toLocaleString()}` : "₪0", icon: "expenses" as const, gradient: "from-rose-500 to-rose-700", href: "/dashboard/expenses" },
+    { label: "הכנסה חודשית", value: monthlyIncome > 0 ? formatCurrency(monthlyIncome) : "-", subValue: monthlyIncome > 0 ? `${formatCurrency(monthlyIncome * 0.9)} לאחר מס` : undefined, icon: "rentCollection" as const, gradient: "from-emerald-500 to-emerald-700", href: "/dashboard/reports" },
+    { label: "הוצאות כוללות", value: totalExpenses > 0 ? formatCurrency(totalExpenses) : "₪0", icon: "expenses" as const, gradient: "from-rose-500 to-rose-700", href: "/dashboard/expenses" },
   ];
 
   return (
@@ -202,7 +209,7 @@ export default function Dashboard() {
       <div>
         <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2.5">
           <span className="inline-block w-1.5 h-7 rounded-full tick-accent" />
-          שלום
+          {greetingFor(userName)}
         </h1>
         <p className="text-gray-500 mt-1 text-sm">
           {new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
@@ -239,7 +246,7 @@ export default function Dashboard() {
             {sinceSummary.paymentsCount > 0 && (
               <li className="flex justify-between items-center">
                 <span>{sinceSummary.paymentsCount} תקבולי שכ&quot;ד נכנסו</span>
-                <span className="font-bold text-emerald-700 num-ltr flex items-center gap-1">₪{sinceSummary.paymentsSum.toLocaleString()} <Icon name="check" size={14} /></span>
+                <span className="font-bold text-emerald-700 num-ltr flex items-center gap-1">{formatCurrency(sinceSummary.paymentsSum)} <Icon name="check" size={14} /></span>
               </li>
             )}
             {sinceSummary.tasksDone > 0 && (
@@ -261,9 +268,14 @@ export default function Dashboard() {
           <p className="text-sm font-bold text-amber-700 flex items-center gap-1"><Icon name="pin" size={16} /> דורש טיפול ({attention.length})</p>
           {attention.map((item) => (
             <Link key={item.id} href={item.href}
-              className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5 hover:bg-gray-100 transition-colors">
-              <span className="text-sm font-semibold text-gray-800">{item.label}</span>
-              <span className="text-xs font-bold text-gray-500 num-ltr">{item.sub}</span>
+              className={`flex items-center justify-between rounded-xl px-4 py-2.5 transition-colors ${
+                item.kind === "bounced" ? "bg-rose-50 border border-rose-200 hover:bg-rose-100" : "bg-gray-50 hover:bg-gray-100"
+              }`}>
+              <span className={`text-sm font-semibold ${item.kind === "bounced" ? "text-rose-700" : "text-gray-800"}`}>{item.label}</span>
+              {/* "bounced" ה-sub הוא מחרוזת מעורבת (סכום · סיבה בעברית · תאריך) - num-ltr
+                  הופך direction ל-ltr לכל המחרוזת ומהפך את סדר שלושת המקטעים חזותית.
+                  שאר הסוגים מציגים מקטע יחיד (מספר/טקסט "בעוד X ימים") ולא נפגעים מזה */}
+              <span className={`text-xs font-bold ${item.kind === "bounced" ? "text-rose-700" : "num-ltr text-gray-500"}`}>{item.sub}</span>
             </Link>
           ))}
         </div>
@@ -272,7 +284,7 @@ export default function Dashboard() {
       {/* מספר-גיבור: תזרים החודש */}
       <div className="text-center py-2">
         <p className="text-sm text-gray-600">תזרים החודש, אחרי מס</p>
-        <p className="text-5xl font-bold text-gray-900 num-ltr py-1">₪{Math.round(cashflow).toLocaleString()}</p>
+        <p className="text-5xl font-bold text-gray-900 num-ltr py-1">{formatCurrency(Math.round(cashflow))}</p>
         {trendPct !== null && (
           trendPct === 0 ? (
             <p className="text-sm font-semibold text-gray-500">ללא שינוי מהחודש שעבר</p>
@@ -328,7 +340,7 @@ export default function Dashboard() {
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{p.payment_type === "Rent" ? "שכ\"ד" : p.payment_type} - {p.property?.title ?? "נכס"}</p>
                   </div>
-                  <p className="text-sm font-bold text-emerald-700 num-ltr">₪{getReceivedAmount(p).toLocaleString()}</p>
+                  <p className="text-sm font-bold text-emerald-700 num-ltr">{formatCurrency(getReceivedAmount(p))}</p>
                 </div>
               ))}
             </div>
@@ -385,7 +397,7 @@ export default function Dashboard() {
                   <div className="flex items-center gap-4 text-sm">
                     {rent > 0 && (
                       <div className="text-right">
-                        <p className="font-semibold text-emerald-700">₪{rent.toLocaleString()}</p>
+                        <p className="font-semibold text-emerald-700">{formatCurrency(rent)}</p>
                         <p className="text-gray-400 text-xs">לחודש</p>
                       </div>
                     )}

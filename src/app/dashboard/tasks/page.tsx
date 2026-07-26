@@ -61,7 +61,7 @@ const CAT_FG: Record<string, string> = {
   "Municipal Tax":   "#334155",
   Other:             "#701a75",
 };
-// פלטת צבעים לנכסים — שלוש רמות עוצמה לכל גוון (כהה / בסיס / בהיר)
+// פלטת צבעים לנכסים - שלוש רמות עוצמה לכל גוון (כהה / בסיס / בהיר)
 const PROP_PALETTE      = ["#6366f1","#ec4899","#f97316","#10b981","#3b82f6","#8b5cf6","#eab308","#06b6d4"];
 const PROP_PALETTE_DARK = ["#3730a3","#be185d","#c2410c","#065f46","#1d4ed8","#6d28d9","#a16207","#0e7490"];
 const PROP_PALETTE_LITE = ["#e0e7ff","#fce7f3","#ffedd5","#d1fae5","#dbeafe","#ede9fe","#fef9c3","#cffafe"];
@@ -119,6 +119,15 @@ interface Property {
   title: string;
 }
 
+/** שורה חלקית מ-/api/payments - רק השדות הדרושים לזיהוי תקבול קיים לפי חוזה+חודש */
+interface PaymentLite {
+  id: string;
+  lease_id: string | null;
+  payment_type: string;
+  due_date: string;
+  status: string;
+}
+
 /** שורה גולמית מ-/api/property-utilities - בלי property_title (מצטרף מ-/api/properties בצד לקוח) */
 interface PropertyUtilityRow {
   id: string;
@@ -147,13 +156,13 @@ function generateVirtualCheckTasks(leases: Lease[], dbTasks: Task[]): Task[] {
   const leaseToProperty = new Map(leases.map((l) => [l.id, l.properties?.id ?? l.id]));
 
   // חודשים שכבר מכוסים ע"י משימת DB שאינה פגת-תוקף (לפי נכס+חודש)
-  // משימה פגת-תוקף לא חוסמת — ייתכן שנוצרה עם תאריך שגוי (באג UTC)
+  // משימה פגת-תוקף לא חוסמת - ייתכן שנוצרה עם תאריך שגוי (באג UTC)
   const todayMonth = today.slice(0, 7);
   const coveredPropertyMonths = new Set<string>();
   for (const t of dbTasks) {
     if (t.category === "Rent Collection" && t.related_entity_type === "lease" && t.related_entity_id) {
       const propId = leaseToProperty.get(t.related_entity_id);
-      // מכסה חודש נוכחי או עתידי — גם אם due_date הוא אתמול (תזכורת יום לפני התשלום)
+      // מכסה חודש נוכחי או עתידי - גם אם due_date הוא אתמול (תזכורת יום לפני התשלום)
       if (propId && t.due_date.slice(0, 7) >= todayMonth) {
         coveredPropertyMonths.add(propertyMonthKey(propId, t.due_date.slice(0, 7)));
       }
@@ -176,7 +185,7 @@ function generateVirtualCheckTasks(leases: Lease[], dbTasks: Task[]): Task[] {
       const propertyLabel = lease.properties?.title ?? "נכס";
       virtual.push({
         id: `virtual-check-${lease.id}-${slot.monthKey}`,
-        title: `הפקדת שק שכ"ד — ${propertyLabel} — ${monthLabel}`,
+        title: `הפקדת שק שכ"ד - ${propertyLabel} - ${monthLabel}`,
         category: "Rent Collection",
         due_date: slot.due_date,
         priority: "normal",
@@ -189,6 +198,23 @@ function generateVirtualCheckTasks(leases: Lease[], dbTasks: Task[]): Task[] {
   }
 
   return virtual;
+}
+
+/**
+ * תזכורת הפקדת שק - מסומנת דרך התקבול ולא דרך המשימה.
+ *
+ * בדיקת שיטת התשלום חיונית ואסור להשמיט אותה: שני נתיבי התקבולים בשרת
+ * מפעילים את closeCheckReminderForPayment רק כש-isCheckPaymentMethod מתקיים.
+ * אם נשלח לשם תזכורת ישנה של חוזה בהעברה בנקאית, ייווצר תקבול אבל המשימה
+ * תישאר פתוחה - והמשתמש ילחץ שוב וייצור תקבול כפול. חוזה שאינו בשקים
+ * ממשיך במסלול הישן של עדכון המשימה בלבד.
+ */
+function isCheckDepositReminder(t: Task, leaseById: Map<string, Lease>): boolean {
+  if (t.category !== "Rent Collection" || t.related_entity_type !== "lease" || !t.related_entity_id) {
+    return false;
+  }
+  const method = leaseById.get(t.related_entity_id)?.payment_method?.toLowerCase();
+  return method === "check" || method === "checks";
 }
 
 // "רלוונטי" = פג מועד או עד 30 יום קדימה
@@ -233,16 +259,25 @@ export default function TasksPage() {
     queryFn: () => apiGet<PropertyUtilityRow[]>("/api/property-utilities"),
     retry: false,
   });
+  // דרוש למסלול "סימון תזכורת שק רושם את התקבול" ב-complete - איתור תקבול קיים לאותו חוזה+חודש
+  const paymentsQuery = useQuery({
+    queryKey: queryKeys.payments,
+    queryFn: () => apiGet<PaymentLite[]>("/api/payments"),
+  });
   const dbTasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const leases = useMemo(() => leasesQuery.data ?? [], [leasesQuery.data]);
   const properties = useMemo(() => propertiesQuery.data ?? [], [propertiesQuery.data]);
   const utilityRows = useMemo(() => utilitiesQuery.data ?? [], [utilitiesQuery.data]);
-  const isPending = tasksQuery.isPending || leasesQuery.isPending || propertiesQuery.isPending;
-  const failedQuery = [tasksQuery, leasesQuery, propertiesQuery].find((q) => q.isError);
+  const payments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
+  const leaseById = useMemo(() => new Map(leases.map((l) => [l.id, l])), [leases]);
+  const isPending = tasksQuery.isPending || leasesQuery.isPending || propertiesQuery.isPending || paymentsQuery.isPending;
+  const failedQuery = [tasksQuery, leasesQuery, propertiesQuery, paymentsQuery].find((q) => q.isError);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showDone, setShowDone] = useState(true);
   const [showFuture, setShowFuture] = useState(true);
+  // תזכורות רחוקות מהשנה הקרובה - מוסתרות עד לחיצה מפורשת
+  const [showFar, setShowFar] = useState(false);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -260,7 +295,7 @@ export default function TasksPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // באנר שגיאה inline לרשימה (במקום alert) — נעלם אוטומטית או בסגירה ידנית
+  // באנר שגיאה inline לרשימה (במקום alert) - נעלם אוטומטית או בסגירה ידנית
   const [listError, setListError] = useState("");
   const listErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showListError = (msg: string) => {
@@ -282,7 +317,7 @@ export default function TasksPage() {
     if (confirmDeleteTimer.current) clearTimeout(confirmDeleteTimer.current);
   }, []);
 
-  // ניקוי כפילויות/יתומות של תזכורות שק — מתבצע בשרת (POST /api/tasks/cleanup),
+  // ניקוי כפילויות/יתומות של תזכורות שק - מתבצע בשרת (POST /api/tasks/cleanup),
   // לא בצד לקוח: אם /api/leases נכשל רגעית, אין סכנה שכל תזכורות ה-Rent Collection
   // ייחשבו יתומות וימחקו בטעות (באג שהיה בגרסה הקודמת של הניקוי כאן).
   // רץ פעם אחת ב-mount; ה-ref מונע הרצה כפולה ב-Strict Mode של פיתוח.
@@ -363,6 +398,13 @@ export default function TasksPage() {
       return a.due_date.localeCompare(b.due_date);   // אחר כך הכי מוקדם
     });
   const future = allPending.filter((t) => !isRelevant(t));
+  // חלוקה לפי אופק: תזכורות שנוצרו בעבר משתרעות שנים קדימה (תזכורות ביטוח שנתיות
+  // עד 2049, חשבונות דו-חודשיים עד 2030) ומציפות את המסך במאות כרטיסים. מציגים
+  // כברירת מחדל רק את השנה הקרובה, והשאר נשאר נגיש בלחיצה - בלי להסתיר בשקט.
+  const futureHorizon = new Date(today);
+  futureHorizon.setFullYear(futureHorizon.getFullYear() + 1);
+  const futureNear = future.filter((t) => new Date(t.due_date) <= futureHorizon);
+  const futureFar = future.filter((t) => new Date(t.due_date) > futureHorizon);
   // תזכורות חשבון שירות מעוגנות לתחילת החודש (due_date = ה-1) ומייצגות את "החודש הנוכחי",
   // לא deadline - לכן לא נספרות/מוצגות כפג-מועד לאורך החודש.
   const overdueCount = allPending.filter(
@@ -399,7 +441,7 @@ export default function TasksPage() {
         if (!res.ok) throw new Error(data.error || "שגיאה");
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
       } else {
-        // Recurring — calculate all dates
+        // Recurring - calculate all dates
         const occurrences: string[] = [];
         let cur = new Date(form.due_date);
 
@@ -456,6 +498,52 @@ export default function TasksPage() {
     const key = t.isVirtual ? `virtual-${t.due_date}-${t.related_entity_id}` : t.id;
     setCompletingId(key);
     try {
+      if (isCheckDepositReminder(t, leaseById)) {
+        // תזכורת הפקדת שק - לא מעדכנים את המשימה ישירות. מנתבים דרך ה-API של
+        // התקבולים, ו-closeCheckReminderForPayment בצד השרת סוגר ומקשר אותה
+        // (source_payment_id) - כדי לא ליצור מסלול-סימון כפול מול מסך התקבולים.
+        const monthKey = t.due_date.slice(0, 7);
+        const existing = payments.find(
+          (p) =>
+            p.lease_id === t.related_entity_id &&
+            p.payment_type === "Rent" &&
+            p.due_date.slice(0, 7) === monthKey
+        );
+        // paid_date הוא timestamptz - לא ניתן לשלוח תאריך-בלבד. אבל new Date().toISOString()
+        // ממיר ל-UTC, ובין חצות ל-03:00 שעון ישראל זה עדיין "אתמול" ב-UTC - וממנו
+        // reconcileAutoTax גוזר את תאריך הוצאת המס (ודוחות המס גוזרים חודש דרך
+        // toISOString().slice). קיבוע השעה לצהריים מקומיים מבטיח שהיום הקלנדרי
+        // שייגזר מה-UTC יישאר זהה ליום המקומי, בלי לגעת בשעת-האמת של הפעולה עצמה.
+        const localNoon = new Date();
+        localNoon.setHours(12, 0, 0, 0);
+        const now = localNoon.toISOString();
+
+        const res = existing
+          ? await fetch(`/api/payments/${existing.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "paid", paid_date: now }),
+            })
+          : await fetch("/api/payments", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                property_id: leaseById.get(t.related_entity_id!)?.properties?.id,
+                lease_id: t.related_entity_id,
+                payment_type: "Rent",
+                amount: leaseById.get(t.related_entity_id!)?.monthly_rent,
+                due_date: t.due_date,
+                paid_date: now,
+                status: "paid",
+              }),
+            });
+
+        if (!res.ok) { showListError("שגיאה ברישום התקבול"); return; }
+        // closeCheckReminderForPayment בצד השרת סוגר ומקשר את המשימה
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+        queryClient.invalidateQueries({ queryKey: queryKeys.payments });
+        return;
+      }
       if (t.isVirtual) {
         const createRes = await fetch("/api/tasks", {
           method: "POST",
@@ -506,7 +594,7 @@ export default function TasksPage() {
   };
 
   const remove = async (t: Task) => {
-    if (t.isVirtual) return; // וירטואלי — אין מה למחוק
+    if (t.isVirtual) return; // וירטואלי - אין מה למחוק
     await fetch(`/api/tasks/${t.id}`, { method: "DELETE" });
     queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
   };
@@ -536,7 +624,7 @@ export default function TasksPage() {
     leases.map((l) => [l.id, l.properties?.title ?? null])
   );
 
-  // צבע ייחודי לכל נכס — שלוש רמות לכל גוון
+  // צבע ייחודי לכל נכס - שלוש רמות לכל גוון
   const uniquePropIds = [...new Set(leases.map((l) => l.properties?.id).filter(Boolean) as string[])];
   const propIdxByPropId = new Map(uniquePropIds.map((id, i) => [id, i % PROP_PALETTE.length]));
   const propColorsByLeaseId = new Map(
@@ -602,7 +690,7 @@ export default function TasksPage() {
             {isOverdue && <Icon name="warning" size={12} className="inline" />} {dueLabel}
           </p>
 
-          {/* Delete — אישור דו-שלבי: לחיצה ראשונה הופכת ל"בטוח?", מתאפס אחרי 3 שניות */}
+          {/* Delete - אישור דו-שלבי: לחיצה ראשונה הופכת ל"בטוח?", מתאפס אחרי 3 שניות */}
           {!t.isVirtual && (
             isConfirmingDelete ? (
               <button
@@ -702,7 +790,9 @@ export default function TasksPage() {
             תזכורות
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {relevant.length} רלוונטיות · {future.length} עתידיות
+            {/* futureNear ולא future - הכותרת סופרת את מה שמוצג בפועל. הספירה הכוללת
+                כללה תזכורות ישנות עד 2049 והציגה מספר מבהיל שלא אומר כלום */}
+            {relevant.length} רלוונטיות · {futureNear.length} עתידיות
             {overdueCount > 0 && <span className="text-red-600 font-semibold"> · {overdueCount} פג מועד</span>}
           </p>
         </div>
@@ -714,7 +804,7 @@ export default function TasksPage() {
         </button>
       </div>
 
-      {/* באנר שגיאה — inline במקום alert, נעלם אוטומטית אחרי כמה שניות או בסגירה ידנית */}
+      {/* באנר שגיאה - inline במקום alert, נעלם אוטומטית אחרי כמה שניות או בסגירה ידנית */}
       {listError && (
         <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm flex items-center justify-between gap-3">
           <span>{listError}</span>
@@ -792,7 +882,7 @@ export default function TasksPage() {
                 <label className="block text-xs font-semibold text-gray-500 mb-1">קשור לנכס / חוזה (אופציונלי)</label>
                 <select value={linkedLeaseId} onChange={(e) => { setLinkedLeaseId(e.target.value); setContinueAfterLease(false); }}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-                  <option value="">— ללא שיוך —</option>
+                  <option value="">- ללא שיוך -</option>
                   {leases.filter((l) => l.status !== "ended").map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.properties?.title} · {l.tenant?.first_name} {l.tenant?.last_name}
@@ -845,7 +935,7 @@ export default function TasksPage() {
                       <label className="block text-xs font-semibold text-gray-500 mb-1">קשור לחוזה (אופציונלי)</label>
                       <select value={linkedLeaseId} onChange={(e) => { setLinkedLeaseId(e.target.value); setContinueAfterLease(false); }}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-                        <option value="">— ללא חוזה ספציפי —</option>
+                        <option value="">- ללא חוזה ספציפי -</option>
                         {leases.filter((l) => l.status !== "ended").map((l) => (
                           <option key={l.id} value={l.id}>
                             {l.properties?.title} · {l.tenant?.first_name} {l.tenant?.last_name}
@@ -946,20 +1036,39 @@ export default function TasksPage() {
         >
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-gray-600 text-sm">עתידיות</h2>
-            <span className="text-xs text-gray-400">({future.length})</span>
+            <span className="text-xs text-gray-400">({futureNear.length})</span>
           </div>
           <Icon name={showFuture ? "caretUp" : "caretDown"} size={14} className="text-gray-400" />
         </button>
         {showFuture && (
-          future.length === 0 ? (
+          futureNear.length === 0 ? (
             <div className="py-4 text-center">
               <p className="text-gray-400 text-sm">אין תזכורות עתידיות</p>
             </div>
           ) : (
-            future.map((t) => <TaskRow key={t.id} t={t} isDone={false} />)
+            futureNear.map((t) => <TaskRow key={t.id} t={t} isDone={false} />)
           )
         )}
       </div>
+
+      {/* תזכורות מעבר לאופק - שאריות ממחולל ישן שיצר תזכורות עשרות שנים קדימה.
+          מחוץ לזרימה הרגילה של המסך, בשורת טקסט ולא ככרטיסים, כדי שלא ייחשבו
+          למשימות פתוחות. הנתונים לא נמחקו והם נגישים בלחיצה. */}
+      {futureFar.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-gray-200">
+          <button
+            onClick={() => setShowFar((v) => !v)}
+            className="w-full flex items-center justify-between px-1 py-0.5 text-right"
+          >
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-gray-400 text-sm">מעבר לשנה הקרובה</h2>
+              <span className="text-xs text-gray-400">({futureFar.length})</span>
+            </div>
+            <Icon name={showFar ? "caretUp" : "caretDown"} size={14} className="text-gray-400" />
+          </button>
+          {showFar && futureFar.map((t) => <TaskRow key={t.id} t={t} isDone={false} />)}
+        </div>
+      )}
 
       {/* Done tasks */}
       {done.length > 0 && (

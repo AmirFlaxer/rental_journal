@@ -65,7 +65,7 @@ export default function SignUp() {
           >
             נ
           </div>
-          <span className="font-display text-lg font-bold" style={{ color: "var(--text-1)" }}>ניהול נכסים</span>
+          <span className="font-display text-lg font-bold" style={{ color: "var(--text-1)" }}>ניהול שכירויות</span>
         </div>
 
         <div className="p-8 rounded-2xl" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "0 24px 60px rgba(0,0,0,0.14)" }}>

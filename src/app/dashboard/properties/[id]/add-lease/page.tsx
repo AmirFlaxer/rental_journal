@@ -6,6 +6,7 @@ import Link from "next/link";
 import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
 import { PhoneInput } from "@/components/phone-input";
+import { formatCurrency } from "@/lib/domain/money";
 
 interface Tenant {
   id: string;
@@ -559,7 +560,7 @@ export default function AddLeasePage() {
                   className="w-4 h-4 accent-green-600 cursor-pointer"
                 />
                 <label htmlFor="createDeposit" className="text-gray-900 font-semibold cursor-pointer">
-                  צור רשומת תקבול עבור הפקדון (₪{depositAmount?.toLocaleString()})
+                  צור רשומת תקבול עבור הפקדון ({formatCurrency(depositAmount)})
                 </label>
               </div>
 
