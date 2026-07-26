@@ -2,8 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "יומן הספר - ניהול נכסים",
-    short_name: "יומן הספר",
+    // short_name הוא הכיתוב מתחת לאייקון במסך-הבית, ואנדרואיד קוטע אותו סביב 12-13
+    // תווים - ולכן הוא מקוצר ל"שכירויות" ולא חוזר על השם המלא.
+    name: "ניהול שכירויות",
+    short_name: "שכירויות",
     description: "נהל את נכסי ההשכרה שלך בקלות",
     start_url: "/dashboard",
     display: "standalone",

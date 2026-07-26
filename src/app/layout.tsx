@@ -19,12 +19,12 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "יומן הספר - ניהול נכסים",
+  title: "ניהול שכירויות",
   description: "נהל את נכסי ההשכרה שלך בקלות",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "יומן הספר",
+    title: "שכירויות",
   },
   formatDetection: {
     telephone: false,

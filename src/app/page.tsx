@@ -35,7 +35,7 @@ export default async function Home() {
             נ
           </div>
           <span className="font-display text-lg font-bold" style={{ color: "var(--text-1)" }}>
-            ניהול נכסים
+            ניהול שכירויות
           </span>
         </header>
 
