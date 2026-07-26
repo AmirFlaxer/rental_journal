@@ -9,6 +9,7 @@ import { parsePartialPaid, parsePartialReason, getDebtAmount } from "@/lib/domai
 import { diffDays } from "@/lib/domain/dates";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/domain/money";
+import { bounceChainForPayment, BOUNCE_REASON_LABELS, type CheckBounce } from "@/lib/domain/check-bounce";
 
 interface Payment {
   id: string;
@@ -120,12 +121,14 @@ const STATUS_COLOR: Record<string, string> = {
 export default function DebtsPage() {
   const paymentsQuery = useQuery({ queryKey: queryKeys.payments, queryFn: () => apiGet<Payment[]>("/api/payments") });
   const leasesQuery = useQuery({ queryKey: queryKeys.leases, queryFn: () => apiGet<Lease[]>("/api/leases") });
+  const bouncesQuery = useQuery({ queryKey: queryKeys.checkBounces, queryFn: () => apiGet<CheckBounce[]>("/api/check-bounces") });
 
   const payments = useMemo(() => paymentsQuery.data ?? [], [paymentsQuery.data]);
   const leases = useMemo(() => leasesQuery.data ?? [], [leasesQuery.data]);
+  const bounces = useMemo(() => bouncesQuery.data ?? [], [bouncesQuery.data]);
 
-  const isPending = paymentsQuery.isPending || leasesQuery.isPending;
-  const failedQuery = [paymentsQuery, leasesQuery].find((q) => q.isError);
+  const isPending = paymentsQuery.isPending || leasesQuery.isPending || bouncesQuery.isPending;
+  const failedQuery = [paymentsQuery, leasesQuery, bouncesQuery].find((q) => q.isError);
 
   const debts = useMemo(() => buildDebtList(payments, leases), [payments, leases]);
   const totalDebt = useMemo(() => debts.reduce((s, d) => s + d.debtAmount, 0), [debts]);
@@ -205,9 +208,17 @@ export default function DebtsPage() {
                 {group.items.map((d) => {
                   const partialPaid = d.partial_paid_amount ?? parsePartialPaid(d.notes);
                   const reason = parsePartialReason(d.notes);
+                  // חוב שמקורו בשק שחזר אינו חוב רגיל - הוא ראיה בשרשרת שמובילה לביטול
+                  // חוזה ופינוי. כל שורה כאן היא לא-משולמת בהגדרה (buildDebtList מדלג על
+                  // paid), ולכן שרשרת לא-ריקה = החזרה פתוחה.
+                  const bounceChain = d.isVirtual ? [] : bounceChainForPayment(d.id, bounces);
+                  const lastBounce = bounceChain[bounceChain.length - 1];
                   return (
-                    <div key={d.id} className="flex items-center gap-4 px-5 py-3">
-                      <div className="flex-1 min-w-0">
+                    // בנייד השורה נשברת: הפרטים תופסים שורה מלאה, והסכום והתגים יורדים
+                    // מתחתיהם. בלי זה עמודת-הפרטים נמחצת ל-390px ותג האיחור נשבר לשלוש
+                    // שורות - צפיפות שהייתה קיימת עוד לפני תג "שק שחזר" והוא רק החריף אותה.
+                    <div key={d.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
+                      <div className="flex-1 min-w-0 basis-full sm:basis-0">
                         <p className="text-sm font-semibold text-gray-800">
                           שכ״ד{" "}
                           {/* בלי num-ltr - "יולי 2026" הוא טקסט עברי עם ספרות, ו-direction:ltr הופך את סדרו */}
@@ -220,13 +231,21 @@ export default function DebtsPage() {
                             {reason && ` · ${reason}`}
                           </p>
                         )}
+                        {lastBounce && (
+                          <p className="text-xs text-rose-700 mt-0.5">
+                            {bounceChain.length > 1 && `${bounceChain.length} החזרות · `}
+                            {BOUNCE_REASON_LABELS[lastBounce.reason]}
+                            {" · "}
+                            <span>{new Date(lastBounce.bounced_at).toLocaleDateString("he-IL")}</span>
+                          </p>
+                        )}
                         <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-2">
                           <span>מועד: <span>{new Date(d.due_date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</span></span>
                           {(() => {
                             const days = diffDays(todayStr(), d.due_date);
                             if (days <= 0) return null;
                             return (
-                              <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${days > 60 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                              <span className={`px-1.5 py-0.5 rounded text-xs font-bold whitespace-nowrap ${days > 60 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
                                 {days} ימים איחור
                               </span>
                             );
@@ -239,6 +258,12 @@ export default function DebtsPage() {
                           <p className="text-xs text-gray-400">מתוך <span className="num-ltr">{formatCurrency(d.amount)}</span></p>
                         )}
                       </div>
+                      {lastBounce && (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap bg-rose-100 text-rose-700 flex items-center gap-1">
+                          <Icon name="debts" size={12} color="currentColor" />
+                          שק שחזר
+                        </span>
+                      )}
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${STATUS_COLOR[d.status] || "bg-gray-100 text-gray-600"}`}>
                         {STATUS_HE[d.status] || d.status}
                       </span>
