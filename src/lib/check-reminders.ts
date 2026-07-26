@@ -2,6 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const CHECK_METHODS = new Set(["check", "checks"]);
 
+/** כותרת תזכורת הפקדת השק. היה פרמטר אופציונלי שאף קורא לא העביר - כלומר קבוע בפועל. */
+const CHECK_DEPOSIT_TASK_TITLE = 'הפקדת שק שכ"ד';
+
 export function isCheckPaymentMethod(method?: string | null): boolean {
   return !!method && CHECK_METHODS.has(method.toLowerCase());
 }
@@ -38,8 +41,7 @@ export async function closeCheckReminderForPayment(
   paymentId: string,
   leaseId: string,
   due_date: string,
-  paid_date: string,
-  title?: string
+  paid_date: string
 ): Promise<void> {
   const monthKey = due_date.slice(0, 7);
 
@@ -74,7 +76,7 @@ export async function closeCheckReminderForPayment(
 
   await supabase.from("tasks").insert({
     user_id: userId,
-    title: title ?? 'הפקדת שק שכ"ד',
+    title: CHECK_DEPOSIT_TASK_TITLE,
     category: "Rent Collection",
     due_date,
     completed_at: paid_date,
