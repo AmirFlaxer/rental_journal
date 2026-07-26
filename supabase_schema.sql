@@ -339,8 +339,32 @@ create table if not exists check_bounces (
 create index if not exists check_bounces_lease_idx on check_bounces(lease_id);
 create index if not exists check_bounces_payment_idx on check_bounces(payment_id);
 
-alter table check_bounces enable row level security;
-create policy "check_bounces_owner" on check_bounces for all using (user_id = auth.uid());
+-- ----------------------------------------------------------------
+-- LEASE SECURITIES (בטחונות המוחזקים תחת חוזה - שק/שטר ביטחון, שקי חשבונות שירות, פיקדון כספי)
+-- ----------------------------------------------------------------
+create table if not exists lease_securities (
+  id            text        primary key default gen_random_uuid()::text,
+  user_id       uuid        not null references auth.users(id) on delete cascade,
+  lease_id      text        not null references leases(id) on delete cascade,
+  property_id   text        not null references properties(id) on delete cascade,
+  kind          text        not null
+                  check (kind in ('cash_deposit','security_check','promissory_note','utility_check','other')),
+  utility_type  text        check (utility_type in ('electricity','water','gas','municipal_tax')),
+  amount        numeric,
+  bank          text,
+  branch        text,
+  account       text,
+  check_number  text,
+  status        text        not null default 'held'
+                  check (status in ('held','returned','cashed')),
+  received_date date,
+  resolved_date date,
+  notes         text,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+alter table lease_securities enable row level security;
+create policy "lease_securities_owner" on lease_securities for all using (user_id = auth.uid());
 
 -- ----------------------------------------------------------------
 -- ROW LEVEL SECURITY (RLS)
@@ -403,6 +427,10 @@ grant select, insert, update, delete    on public.expenses          to authentic
 grant select, insert, update, delete    on public.payments          to authenticated;
 grant select, insert, update, delete    on public.tasks             to authenticated;
 grant select, insert, update, delete    on public.property_assets   to authenticated;
+grant select, insert, update, delete    on public.feedback          to authenticated;
+grant select, insert, update, delete    on public.property_utilities to authenticated;
+grant select, insert, update, delete    on public.check_bounces     to authenticated;
+grant select, insert, update, delete    on public.lease_securities  to authenticated;
 
 grant select, insert, update, delete    on public.properties        to service_role;
 grant select, insert, update, delete    on public.tenants           to service_role;
@@ -412,6 +440,10 @@ grant select, insert, update, delete    on public.expenses          to service_r
 grant select, insert, update, delete    on public.payments          to service_role;
 grant select, insert, update, delete    on public.tasks             to service_role;
 grant select, insert, update, delete    on public.property_assets   to service_role;
+grant select, insert, update, delete    on public.feedback          to service_role;
+grant select, insert, update, delete    on public.property_utilities to service_role;
+grant select, insert, update, delete    on public.check_bounces     to service_role;
+grant select, insert, update, delete    on public.lease_securities  to service_role;
 
 -- ----------------------------------------------------------------
 -- STORAGE BUCKET
