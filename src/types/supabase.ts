@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      check_bounces: {
+        Row: {
+          bounced_at: string
+          created_at: string
+          id: string
+          lease_id: string
+          payment_id: string | null
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          bounced_at: string
+          created_at?: string
+          id?: string
+          lease_id: string
+          payment_id?: string | null
+          reason: string
+          user_id: string
+        }
+        Update: {
+          bounced_at?: string
+          created_at?: string
+          id?: string
+          lease_id?: string
+          payment_id?: string | null
+          reason?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "check_bounces_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "leases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "check_bounces_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -179,6 +224,81 @@ export type Database = {
             columns: ["lease_id"]
             isOneToOne: false
             referencedRelation: "leases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lease_securities: {
+        Row: {
+          account: string | null
+          amount: number | null
+          bank: string | null
+          branch: string | null
+          check_number: string | null
+          created_at: string
+          id: string
+          kind: string
+          lease_id: string
+          notes: string | null
+          property_id: string
+          received_date: string | null
+          resolved_date: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          utility_type: string | null
+        }
+        Insert: {
+          account?: string | null
+          amount?: number | null
+          bank?: string | null
+          branch?: string | null
+          check_number?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          lease_id: string
+          notes?: string | null
+          property_id: string
+          received_date?: string | null
+          resolved_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          utility_type?: string | null
+        }
+        Update: {
+          account?: string | null
+          amount?: number | null
+          bank?: string | null
+          branch?: string | null
+          check_number?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          lease_id?: string
+          notes?: string | null
+          property_id?: string
+          received_date?: string | null
+          resolved_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          utility_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lease_securities_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "leases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lease_securities_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]
@@ -548,6 +668,7 @@ export type Database = {
       property_utilities: {
         Row: {
           active: boolean
+          anchor_day: number | null
           anchor_month: number | null
           created_at: string
           custom_label: string | null
@@ -561,6 +682,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          anchor_day?: number | null
           anchor_month?: number | null
           created_at?: string
           custom_label?: string | null
@@ -574,6 +696,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          anchor_day?: number | null
           anchor_month?: number | null
           created_at?: string
           custom_label?: string | null
@@ -588,81 +711,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "property_utilities_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      lease_securities: {
-        Row: {
-          account: string | null
-          amount: number | null
-          bank: string | null
-          branch: string | null
-          check_number: string | null
-          created_at: string
-          id: string
-          kind: string
-          lease_id: string
-          notes: string | null
-          property_id: string
-          received_date: string | null
-          resolved_date: string | null
-          status: string
-          updated_at: string
-          user_id: string
-          utility_type: string | null
-        }
-        Insert: {
-          account?: string | null
-          amount?: number | null
-          bank?: string | null
-          branch?: string | null
-          check_number?: string | null
-          created_at?: string
-          id?: string
-          kind: string
-          lease_id: string
-          notes?: string | null
-          property_id: string
-          received_date?: string | null
-          resolved_date?: string | null
-          status?: string
-          updated_at?: string
-          user_id: string
-          utility_type?: string | null
-        }
-        Update: {
-          account?: string | null
-          amount?: number | null
-          bank?: string | null
-          branch?: string | null
-          check_number?: string | null
-          created_at?: string
-          id?: string
-          kind?: string
-          lease_id?: string
-          notes?: string | null
-          property_id?: string
-          received_date?: string | null
-          resolved_date?: string | null
-          status?: string
-          updated_at?: string
-          user_id?: string
-          utility_type?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lease_securities_lease_id_fkey"
-            columns: ["lease_id"]
-            isOneToOne: false
-            referencedRelation: "leases"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lease_securities_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
