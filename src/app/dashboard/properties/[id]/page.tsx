@@ -38,6 +38,7 @@ const UTILITY_TYPE_OPTIONS: { value: PropertyUtilityType; label: string; icon: I
   { value: "electricity", label: "חשמל", icon: "electricity" },
   { value: "municipal_tax", label: "ארנונה", icon: "municipalTax" },
   { value: "house_committee", label: "ועד בית", icon: "houseCommittee" },
+  { value: "insurance", label: "ביטוח", icon: "insurance" },
   { value: "other", label: "אחר", icon: "pin" },
 ];
 const UTILITY_TYPE_ICON: Record<PropertyUtilityType, IconName> = Object.fromEntries(
@@ -47,6 +48,7 @@ const UTILITY_TYPE_ICON: Record<PropertyUtilityType, IconName> = Object.fromEntr
 const UTILITY_FREQUENCY_HE: Record<PropertyUtilityFrequency, string> = {
   monthly: "חודשי",
   bimonthly: "דו-חודשי",
+  annual: "שנתי",
 };
 
 const UTILITY_RESPONSIBILITY_OPTIONS: { value: PropertyUtilityResponsibility; label: string; hint: string }[] = [
@@ -108,6 +110,7 @@ interface UtilityFormState {
   customLabel: string;
   frequency: PropertyUtilityFrequency;
   anchorMonth: number;
+  anchorDay: number;
   responsibility: PropertyUtilityResponsibility;
 }
 
@@ -420,6 +423,7 @@ export default function PropertyDetailPage() {
       customLabel: "",
       frequency: "monthly",
       anchorMonth: new Date().getMonth() + 1,
+      anchorDay: new Date().getDate(),
       responsibility: "owner_pays",
     });
   };
@@ -432,6 +436,7 @@ export default function PropertyDetailPage() {
       customLabel: u.custom_label ?? "",
       frequency: u.frequency,
       anchorMonth: u.anchor_month ?? new Date().getMonth() + 1,
+      anchorDay: u.anchor_day ?? 1,
       responsibility: u.responsibility,
     });
   };
@@ -447,7 +452,11 @@ export default function PropertyDetailPage() {
         type: utilityForm.type,
         custom_label: utilityForm.type === "other" ? (utilityForm.customLabel.trim() || null) : null,
         frequency: utilityForm.frequency,
-        anchor_month: utilityForm.frequency === "bimonthly" ? utilityForm.anchorMonth : null,
+        anchor_month:
+          utilityForm.frequency === "bimonthly" || utilityForm.frequency === "annual"
+            ? utilityForm.anchorMonth
+            : null,
+        anchor_day: utilityForm.frequency === "annual" ? utilityForm.anchorDay : null,
         responsibility: utilityForm.responsibility,
       };
       const res = await fetch(
@@ -623,7 +632,14 @@ export default function PropertyDetailPage() {
                 <label className="block text-sm font-semibold text-gray-700 mb-1">סוג חשבון</label>
                 <select
                   value={utilityForm.type}
-                  onChange={(e) => setUtilityForm({ ...utilityForm, type: e.target.value as PropertyUtilityType })}
+                  onChange={(e) => {
+                    const value = e.target.value as PropertyUtilityType;
+                    setUtilityForm(
+                      value === "insurance"
+                        ? { ...utilityForm, type: value, frequency: "annual", responsibility: "owner_pays" }
+                        : { ...utilityForm, type: value }
+                    );
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   {UTILITY_TYPE_OPTIONS.map((o) => (
@@ -648,16 +664,22 @@ export default function PropertyDetailPage() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">תדירות</label>
                 <div className="flex gap-2">
-                  {(["monthly", "bimonthly"] as const).map((f) => (
+                  {(["monthly", "bimonthly", "annual"] as const).map((f) => (
                     <button key={f} type="button"
+                      disabled={utilityForm.type === "insurance"}
                       onClick={() => setUtilityForm({ ...utilityForm, frequency: f })}
-                      className={`flex-1 py-2 rounded-lg font-semibold text-sm border ${
+                      className={`flex-1 py-2 rounded-lg font-semibold text-sm border disabled:opacity-50 disabled:cursor-not-allowed ${
                         utilityForm.frequency === f ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-300"
                       }`}>
                       {UTILITY_FREQUENCY_HE[f]}
                     </button>
                   ))}
                 </div>
+                {utilityForm.type === "insurance" && (
+                  <p className="text-xs mt-1" style={{ color: "var(--text-3)" }}>
+                    ביטוח מבנה מתחדש פעם בשנה והוא תמיד באחריות הבעלים, ולכן התדירות והאחריות קבועות.
+                  </p>
+                )}
               </div>
 
               {utilityForm.frequency === "bimonthly" && (
@@ -676,6 +698,42 @@ export default function PropertyDetailPage() {
                 </div>
               )}
 
+              {utilityForm.frequency === "annual" && (
+                <div className="mt-3">
+                  <label className="block text-sm font-semibold mb-1.5" style={{ color: "var(--text-2)" }}>
+                    תאריך החידוש
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={utilityForm.anchorDay}
+                      onChange={(e) => setUtilityForm({ ...utilityForm, anchorDay: Number(e.target.value) })}
+                      className="px-3 py-2 rounded-lg border text-sm"
+                      style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-1)" }}
+                      aria-label="יום החידוש"
+                    >
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={utilityForm.anchorMonth}
+                      onChange={(e) => setUtilityForm({ ...utilityForm, anchorMonth: Number(e.target.value) })}
+                      className="px-3 py-2 rounded-lg border text-sm"
+                      style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-1)" }}
+                      aria-label="חודש החידוש"
+                    >
+                      {UTILITY_MONTH_HE.map((m, i) => (
+                        <option key={m} value={i + 1}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="text-xs mt-1" style={{ color: "var(--text-3)" }}>
+                    יום שאינו קיים בחודש נחתך אוטומטית לסוף החודש.
+                  </p>
+                </div>
+              )}
+
+              {utilityForm.type !== "insurance" && (
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">אחריות לתשלום</label>
                 <div className="space-y-2">
@@ -693,6 +751,7 @@ export default function PropertyDetailPage() {
                   ))}
                 </div>
               </div>
+              )}
 
               {utilityFormError && <p className="text-red-600 text-sm">{utilityFormError}</p>}
 
@@ -1209,6 +1268,9 @@ export default function PropertyDetailPage() {
                       <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-semibold">
                         {UTILITY_FREQUENCY_HE[u.frequency]}
                         {u.frequency === "bimonthly" && u.anchor_month ? ` · עוגן ${UTILITY_MONTH_HE[u.anchor_month - 1]}` : ""}
+                        {u.frequency === "annual" && u.anchor_month
+                          ? ` · חידוש ${u.anchor_day ?? 1} ב${UTILITY_MONTH_HE[u.anchor_month - 1]}`
+                          : ""}
                       </span>
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">
                         {UTILITY_RESPONSIBILITY_HE[u.responsibility] ?? u.responsibility}

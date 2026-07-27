@@ -130,10 +130,13 @@ export const taskUpdateSchema = taskSchema.partial().extend({
 // Property Utility Validations - קונפיגורציית חשבונות שירות לפי נכס
 export const propertyUtilitySchema = z.object({
   property_id: z.string().min(1, "Property is required"),
-  type: z.enum(["water", "gas", "electricity", "municipal_tax", "house_committee", "other"]),
+  type: z.enum(["water", "gas", "electricity", "municipal_tax", "house_committee", "insurance", "other"]),
   custom_label: z.string().nullish(),
-  frequency: z.enum(["monthly", "bimonthly"]).default("monthly"),
+  frequency: z.enum(["monthly", "bimonthly", "annual"]).default("monthly"),
   anchor_month: z.number().int().min(1).max(12).nullish(),
+  // anchor_day נדרש בפועל רק ל-annual, וה-UI אוכף זאת. כאן nullish כדי לא לשבור
+  // עדכון של חשבון חודשי קיים שאינו שולח את השדה בכלל.
+  anchor_day: z.number().int().min(1).max(31).nullish(),
   responsibility: z.enum(["owner_pays", "owner_forwards", "tenant_pays"]).default("owner_pays"),
   active: z.boolean().optional(),
 });

@@ -34,8 +34,9 @@ export type PropertyUtilityType =
   | "electricity"
   | "municipal_tax"
   | "house_committee"
+  | "insurance"
   | "other";
-export type PropertyUtilityFrequency = "monthly" | "bimonthly";
+export type PropertyUtilityFrequency = "monthly" | "bimonthly" | "annual";
 export type PropertyUtilityResponsibility = "owner_pays" | "owner_forwards" | "tenant_pays";
 
 // ---- טיפוסי ישויות (snake_case, נגזרים מהסכימה) ----
@@ -84,6 +85,9 @@ export type PropertyUtility = Omit<
   type: PropertyUtilityType;
   frequency: PropertyUtilityFrequency;
   responsibility: PropertyUtilityResponsibility;
+  // anchor_day עדיין חסרה ב-supabase.ts (הטיפוסים הנוצרים לא עודכנו מול הפרודקשן
+  // אחרי המיגרציה) - מתווספת כאן ידנית עד לרענון הבא של הטיפוסים הנוצרים.
+  anchor_day: number | null;
 };
 
 // ---- בטחונות (lease_securities) ----
