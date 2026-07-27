@@ -58,3 +58,6 @@ prisma/*.db-journal
 # Superpowers / Playwright scratch (subagent ledger, test screenshots)
 .superpowers/
 .playwright-mcp/
+
+# תוצר של npm run gen:types (supabase CLI) - מקומי, לא נכנס לריפו
+supabase/.temp/
