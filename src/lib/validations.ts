@@ -128,7 +128,7 @@ export const taskUpdateSchema = taskSchema.partial().extend({
 });
 
 // Property Utility Validations - קונפיגורציית חשבונות שירות לפי נכס
-export const propertyUtilitySchema = z.object({
+const propertyUtilityFields = z.object({
   property_id: z.string().min(1, "Property is required"),
   type: z.enum(["water", "gas", "electricity", "municipal_tax", "house_committee", "insurance", "other"]),
   custom_label: z.string().nullish(),
@@ -140,6 +140,30 @@ export const propertyUtilitySchema = z.object({
   responsibility: z.enum(["owner_pays", "owner_forwards", "tenant_pays"]).default("owner_pays"),
   active: z.boolean().optional(),
 });
+
+/**
+ * תדירות שנתית בלי חודש-עוגן היא כשל **שקט**: המחולל לא יידע באיזה חודש החשבון חל
+ * ולכן לא ייצר תזכורת אף פעם, בלי שום שגיאה - חשבון שנראה מוגדר ואינו מזכיר דבר.
+ * ה-UI כבר אוכף את השדה, וזו ההגנה בשכבת ה-API. בעדכון חלקי הבדיקה חלה רק כששדה
+ * התדירות נשלח, כי בלעדיו אין לנו את הערך השמור.
+ */
+function requireAnchorMonthForAnnual(
+  value: { frequency?: string; anchor_month?: number | null },
+  ctx: z.RefinementCtx
+) {
+  if (value.frequency === "annual" && value.anchor_month == null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["anchor_month"],
+      message: "לתדירות שנתית חובה לציין חודש עוגן",
+    });
+  }
+}
+
+export const propertyUtilitySchema = propertyUtilityFields.superRefine(requireAnchorMonthForAnnual);
+export const propertyUtilityUpdateSchema = propertyUtilityFields
+  .partial()
+  .superRefine(requireAnchorMonthForAnnual);
 
 // Lease Security Validations - בטחונות המוחזקים תחת חוזה
 export const leaseSecuritySchema = z.object({

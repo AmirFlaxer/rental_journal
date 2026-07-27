@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
-import { propertyUtilitySchema } from "@/lib/validations";
+import { propertyUtilityUpdateSchema } from "@/lib/validations";
 import { z } from "zod";
 
 interface RouteParams { params: Promise<{ id: string }> }
@@ -15,7 +15,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const supabase = await createClient();
     const body = await request.json();
     // ולידציה מונעת mass-assignment - zod מסנן שדות לא מוכרים (userId וכו') אוטומטית
-    const data = propertyUtilitySchema.partial().parse(body);
+    const data = propertyUtilityUpdateSchema.parse(body);
     // property_id לא ניתן לשינוי בעדכון - חשבון שייך לנכס שבו נוצר. השמטה מונעת
     // העברת חשבון לנכס אחר בלי אימות בעלות (בניגוד ל-POST שמאמת).
     delete data.property_id;
