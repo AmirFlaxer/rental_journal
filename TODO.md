@@ -1,7 +1,7 @@
 # רשימת משימות לתיקון עתידי
 
 נושאים שזוהו אבל לא תוקנו עדיין, ממוינים לפי סדר חשיבות.
-תאריך עדכון: 2026-04-13.
+תאריך עדכון: 2026-07-27 (פריטים 5 ו-9 אומתו בפקודה ונסגרו; 1 ו-10 אומתו כפתוחים).
 
 ---
 
@@ -50,9 +50,10 @@ useEffect(() => {
 
 **פתרון מוצע**: להגדיר קובץ `src/types/database.ts` עם טיפוסים מדויקים, או להשתמש ב-`supabase gen types typescript` ליצירה אוטומטית מהסכמה.
 
-### 5. גרסת `extract-temp` - Ollama עם מודל ברירת מחדל לא-קיים
-ב-[api/leases/extract-temp/route.ts:185](src/app/api/leases/extract-temp/route.ts#L185) ברירת המחדל היא `qwen3.5:9b` - tag שלא קיים רשמית ב-Ollama.
-**פתרון מוצע**: לשנות ברירת מחדל למודל קיים (`qwen2.5:7b` או `gemma3:4b`), ולהוסיף בדיקה מקדימה עם `/api/tags` שמזהירה אם המודל לא מותקן.
+### ~~5. גרסת `extract-temp` - Ollama עם מודל ברירת מחדל לא-קיים~~ ✅ תוקן (אומת 27/7/2026)
+
+אומת בפקודה: ברירת-המחדל ב-`extract-temp/route.ts` היא כבר `qwen2.5:7b` (שורות 174, 185),
+מודל שקיים. הבדיקה-המקדימה מול `/api/tags` לא נוספה, ואינה חוסמת.
 
 ### 6. ב-[api/reports/route.ts](src/app/api/reports/route.ts) - חישוב `monthlyRent` כפול
 אחרי התיקון שלנו, יש שתי פונקציות filter על `p.leases` (פעם ל-`currentLeases` ופעם ל-`activeLeases`).
@@ -72,16 +73,15 @@ useEffect(() => {
 לא משפיע על פעולה אבל מעיד על פונקציית גופן שלא מוגדרת בקונפיג.
 **פתרון מוצע**: לבדוק את [src/app/globals.css](src/app/globals.css) ו-[tailwind.config](tailwind.config.ts) אחר שימוש ב-`@apply` או `theme()` על מפתח שלא קיים.
 
-### 9. עבודה בתהליך - PWA שלא הושלמה
-קבצים לא-מקומיטים שמרמזים על פיצ'ר PWA שהתחיל ולא נגמר:
-- `public/sw.js`
-- `public/icon-192.png`, `public/icon-512.png`, `public/icon.svg`, `public/apple-touch-icon.png`
-- `src/app/manifest.ts`
+### ~~9. עבודה בתהליך - PWA שלא הושלמה~~ ✅ הושלם (אומת 27/7/2026)
 
-**צריך**:
-- לוודא ש-`manifest.ts` מיוצא נכון ושה-service worker רשום ב-[src/app/layout.tsx](src/app/layout.tsx)
-- לבדוק התקנה על מובייל ב-Chrome/Safari
-- לקמיט ולדחוף ל-Vercel
+הפריט היה מיושן. אומת בפקודה: כל חמשת הקבצים (`public/sw.js`, שלושת האייקונים,
+`src/app/manifest.ts`) **מקומטים**, ה-service worker **רשום** ב-`layout.tsx`, וה-PWA
+**מותקנת ואומתה על המכשיר** של אמיר ב-27/7 (כיתוב "שכירויות", `startUrl=/dashboard`,
+`standalone`, לחיצת-אחורה יוצאת מיד). ה-service worker גם תוקן מאז - הוא לא חוטף עוד
+ניווטי-מסמך ולא מחזיר `undefined` בכשל-רשת.
+
+**מה שנשאר מהמשפחה הזו:** Push (פריט 12 למטה) עדיין לא מומש.
 
 ### 10. קבצי ביניים מיותרים ב-git
 - `build.log` - log build שלא היה אמור להיכנס לריפו, יש להוסיף ל-`.gitignore`
