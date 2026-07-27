@@ -34,8 +34,9 @@ export type PropertyUtilityType =
   | "electricity"
   | "municipal_tax"
   | "house_committee"
+  | "insurance"
   | "other";
-export type PropertyUtilityFrequency = "monthly" | "bimonthly";
+export type PropertyUtilityFrequency = "monthly" | "bimonthly" | "annual";
 export type PropertyUtilityResponsibility = "owner_pays" | "owner_forwards" | "tenant_pays";
 
 // ---- טיפוסי ישויות (snake_case, נגזרים מהסכימה) ----

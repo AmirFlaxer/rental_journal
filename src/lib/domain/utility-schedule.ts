@@ -12,9 +12,10 @@ export type UtilityType =
   | "electricity"
   | "municipal_tax"
   | "house_committee"
+  | "insurance"
   | "other";
 
-export type UtilityFrequency = "monthly" | "bimonthly";
+export type UtilityFrequency = "monthly" | "bimonthly" | "annual";
 
 export type UtilityResponsibility = "owner_pays" | "owner_forwards" | "tenant_pays";
 
@@ -27,6 +28,8 @@ export interface PropertyUtilityLike {
   frequency: UtilityFrequency;
   /** 1-12, רלוונטי רק ל-bimonthly - החודש שבו החשבון "נוחת" (מגדיר את זוגיות החלון) */
   anchor_month?: number | null;
+  /** 1-31, רלוונטי רק ל-annual - היום בחודש שבו החשבון מתחדש (למשל 31 ב-31.10) */
+  anchor_day?: number | null;
   responsibility: UtilityResponsibility;
   active: boolean;
 }
@@ -64,6 +67,8 @@ export function mapUtilityCategory(type: UtilityType): string {
       return "Municipal Tax";
     case "house_committee":
       return "Other";
+    case "insurance":
+      return "Insurance";
     case "other":
       return "Other";
   }
@@ -82,6 +87,8 @@ export function utilityTypeLabel(type: UtilityType, customLabel?: string | null)
       return "ארנונה";
     case "house_committee":
       return "ועד בית";
+    case "insurance":
+      return "ביטוח";
     case "other":
       return customLabel?.trim() || "חשבון";
   }

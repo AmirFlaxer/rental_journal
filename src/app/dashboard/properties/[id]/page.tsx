@@ -47,6 +47,7 @@ const UTILITY_TYPE_ICON: Record<PropertyUtilityType, IconName> = Object.fromEntr
 const UTILITY_FREQUENCY_HE: Record<PropertyUtilityFrequency, string> = {
   monthly: "חודשי",
   bimonthly: "דו-חודשי",
+  annual: "שנתי",
 };
 
 const UTILITY_RESPONSIBILITY_OPTIONS: { value: PropertyUtilityResponsibility; label: string; hint: string }[] = [

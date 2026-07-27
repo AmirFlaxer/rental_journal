@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   utilityAppliesThisPeriod,
   generateVirtualUtilityTasks,
+  mapUtilityCategory,
+  utilityTypeLabel,
   type PropertyUtilityLike,
   type DbTaskLike,
 } from "@/lib/domain/utility-schedule";
@@ -174,5 +176,20 @@ describe("generateVirtualUtilityTasks", () => {
       new Date()
     );
     expect(tasks).toHaveLength(1);
+  });
+});
+
+describe("ביטוח כסוג חשבון", () => {
+  it("ממופה לקטגוריה Insurance - זהה לתזכורות הישנות, כך שהמיגרציה עקבית", () => {
+    expect(mapUtilityCategory("insurance")).toBe("Insurance");
+  });
+
+  it("תווית עברית: ביטוח", () => {
+    expect(utilityTypeLabel("insurance")).toBe("ביטוח");
+  });
+
+  it("שאר הסוגים לא זזו", () => {
+    expect(mapUtilityCategory("water")).toBe("Water");
+    expect(utilityTypeLabel("municipal_tax")).toBe("ארנונה");
   });
 });
