@@ -95,6 +95,20 @@ export function utilityTypeLabel(type: UtilityType, customLabel?: string | null)
 }
 
 /**
+ * האחריות בפועל, אחרי שקלול אכלוס. שני כללים:
+ * ביטוח הוא תמיד על הבעלים (הוא מבטח את המבנה, לא את השוכר), וכשהנכס ריק אין
+ * שוכר שישלם - ולכן גם חשבון שהוגדר tenant_pays חל על הבעלים. זה בדיוק המצב
+ * שבו התזכורת הכי נחוצה, וקודם הוא היה המצב היחיד שבו היא לא נוצרה.
+ */
+export function effectiveResponsibility(
+  utility: Pick<PropertyUtilityLike, "type" | "responsibility">,
+  occupied: boolean
+): UtilityResponsibility {
+  if (utility.type === "insurance") return "owner_pays";
+  return occupied ? utility.responsibility : "owner_pays";
+}
+
+/**
  * האם החשבון חל בתקופה (החודש) הנוכחית.
  * monthly - תמיד. bimonthly - רק כש-(currentMonth - anchor_month) זוגי (חלון דו-חודשי
  * שנוחת על anchor_month ואז כל חודשיים). אם anchor_month חסר - נחשב כתמיד חל (הערה

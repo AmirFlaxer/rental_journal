@@ -4,6 +4,7 @@ import {
   generateVirtualUtilityTasks,
   mapUtilityCategory,
   utilityTypeLabel,
+  effectiveResponsibility,
   type PropertyUtilityLike,
   type DbTaskLike,
 } from "@/lib/domain/utility-schedule";
@@ -191,5 +192,24 @@ describe("ביטוח כסוג חשבון", () => {
   it("שאר הסוגים לא זזו", () => {
     expect(mapUtilityCategory("water")).toBe("Water");
     expect(utilityTypeLabel("municipal_tax")).toBe("ארנונה");
+  });
+});
+
+describe("effectiveResponsibility", () => {
+  it("ביטוח תמיד על הבעלים - גם בנכס מאוכלס וגם אם הוגדר אחרת", () => {
+    expect(effectiveResponsibility({ type: "insurance", responsibility: "tenant_pays" }, true)).toBe("owner_pays");
+    expect(effectiveResponsibility({ type: "insurance", responsibility: "owner_forwards" }, true)).toBe("owner_pays");
+    expect(effectiveResponsibility({ type: "insurance", responsibility: "owner_pays" }, false)).toBe("owner_pays");
+  });
+
+  it("נכס ריק - חשבון שהשוכר שילם ישירות עובר לבעלים", () => {
+    expect(effectiveResponsibility({ type: "water", responsibility: "tenant_pays" }, false)).toBe("owner_pays");
+    expect(effectiveResponsibility({ type: "electricity", responsibility: "owner_forwards" }, false)).toBe("owner_pays");
+  });
+
+  it("נכס מאוכלס - ההגדרה נשמרת כמו שהיא", () => {
+    expect(effectiveResponsibility({ type: "water", responsibility: "tenant_pays" }, true)).toBe("tenant_pays");
+    expect(effectiveResponsibility({ type: "water", responsibility: "owner_forwards" }, true)).toBe("owner_forwards");
+    expect(effectiveResponsibility({ type: "municipal_tax", responsibility: "owner_pays" }, true)).toBe("owner_pays");
   });
 });
