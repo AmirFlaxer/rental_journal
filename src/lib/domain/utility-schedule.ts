@@ -247,17 +247,18 @@ export function generateVirtualUtilityTasks(
 
     const label = utilityTypeLabel(utility.type, utility.custom_label);
     const months = utilityMonthWindow(occupancy, today);
-    // ביטוח (annual) בנכס מאוכלס מקבל בדרך-כלל רק את החודש הנוכחי (months הוא
-    // מערך של איבר אחד), ולכן ברגע שחודש-העוגן חולף התזכורת נעלמת בלי זכר אם
-    // לא סומנה - בניגוד לחודשי/דו-חודשי שנוצרים מחדש ממילא בכל חודש. מוסיפים
-    // במפורש את חודש-העוגן של השנה הנוכחית כל עוד הוא לא עתידי, כדי שהתזכורת
-    // תמשיך "לרדוף" עד שתסומן או שתיסגר ע"י משימת-DB אמיתית (ה-dedup הקיים
-    // כבר דואג לזה). לא נוגעים בהתנהגות של חודשי/דו-חודשי (סקירת-ענף I1).
+    // תדירות שנתית מקבלת תמיד את חודש-העוגן של השנה הנוכחית, בלי תלות באכלוס
+    // ובחלון. שני כשלים נפרדים מתאחדים כאן:
+    // (1) חודש-עוגן שחלף - נכס מאוכלס מקבל רק את החודש הנוכחי, ולכן התזכורת
+    //     נעלמה בלי זכר אם לא סומנה, בניגוד לחודשי/דו-חודשי שנוצרים מחדש ממילא.
+    // (2) חודש-עוגן עתידי - מאותה סיבה לא הייתה שום התראה מקדימה, וחידוש ביטוח
+    //     הוא בדיוק מה שצריך אותה (הכרעת אמיר 27/7/2026, אחרי שהתגלה במיגרציה).
+    // התזכורת "רודפת" עד שתסומן או תיסגר ע"י משימת-DB אמיתית - ה-dedup מטפל בזה.
+    // ההגבלה לשנת "היום" היא מה ששומר על האופק: אין ייצור לשנה הבאה ואילך.
+    // התנהגות חודשי/דו-חודשי אינה משתנה כאן בכלל.
     if (utility.frequency === "annual" && utility.anchor_month != null) {
       const anchorKey = monthKeyOf(today.getFullYear(), utility.anchor_month);
-      if (anchorKey <= localMonthKey(today) && !months.includes(anchorKey)) {
-        months.push(anchorKey);
-      }
+      if (!months.includes(anchorKey)) months.push(anchorKey);
     }
     for (const monthKey of months) {
       const [year, month] = monthKey.split("-").map(Number);

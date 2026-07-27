@@ -438,14 +438,42 @@ describe("generateVirtualUtilityTasks - annual לא נעלם אחרי שחודש
     expect(result[0].due_date).toBe("2026-05-20");
   });
 
-  it("נכס מאוכלס, חודש-עוגן עתידי - לא מוצגת מוקדם מדי (התנהגות קיימת נשמרת)", () => {
-    // anchor_month=12 (דצמבר) - עתידי יחסית ל-יולי, אסור שיופיע כבר עכשיו
+  // הבדיקה הזו הפכה את כיוונה בהכרעת אמיר 27/7/2026. קודם היא דרשה שחודש-עוגן עתידי
+  // לא יוצג מוקדם, וזה יצר את הבעיה שהתגלתה במיגרציית-הדאטה: נכס מאוכלס מקבל את החודש
+  // הנוכחי בלבד, ולכן תזכורת חידוש הביטוח הייתה מופיעה רק באוקטובר עצמו - כלומר בלי
+  // שום התראה מקדימה, בכל שנה. חידוש ביטוח הוא בדיוק הדבר שצריך התראה מראש.
+  it("נכס מאוכלס, חודש-עוגן עתידי - כן מוצגת כהתראה מקדימה", () => {
+    // anchor_month=12 (דצמבר), FIXED_TODAY = 8 ביולי 2026
     const insurance = makeUtility({
       type: "insurance", frequency: "annual", anchor_month: 12, anchor_day: 1,
       responsibility: "owner_pays",
     });
     const result = generateVirtualUtilityTasks([insurance], [], FIXED_TODAY, [occupied("p1")]);
-    expect(result).toHaveLength(0);
+    expect(result).toHaveLength(1);
+    expect(result[0].due_date).toBe("2026-12-01");
+    // המסך הוא שמפריד: מועד עתידי נכנס למקטע "עתידיות" ולא ל"רלוונטיות"
+    expect(result[0].due_date.slice(0, 7) > "2026-07").toBe(true);
+  });
+
+  it("חודש-עוגן עתידי בנכס ריק - תזכורת אחת בלבד, בלי כפילות מול חלון-הריקות", () => {
+    const insurance = makeUtility({
+      type: "insurance", frequency: "annual", anchor_month: 12, anchor_day: 1,
+      responsibility: "owner_pays",
+    });
+    const result = generateVirtualUtilityTasks([insurance], [], FIXED_TODAY, [
+      { property_id: "p1", occupied: false, vacant_since: "2026-06-30" },
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0].due_date).toBe("2026-12-01");
+  });
+
+  it("חודש-עוגן של שנה אחרת אינו נוצר - האופק מוגבל לשנה הנוכחית", () => {
+    const insurance = makeUtility({
+      type: "insurance", frequency: "annual", anchor_month: 10, anchor_day: 31,
+      responsibility: "owner_pays",
+    });
+    const result = generateVirtualUtilityTasks([insurance], [], FIXED_TODAY, [occupied("p1")]);
+    expect(result.map((t) => t.due_date)).toEqual(["2026-10-31"]);
   });
 
   it("חודש-עוגן שחלף אך כבר מכוסה ע\"י משימת-DB אמיתית - לא מיוצרת וירטואלית כפולה", () => {
