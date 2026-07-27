@@ -39,3 +39,39 @@ export function effectiveLeaseStatus(lease: LeaseForStatus): EffectiveLeaseStatu
 export function isLeaseCurrentlyActive(lease: LeaseForStatus): boolean {
   return effectiveLeaseStatus(lease) === "active";
 }
+
+/** תקציר אכלוס של נכס אחד, מורכב מכל החוזים שלו - לצריכה ע"י utility-schedule.ts (PropertyOccupancy) */
+export interface OccupancySummary {
+  occupied: boolean;
+  /** סוף החוזה הפעיל האחרון שהסתיים בפועל - YYYY-MM-DD, או null אם אין */
+  vacant_since: string | null;
+  /** תחילת החוזה הבא שטרם התחיל - YYYY-MM-DD, או null אם אין */
+  next_lease_start: string | null;
+}
+
+/**
+ * מרכיב תקציר אכלוס מרשימת החוזים של נכס אחד. מסנן חוזים שהסתיימו/בוטלו בפועל
+ * (effectiveLeaseStatus === "ended") גם מ"סוף הריקות" וגם מ"תחילת החוזה הבא" -
+ * לא רק מ"occupied" - אחרת חוזה עתידי שבוטל (status="terminated") ממשיך לחסום
+ * את האופק כאילו יאכלס את הנכס בפועל (ראה סקירת-ענף I2 במודול תזכורות-השירות).
+ * todayIso: YYYY-MM-DD של "היום", לפי הקורא (למשל todayStr()).
+ */
+export function computeOccupancySummary(leases: LeaseForStatus[], todayIso: string): OccupancySummary {
+  const occupied = leases.some((l) => isLeaseCurrentlyActive(l));
+  const notEnded = leases.filter((l) => effectiveLeaseStatus(l) !== "ended");
+
+  const endedDates = notEnded
+    .map((l) => l.end_date.slice(0, 10))
+    .filter((end) => end < todayIso)
+    .sort();
+  const futureStarts = notEnded
+    .map((l) => l.start_date.slice(0, 10))
+    .filter((start) => start > todayIso)
+    .sort();
+
+  return {
+    occupied,
+    vacant_since: endedDates.length ? endedDates[endedDates.length - 1] : null,
+    next_lease_start: futureStarts.length ? futureStarts[0] : null,
+  };
+}

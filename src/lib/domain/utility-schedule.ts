@@ -246,7 +246,20 @@ export function generateVirtualUtilityTasks(
     if (responsibility === "tenant_pays") continue;
 
     const label = utilityTypeLabel(utility.type, utility.custom_label);
-    for (const monthKey of utilityMonthWindow(occupancy, today)) {
+    const months = utilityMonthWindow(occupancy, today);
+    // ביטוח (annual) בנכס מאוכלס מקבל בדרך-כלל רק את החודש הנוכחי (months הוא
+    // מערך של איבר אחד), ולכן ברגע שחודש-העוגן חולף התזכורת נעלמת בלי זכר אם
+    // לא סומנה - בניגוד לחודשי/דו-חודשי שנוצרים מחדש ממילא בכל חודש. מוסיפים
+    // במפורש את חודש-העוגן של השנה הנוכחית כל עוד הוא לא עתידי, כדי שהתזכורת
+    // תמשיך "לרדוף" עד שתסומן או שתיסגר ע"י משימת-DB אמיתית (ה-dedup הקיים
+    // כבר דואג לזה). לא נוגעים בהתנהגות של חודשי/דו-חודשי (סקירת-ענף I1).
+    if (utility.frequency === "annual" && utility.anchor_month != null) {
+      const anchorKey = monthKeyOf(today.getFullYear(), utility.anchor_month);
+      if (anchorKey <= localMonthKey(today) && !months.includes(anchorKey)) {
+        months.push(anchorKey);
+      }
+    }
+    for (const monthKey of months) {
       const [year, month] = monthKey.split("-").map(Number);
       if (!utilityAppliesThisPeriod(utility, new Date(year, month - 1, 1))) continue;
 

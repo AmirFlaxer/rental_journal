@@ -6,10 +6,10 @@ import { DateInput } from "@/components/date-input";
 import { Icon } from "@/components/Icon";
 import type { IconName } from "@/lib/icons";
 import { listRentMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
-import { appNoonIso } from "@/lib/domain/dates";
+import { appNoonIso, localMonthKey } from "@/lib/domain/dates";
 import { generateVirtualUtilityTasks, type PropertyUtilityLike, type PropertyOccupancy } from "@/lib/domain/utility-schedule";
 import { generateVirtualLeaseRenewalTasks } from "@/lib/domain/lease-reminders";
-import { isLeaseCurrentlyActive } from "@/lib/lease-status";
+import { computeOccupancySummary } from "@/lib/lease-status";
 import { apiGet, queryKeys } from "@/lib/api-client";
 
 const CAT_HE: Record<string, string> = {
@@ -221,11 +221,16 @@ function isCheckDepositReminder(t: Task, leaseById: Map<string, Lease>): boolean
   return method === "check" || method === "checks";
 }
 
-// "רלוונטי" = פג מועד או עד 30 יום קדימה
-// חשבונות שירות ותזכורות סיום חוזה כבר מסוננים לחלון הרלוונטי שלהם ביצירה
-// (generateVirtualUtilityTasks / generateVirtualLeaseRenewalTasks) - תמיד "רלוונטי", גם אם ה-due_date רחוק מ-30 יום
+// "רלוונטי" = פג מועד או עד 30 יום קדימה.
+// תזכורת סיום חוזה תמיד "רלוונטית", גם אם ה-due_date רחוק מ-30 יום (generateVirtualLeaseRenewalTasks).
+// חשבון שירות: נכס ריק מייצר אופק של עד שנה קדימה (generateVirtualUtilityTasks), ולכן
+// "רלוונטי" רק אם החודש שלו אינו עתידי - אחרת כל תזכורות האופק היו נכנסות ל"רלוונטיות"
+// (ראה סקירת-ענף C1). חודש עתידי עדיין מוצג, רק תחת "עתידיות".
 function isRelevant(t: Task) {
-  if (t.related_entity_type === "property_utility" || t.related_entity_type === "lease_renewal") return true;
+  if (t.related_entity_type === "lease_renewal") return true;
+  if (t.related_entity_type === "property_utility") {
+    return t.due_date.slice(0, 7) <= localMonthKey(new Date());
+  }
   const due = new Date(t.due_date);
   due.setHours(0, 0, 0, 0);
   const in30 = new Date();
@@ -246,7 +251,10 @@ function formatDue(dateStr: string, isOverdue: boolean) {
   }
   if (diffDays === 0) return "היום";
   if (diffDays === 1) return "מחר";
-  if (diffDays <= 7) return `בעוד ${diffDays} ימים`;
+  // diffDays שלילי (למשל property_utility חודשי/דו-חודשי, שה-isOverdue שלה מדוכא
+  // במפורש - תזכורת ל-1 בחודש שכבר חלף באמצע החודש הנוכחי) לא אמור להגיע לניסוח
+  // "בעוד X ימים" - נופל לתאריך המלא במקום "בעוד -N ימים" (סקירת-ענף M1)
+  if (diffDays > 0 && diffDays <= 7) return `בעוד ${diffDays} ימים`;
   return d.toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" });
 }
 
@@ -360,9 +368,18 @@ export default function TasksPage() {
     }));
   }, [utilityRows, properties]);
 
+  // תדירות לפי מזהה חשבון-שירות, לצורך קביעת פג-מועד (ראה isUtilityOverdueEligible למטה)
+  const utilityFrequencyById = useMemo(
+    () => new Map(utilityRows.map((u) => [u.id, u.frequency])),
+    [utilityRows]
+  );
+
   // מצב האכלוס של כל נכס, מהחוזים שכבר נטענים בדף - בדפוס של utilitiesWithTitle.
-  // status ?? "active" כי בטיפוס המקומי הוא אופציונלי, ו-isLeaseCurrentlyActive
+  // status ?? "active" כי בטיפוס המקומי הוא אופציונלי, ו-computeOccupancySummary
   // דורש מחרוזת; חוזה בלי status נבדק לפי תאריכים וזו ההתנהגות הרצויה.
+  // הלוגיקה עצמה (סינון חוזים שהסתיימו/בוטלו בפועל, לא רק לפי תאריכים - ראה
+  // סקירת-ענף I2) מחושבת ב-computeOccupancySummary, מתוך lease-status.ts, כדי
+  // שתהיה נגישה לבדיקות יחידה (lease-status.test.ts).
   const occupancies: PropertyOccupancy[] = useMemo(() => {
     const leasesByProperty = new Map<string, Lease[]>();
     for (const lease of leases) {
@@ -375,28 +392,13 @@ export default function TasksPage() {
 
     const todayIso = todayStr();
     return properties.map((property) => {
-      const propertyLeases = leasesByProperty.get(property.id) ?? [];
-      const occupied = propertyLeases.some((l) =>
-        isLeaseCurrentlyActive({ status: l.status ?? "active", start_date: l.start_date, end_date: l.end_date })
-      );
-
-      // סוף החוזה האחרון שהסתיים - תחילת הריקות
-      const endedDates = propertyLeases
-        .map((l) => l.end_date.slice(0, 10))
-        .filter((end) => end < todayIso)
-        .sort();
-      // תחילת החוזה הבא שטרם התחיל - חוסם את האופק
-      const futureStarts = propertyLeases
-        .map((l) => l.start_date.slice(0, 10))
-        .filter((start) => start > todayIso)
-        .sort();
-
-      return {
-        property_id: property.id,
-        occupied,
-        vacant_since: endedDates.length ? endedDates[endedDates.length - 1] : null,
-        next_lease_start: futureStarts.length ? futureStarts[0] : null,
-      };
+      const propertyLeases = (leasesByProperty.get(property.id) ?? []).map((l) => ({
+        status: l.status ?? "active",
+        start_date: l.start_date,
+        end_date: l.end_date,
+      }));
+      const summary = computeOccupancySummary(propertyLeases, todayIso);
+      return { property_id: property.id, ...summary };
     });
   }, [leases, properties]);
 
@@ -449,10 +451,15 @@ export default function TasksPage() {
   futureHorizon.setFullYear(futureHorizon.getFullYear() + 1);
   const futureNear = future.filter((t) => new Date(t.due_date) <= futureHorizon);
   const futureFar = future.filter((t) => new Date(t.due_date) > futureHorizon);
-  // תזכורות חשבון שירות מעוגנות לתחילת החודש (due_date = ה-1) ומייצגות את "החודש הנוכחי",
-  // לא deadline - לכן לא נספרות/מוצגות כפג-מועד לאורך החודש.
+  // תזכורות חשבון שירות בתדירות חודשית/דו-חודשית מעוגנות לתחילת החודש (due_date = ה-1)
+  // ומייצגות את "החודש הנוכחי", לא deadline - לכן לא נספרות/מוצגות כפג-מועד לאורך החודש.
+  // annual (בעיקר ביטוח) הוא כן דדליין אמיתי - מועד חידוש שעבר בלי סימון הוא בדיוק
+  // המקרה שאסור שישקע בשקט, ולכן כן נכנס לפג-מועד (ראה סקירת-ענף I1).
+  const isUtilityOverdueEligible = (t: Task) =>
+    t.related_entity_type !== "property_utility" ||
+    utilityFrequencyById.get(t.related_entity_id ?? "") === "annual";
   const overdueCount = allPending.filter(
-    (t) => t.related_entity_type !== "property_utility" && new Date(t.due_date) < today
+    (t) => isUtilityOverdueEligible(t) && new Date(t.due_date) < today
   ).length;
 
   const resetForm = () => {
@@ -678,7 +685,7 @@ export default function TasksPage() {
   );
 
   const TaskRow = ({ t, isDone }: { t: Task; isDone: boolean }) => {
-    const isOverdue = !isDone && t.related_entity_type !== "property_utility" && new Date(t.due_date) < today;
+    const isOverdue = !isDone && isUtilityOverdueEligible(t) && new Date(t.due_date) < today;
     const dueLabel = isDone
       ? new Date(t.due_date).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })
       : formatDue(t.due_date, isOverdue);
@@ -784,7 +791,7 @@ export default function TasksPage() {
             {t.vacantProperty && (
               <span
                 className="px-1.5 py-0.5 rounded text-xs font-semibold whitespace-nowrap"
-                style={{ background: "var(--bg-elevated)", color: "var(--text-3)", border: "1px solid var(--border)" }}
+                style={{ background: "var(--bg-elevated)", color: "var(--text-2)", border: "1px solid var(--border)" }}
               >
                 נכס ריק
               </span>

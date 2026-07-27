@@ -20,3 +20,4 @@
 | 20260708_property_utilities.sql | ✅ 2026-07-08 |
 | 20260724_lease_securities.sql | ✅ 2026-07-24 |
 | 20260726_check_bounces.sql | ✅ 2026-07-26 |
+| 20260726_utility_anchor_day.sql | ✅ 2026-07-27 |

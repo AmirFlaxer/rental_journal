@@ -420,3 +420,43 @@ describe("generateVirtualUtilityTasks - אכלוס וחלון", () => {
     expect(generateVirtualUtilityTasks([util], [], FIXED_TODAY, [vacant("p1")])).toEqual([]);
   });
 });
+
+// סקירת-ענף I1: תזכורת annual שלא סומנה לא אמורה להיעלם ברגע שחודש-העוגן חלף -
+// היא ה"תזכורת השנתית" היחידה שהאפיון מגדיר כשווה שימור, ולכן חייבת להמשיך
+// "לרדוף" עד שתסומן (dbTask) או שיגיע חודש-העוגן הבא בשנה שלאחר מכן.
+describe("generateVirtualUtilityTasks - annual לא נעלם אחרי שחודש העוגן חלף", () => {
+  const occupied = (id: string): PropertyOccupancy => ({ property_id: id, occupied: true });
+
+  it("נכס מאוכלס, חודש-עוגן שכבר חלף השנה - התזכורת עדיין נוצרת", () => {
+    // FIXED_TODAY = 8 ביולי 2026 (חודש 7), anchor_month=5 (מאי) - כבר חלף
+    const insurance = makeUtility({
+      type: "insurance", frequency: "annual", anchor_month: 5, anchor_day: 20,
+      responsibility: "owner_pays",
+    });
+    const result = generateVirtualUtilityTasks([insurance], [], FIXED_TODAY, [occupied("p1")]);
+    expect(result).toHaveLength(1);
+    expect(result[0].due_date).toBe("2026-05-20");
+  });
+
+  it("נכס מאוכלס, חודש-עוגן עתידי - לא מוצגת מוקדם מדי (התנהגות קיימת נשמרת)", () => {
+    // anchor_month=12 (דצמבר) - עתידי יחסית ל-יולי, אסור שיופיע כבר עכשיו
+    const insurance = makeUtility({
+      type: "insurance", frequency: "annual", anchor_month: 12, anchor_day: 1,
+      responsibility: "owner_pays",
+    });
+    const result = generateVirtualUtilityTasks([insurance], [], FIXED_TODAY, [occupied("p1")]);
+    expect(result).toHaveLength(0);
+  });
+
+  it("חודש-עוגן שחלף אך כבר מכוסה ע\"י משימת-DB אמיתית - לא מיוצרת וירטואלית כפולה", () => {
+    const insurance = makeUtility({
+      id: "ins1", type: "insurance", frequency: "annual", anchor_month: 5, anchor_day: 20,
+      responsibility: "owner_pays",
+    });
+    const dbTasks: DbTaskLike[] = [
+      { category: "Insurance", related_entity_type: "property_utility", related_entity_id: "ins1", due_date: "2026-05-20", completed_at: "2026-05-21" },
+    ];
+    const result = generateVirtualUtilityTasks([insurance], dbTasks, FIXED_TODAY, [occupied("p1")]);
+    expect(result).toHaveLength(0);
+  });
+});
