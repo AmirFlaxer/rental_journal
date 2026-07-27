@@ -10,10 +10,10 @@
 ולתקן את שם-הענף". זה מה שנעשה כאן.
 
 **מה הותאם ל-rental_journal:**
-- המשטח הפרויקטלי הוא **`docs/current_focus.md` שבריפו**, ולא `~/.claude/current_focus.md` -
+- מקום-השמירה הפרויקטלי הוא **`docs/current_focus.md` שבריפו**, ולא `~/.claude/current_focus.md` -
   מצב הפרויקט הועבר לריפו בכוונה בקומיט `eeb1bba`.
 - נוספו `SPEC.md §הצעד הבא`, `TODO.md`, `docs/session-log.md` ו-`supabase/migrations/README.md`
-  כמשטחים לבדיקה.
+  כמקומות-שמירה נוספים לבדיקה.
 - בדיקת ה-CI דורשת **את שני ה-jobs** (`checks` ו-`deploy`), כי דחיפה ל-main פורסת לייצור.
 - שם-הענף נגזר ב-`git branch --show-current` ואינו מקובע.
 - נוספו חמש מלכודות שנצפו בפועל בפרויקט הזה (build כגייט-היחיד לגבול-client, מיגרציות ידניות
