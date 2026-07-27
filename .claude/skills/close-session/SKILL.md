@@ -22,8 +22,8 @@ description: Use when the user ends a work session - says "סגור את הסש�
    עוברים גם כשעמוד ב-`dashboard` שמרנדר `Icon` חסר `"use client"`.
 4. **מיגרציות נדחפות ידנית לפרודקשן**, ולכן `supabase/migrations/README.md` הוא מקום-שמירה
    בזכות עצמו: טבלת-הסטטוס שלו חייבת לשקף מה באמת רץ. אם שינית סכימה - גם
-   `npm run gen:types`, אחרת הטיפוסים הנוצרים סוטים ואף שער ב-CI לא יכול לתפוס עמודה חסרה (נצפה: `check_bounces`
-   נעדר מהם לגמרי במשך שבוע).
+   `npm run gen:types`, אחרת הטיפוסים הנוצרים סוטים ואף שער ב-CI לא יכול לתפוס עמודה
+   חסרה (נצפה: `check_bounces` נעדר מהם לגמרי במשך שבוע).
 5. **`package-lock.json` נכנס ל-dirty מעצם הרצת npm ב-Windows** (`@next/swc-win32-x64-msvc`).
    זה לא שינוי-תלויות ואין לקמט אותו - `git checkout -- package-lock.json`.
 
