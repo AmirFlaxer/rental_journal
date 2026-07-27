@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   utilityAppliesThisPeriod,
+  utilityDueDate,
   generateVirtualUtilityTasks,
   mapUtilityCategory,
   utilityTypeLabel,
@@ -30,6 +31,7 @@ function makeUtility(overrides: Partial<PropertyUtilityLike> = {}): PropertyUtil
     custom_label: null,
     frequency: "monthly",
     anchor_month: null,
+    anchor_day: null,
     responsibility: "owner_pays",
     active: true,
     ...overrides,
@@ -70,6 +72,51 @@ describe("utilityAppliesThisPeriod", () => {
     expect(
       utilityAppliesThisPeriod(makeUtility({ frequency: "bimonthly", anchor_month: null }), new Date())
     ).toBe(true);
+  });
+});
+
+describe("utilityAppliesThisPeriod - תדירות שנתית", () => {
+  it("חל רק בחודש העוגן", () => {
+    const insurance = makeUtility({ type: "insurance", frequency: "annual", anchor_month: 10, anchor_day: 31 });
+    expect(utilityAppliesThisPeriod(insurance, new Date(2026, 9, 1))).toBe(true); // אוקטובר
+    expect(utilityAppliesThisPeriod(insurance, new Date(2026, 8, 1))).toBe(false); // ספטמבר
+    expect(utilityAppliesThisPeriod(insurance, new Date(2027, 9, 1))).toBe(true); // אוקטובר בשנה הבאה
+  });
+
+  it("בלי חודש עוגן אינו חל בכלל - לא ממציא מועד חידוש שרירותי", () => {
+    const insurance = makeUtility({ type: "insurance", frequency: "annual", anchor_month: null });
+    expect(utilityAppliesThisPeriod(insurance, new Date(2026, 9, 1))).toBe(false);
+  });
+
+  it("חודשי ודו-חודשי לא השתנו, והחודש נלקח מהתאריך שהועבר ולא מ'היום'", () => {
+    expect(utilityAppliesThisPeriod(makeUtility({ frequency: "monthly" }), new Date(2026, 2, 1))).toBe(true);
+    const bimonthly = makeUtility({ frequency: "bimonthly", anchor_month: 7 });
+    expect(utilityAppliesThisPeriod(bimonthly, new Date(2026, 6, 1))).toBe(true);  // יולי
+    expect(utilityAppliesThisPeriod(bimonthly, new Date(2026, 7, 1))).toBe(false); // אוגוסט
+    expect(utilityAppliesThisPeriod(bimonthly, new Date(2026, 8, 1))).toBe(true);  // ספטמבר
+  });
+});
+
+describe("utilityDueDate", () => {
+  it("שנתי - היום בחודש הוא anchor_day", () => {
+    const insurance = makeUtility({ type: "insurance", frequency: "annual", anchor_month: 10, anchor_day: 31 });
+    expect(utilityDueDate(insurance, "2026-10")).toBe("2026-10-31");
+  });
+
+  it("שנתי - יום שלא קיים בחודש נחתך לסוף החודש", () => {
+    const insurance = makeUtility({ type: "insurance", frequency: "annual", anchor_month: 2, anchor_day: 31 });
+    expect(utilityDueDate(insurance, "2026-02")).toBe("2026-02-28");
+    expect(utilityDueDate(insurance, "2028-02")).toBe("2028-02-29"); // שנה מעוברת
+  });
+
+  it("שנתי בלי anchor_day נופל ל-1 בחודש", () => {
+    const insurance = makeUtility({ type: "insurance", frequency: "annual", anchor_month: 10, anchor_day: null });
+    expect(utilityDueDate(insurance, "2026-10")).toBe("2026-10-01");
+  });
+
+  it("חודשי ודו-חודשי תמיד ה-1 בחודש", () => {
+    expect(utilityDueDate(makeUtility({ frequency: "monthly" }), "2026-07")).toBe("2026-07-01");
+    expect(utilityDueDate(makeUtility({ frequency: "bimonthly", anchor_month: 7 }), "2026-07")).toBe("2026-07-01");
   });
 });
 

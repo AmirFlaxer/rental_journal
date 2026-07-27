@@ -109,16 +109,33 @@ export function effectiveResponsibility(
 }
 
 /**
- * האם החשבון חל בתקופה (החודש) הנוכחית.
- * monthly - תמיד. bimonthly - רק כש-(currentMonth - anchor_month) זוגי (חלון דו-חודשי
- * שנוחת על anchor_month ואז כל חודשיים). אם anchor_month חסר - נחשב כתמיד חל (הערה
- * לבעל הנכס להשלים את החודש בעריכת הנכס נמצאת ב-UI, לא כאן).
+ * האם החשבון חל בחודש של התאריך שהועבר. הפרמטר הוא **חודש-יעד** ולא בהכרח היום:
+ * המחולל מריץ אותו על כל חודש בחלון, ולכן אין כאן שימוש ב-new Date().
+ * monthly - תמיד. bimonthly - כש-(חודש - anchor_month) זוגי. annual - רק בחודש
+ * העוגן, ובלי חודש עוגן אינו חל בכלל (עדיף שלא תופיע תזכורת מאשר שתופיע בחודש
+ * שרירותי; ה-UI אוכף את השדה בהגדרת ביטוח).
  */
-export function utilityAppliesThisPeriod(utility: PropertyUtilityLike, today: Date): boolean {
+export function utilityAppliesThisPeriod(utility: PropertyUtilityLike, monthDate: Date): boolean {
+  const month = monthDate.getMonth() + 1; // 1-12 מקומי
   if (utility.frequency === "monthly") return true;
+  if (utility.frequency === "annual") {
+    if (utility.anchor_month == null) return false;
+    return month === utility.anchor_month;
+  }
   if (utility.anchor_month == null) return true;
-  const currentMonth = today.getMonth() + 1; // 1-12 מקומי
-  return Math.abs(currentMonth - utility.anchor_month) % 2 === 0;
+  return Math.abs(month - utility.anchor_month) % 2 === 0;
+}
+
+/**
+ * מועד התזכורת בתוך החודש. שנתי נופל על anchor_day (נחתך לאורך החודש - 31 בפברואר
+ * הוא 28/29), שאר התדירויות על ה-1 כמו קודם.
+ */
+export function utilityDueDate(utility: PropertyUtilityLike, monthKey: string): string {
+  if (utility.frequency !== "annual" || utility.anchor_day == null) return `${monthKey}-01`;
+  const [year, month] = monthKey.split("-").map(Number);
+  const lastDay = new Date(year, month, 0).getDate(); // יום 0 של החודש הבא = היום האחרון
+  const day = Math.min(Math.max(utility.anchor_day, 1), lastDay);
+  return `${monthKey}-${String(day).padStart(2, "0")}`;
 }
 
 /** מפתח התקופה הנוכחית - YYYY-MM מקומי */
