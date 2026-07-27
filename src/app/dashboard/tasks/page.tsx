@@ -7,8 +7,9 @@ import { Icon } from "@/components/Icon";
 import type { IconName } from "@/lib/icons";
 import { listRentMonths, propertyMonthKey, todayStr } from "@/lib/domain/rent-schedule";
 import { appNoonIso } from "@/lib/domain/dates";
-import { generateVirtualUtilityTasks, type PropertyUtilityLike } from "@/lib/domain/utility-schedule";
+import { generateVirtualUtilityTasks, type PropertyUtilityLike, type PropertyOccupancy } from "@/lib/domain/utility-schedule";
 import { generateVirtualLeaseRenewalTasks } from "@/lib/domain/lease-reminders";
+import { isLeaseCurrentlyActive } from "@/lib/lease-status";
 import { apiGet, queryKeys } from "@/lib/api-client";
 
 const CAT_HE: Record<string, string> = {
@@ -102,6 +103,7 @@ interface Task {
   related_entity_type?: string | null;
   related_entity_id?: string | null;
   isVirtual?: boolean;
+  vacantProperty?: boolean;
 }
 
 interface Lease {
@@ -137,6 +139,7 @@ interface PropertyUtilityRow {
   custom_label?: string | null;
   frequency: PropertyUtilityLike["frequency"];
   anchor_month?: number | null;
+  anchor_day?: number | null;
   responsibility: PropertyUtilityLike["responsibility"];
   active: boolean;
 }
@@ -357,9 +360,49 @@ export default function TasksPage() {
     }));
   }, [utilityRows, properties]);
 
+  // מצב האכלוס של כל נכס, מהחוזים שכבר נטענים בדף - בדפוס של utilitiesWithTitle.
+  // status ?? "active" כי בטיפוס המקומי הוא אופציונלי, ו-isLeaseCurrentlyActive
+  // דורש מחרוזת; חוזה בלי status נבדק לפי תאריכים וזו ההתנהגות הרצויה.
+  const occupancies: PropertyOccupancy[] = useMemo(() => {
+    const leasesByProperty = new Map<string, Lease[]>();
+    for (const lease of leases) {
+      const propertyId = lease.properties?.id;
+      if (!propertyId) continue;
+      const list = leasesByProperty.get(propertyId);
+      if (list) list.push(lease);
+      else leasesByProperty.set(propertyId, [lease]);
+    }
+
+    const todayIso = todayStr();
+    return properties.map((property) => {
+      const propertyLeases = leasesByProperty.get(property.id) ?? [];
+      const occupied = propertyLeases.some((l) =>
+        isLeaseCurrentlyActive({ status: l.status ?? "active", start_date: l.start_date, end_date: l.end_date })
+      );
+
+      // סוף החוזה האחרון שהסתיים - תחילת הריקות
+      const endedDates = propertyLeases
+        .map((l) => l.end_date.slice(0, 10))
+        .filter((end) => end < todayIso)
+        .sort();
+      // תחילת החוזה הבא שטרם התחיל - חוסם את האופק
+      const futureStarts = propertyLeases
+        .map((l) => l.start_date.slice(0, 10))
+        .filter((start) => start > todayIso)
+        .sort();
+
+      return {
+        property_id: property.id,
+        occupied,
+        vacant_since: endedDates.length ? endedDates[endedDates.length - 1] : null,
+        next_lease_start: futureStarts.length ? futureStarts[0] : null,
+      };
+    });
+  }, [leases, properties]);
+
   const virtualUtility = useMemo(
-    () => generateVirtualUtilityTasks(utilitiesWithTitle, dbTasks, new Date()),
-    [utilitiesWithTitle, dbTasks]
+    () => generateVirtualUtilityTasks(utilitiesWithTitle, dbTasks, new Date(), occupancies),
+    [utilitiesWithTitle, dbTasks, occupancies]
   );
   const virtualLeaseRenewal = useMemo(
     () => generateVirtualLeaseRenewalTasks(leases, dbTasks, new Date()),
@@ -736,6 +779,14 @@ export default function TasksPage() {
             {t.isVirtual && (
               <span className="text-xs flex-shrink-0" style={{ color: isDone ? "var(--text-3)" : "rgba(255,255,255,0.65)" }}>
                 אוטומטי
+              </span>
+            )}
+            {t.vacantProperty && (
+              <span
+                className="px-1.5 py-0.5 rounded text-xs font-semibold whitespace-nowrap"
+                style={{ background: "var(--bg-elevated)", color: "var(--text-3)", border: "1px solid var(--border)" }}
+              >
+                נכס ריק
               </span>
             )}
           </div>

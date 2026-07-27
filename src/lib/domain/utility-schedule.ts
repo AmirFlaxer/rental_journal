@@ -52,6 +52,8 @@ export interface VirtualTask {
   related_entity_type: string;
   related_entity_id: string;
   isVirtual: true;
+  /** התזכורת נוצרה בגלל שהנכס ריק - מוצג כתגית במסך התזכורות */
+  vacantProperty?: boolean;
 }
 
 /** מיפוי סוג חשבון לקטגוריית תזכורת קיימת (בלי שינוי enum הקטגוריות) */
@@ -143,56 +145,127 @@ export function currentUtilityPeriodKey(today: Date): string {
   return localMonthKey(today);
 }
 
-function utilityTitle(utility: PropertyUtilityLike, label: string): string {
-  return utility.responsibility === "owner_forwards"
+/** מצב אכלוס של נכס, כפי שהקורא מרכיב אותו מהחוזים - המודול לא שולף כלום בעצמו */
+export interface PropertyOccupancy {
+  property_id: string;
+  /** סוף החוזה הפעיל האחרון, אם הסתיים - YYYY-MM-DD */
+  vacant_since?: string | null;
+  /** תחילת החוזה הבא אם כבר נחתם - חוסם את האופק */
+  next_lease_start?: string | null;
+  /** האם יש חוזה פעיל היום */
+  occupied: boolean;
+}
+
+/** מפתח חודש (YYYY-MM) מרכיבי שנה וחודש */
+function monthKeyOf(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+/**
+ * החודשים שעבורם מיוצרות תזכורות לנכס.
+ * מאוכלס (או בלי מידע) - החודש הנוכחי בלבד, כמו קודם.
+ * ריק - מתחילת הריקות ועד min(31 בדצמבר של השנה הנוכחית, היום שלפני החוזה הבא).
+ * האופק נקבע מול השנה של "היום", ולכן הוא מתגלגל מעצמו בכל 1 בינואר ואינו עולה
+ * על שנה - זה מה שמונע את חזרת תזכורות-2049.
+ */
+export function utilityMonthWindow(
+  occupancy: PropertyOccupancy | undefined,
+  today: Date
+): string[] {
+  const currentKey = localMonthKey(today);
+  if (!occupancy || occupancy.occupied) return [currentKey];
+
+  // תחילת הריקות = max(סוף החוזה האחרון, תחילת החודש הנוכחי) - לא מייצרים לעבר
+  const vacantKey = occupancy.vacant_since?.slice(0, 7);
+  const startKey = vacantKey && vacantKey > currentKey ? vacantKey : currentKey;
+
+  let endKey = monthKeyOf(today.getFullYear(), 12);
+  if (occupancy.next_lease_start) {
+    const [y, m, d] = occupancy.next_lease_start.slice(0, 10).split("-").map(Number);
+    // חשבון אריתמטי ב-UTC על רכיבים מפורקים - חסין לאזור זמן
+    const dayBefore = new Date(Date.UTC(y, m - 1, d));
+    dayBefore.setUTCDate(dayBefore.getUTCDate() - 1);
+    const blockedKey = monthKeyOf(dayBefore.getUTCFullYear(), dayBefore.getUTCMonth() + 1);
+    if (blockedKey < endKey) endKey = blockedKey;
+  }
+  if (endKey < startKey) return [];
+
+  const months: string[] = [];
+  let [year, month] = startKey.split("-").map(Number);
+  while (monthKeyOf(year, month) <= endKey) {
+    months.push(monthKeyOf(year, month));
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  return months;
+}
+
+function utilityTitle(
+  utility: PropertyUtilityLike,
+  label: string,
+  responsibility: UtilityResponsibility
+): string {
+  if (utility.type === "insurance") return `חידוש ביטוח - ${utility.property_title}`;
+  return responsibility === "owner_forwards"
     ? `העברת חשבון ${label} לשוכר - ${utility.property_title}`
     : `תשלום ${label} - ${utility.property_title}`;
 }
 
 /**
- * מייצר תזכורות וירטואליות לחשבונות שירות שבאחריות המשכיר (owner_pays/owner_forwards),
- * פעילים, שחלים בתקופה הנוכחית ולא מכוסים ע"י task קיים ב-DB (גם אם מושלם).
- * dedup לפי utility.id + חודש נוכחי - גם מול dbTasks וגם בין חשבונות באותה ריצה.
+ * מייצר תזכורות וירטואליות לחשבונות שבאחריות המשכיר **בפועל** (אחרי שקלול אכלוס),
+ * פעילים, שחלים בחודש, ושאין להם משימה אמיתית ב-DB לאותו חודש (גם אם מושלמת).
+ * נכס מאוכלס מקבל את החודש הנוכחי בלבד; נכס ריק מקבל את כל החלון עד האופק.
+ * dedup לפי חשבון+חודש - גם מול dbTasks וגם בין חשבונות באותה ריצה.
  */
 export function generateVirtualUtilityTasks(
   utilities: PropertyUtilityLike[],
   dbTasks: DbTaskLike[],
-  today: Date
+  today: Date,
+  occupancies: PropertyOccupancy[]
 ): VirtualTask[] {
-  const monthKey = currentUtilityPeriodKey(today);
-  const dueDate = `${monthKey}-01`;
+  const occupancyByProperty = new Map(occupancies.map((o) => [o.property_id, o]));
 
-  // מזהי חשבונות שכבר מכוסים ע"י task אמיתי לאותו חודש (גם מושלם - dedup)
+  // מפתחות "חשבון+חודש" שכבר מכוסים ע"י task אמיתי (גם מושלם - dedup)
   const covered = new Set<string>();
   for (const t of dbTasks) {
-    if (
-      t.related_entity_type === "property_utility" &&
-      t.related_entity_id &&
-      t.due_date.slice(0, 7) === monthKey
-    ) {
-      covered.add(t.related_entity_id);
+    if (t.related_entity_type === "property_utility" && t.related_entity_id) {
+      covered.add(`${t.related_entity_id}|${t.due_date.slice(0, 7)}`);
     }
   }
 
   const virtual: VirtualTask[] = [];
   for (const utility of utilities) {
     if (!utility.active) continue;
-    if (utility.responsibility === "tenant_pays") continue;
-    if (!utilityAppliesThisPeriod(utility, today)) continue;
-    if (covered.has(utility.id)) continue;
+
+    const occupancy = occupancyByProperty.get(utility.property_id);
+    const occupied = occupancy ? occupancy.occupied : true;
+    const responsibility = effectiveResponsibility(utility, occupied);
+    if (responsibility === "tenant_pays") continue;
 
     const label = utilityTypeLabel(utility.type, utility.custom_label);
-    virtual.push({
-      id: `virtual-util-${utility.id}-${monthKey}`,
-      title: utilityTitle(utility, label),
-      category: mapUtilityCategory(utility.type),
-      due_date: dueDate,
-      priority: "normal",
-      related_entity_type: "property_utility",
-      related_entity_id: utility.id,
-      isVirtual: true,
-    });
-    covered.add(utility.id); // dedup בין חשבונות באותה ריצה (למקרה של id כפול בקלט)
+    for (const monthKey of utilityMonthWindow(occupancy, today)) {
+      const [year, month] = monthKey.split("-").map(Number);
+      if (!utilityAppliesThisPeriod(utility, new Date(year, month - 1, 1))) continue;
+
+      const key = `${utility.id}|${monthKey}`;
+      if (covered.has(key)) continue;
+      covered.add(key);
+
+      virtual.push({
+        id: `virtual-util-${utility.id}-${monthKey}`,
+        title: utilityTitle(utility, label, responsibility),
+        category: mapUtilityCategory(utility.type),
+        due_date: utilityDueDate(utility, monthKey),
+        priority: "normal",
+        related_entity_type: "property_utility",
+        related_entity_id: utility.id,
+        isVirtual: true,
+        ...(occupied ? {} : { vacantProperty: true }),
+      });
+    }
   }
 
   return virtual;

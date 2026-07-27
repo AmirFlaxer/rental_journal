@@ -2,12 +2,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   utilityAppliesThisPeriod,
   utilityDueDate,
+  utilityMonthWindow,
   generateVirtualUtilityTasks,
   mapUtilityCategory,
   utilityTypeLabel,
   effectiveResponsibility,
   type PropertyUtilityLike,
   type DbTaskLike,
+  type PropertyOccupancy,
 } from "@/lib/domain/utility-schedule";
 
 // "היום" מוקפא ל-8 ביולי 2026 (חודש 7) - תואם לתאריך המתועד בסביבת העבודה
@@ -120,12 +122,15 @@ describe("utilityDueDate", () => {
   });
 });
 
+const occupiedP1: PropertyOccupancy[] = [{ property_id: "p1", occupied: true }];
+
 describe("generateVirtualUtilityTasks", () => {
   it("owner_pays - כותרת 'תשלום {תווית} - {נכס}', due_date ה-1 בחודש הנוכחי", () => {
     const tasks = generateVirtualUtilityTasks(
       [makeUtility({ id: "u1", type: "water", responsibility: "owner_pays" })],
       [],
-      new Date()
+      new Date(),
+      occupiedP1
     );
     expect(tasks).toHaveLength(1);
     expect(tasks[0]).toMatchObject({
@@ -144,7 +149,8 @@ describe("generateVirtualUtilityTasks", () => {
     const tasks = generateVirtualUtilityTasks(
       [makeUtility({ id: "u2", type: "gas", responsibility: "owner_forwards" })],
       [],
-      new Date()
+      new Date(),
+      occupiedP1
     );
     expect(tasks[0].title).toBe("העברת חשבון גז לשוכר - רוטשילד 1");
   });
@@ -153,13 +159,14 @@ describe("generateVirtualUtilityTasks", () => {
     const tasks = generateVirtualUtilityTasks(
       [makeUtility({ responsibility: "tenant_pays" })],
       [],
-      new Date()
+      new Date(),
+      occupiedP1
     );
     expect(tasks).toHaveLength(0);
   });
 
   it("active=false מסונן - לא נוצרת תזכורת", () => {
-    const tasks = generateVirtualUtilityTasks([makeUtility({ active: false })], [], new Date());
+    const tasks = generateVirtualUtilityTasks([makeUtility({ active: false })], [], new Date(), occupiedP1);
     expect(tasks).toHaveLength(0);
   });
 
@@ -167,7 +174,8 @@ describe("generateVirtualUtilityTasks", () => {
     const tasks = generateVirtualUtilityTasks(
       [makeUtility({ frequency: "bimonthly", anchor_month: 2 })], // 7-2=5, אי-זוגי
       [],
-      new Date()
+      new Date(),
+      occupiedP1
     );
     expect(tasks).toHaveLength(0);
   });
@@ -181,7 +189,7 @@ describe("generateVirtualUtilityTasks", () => {
       makeUtility({ id: "e", type: "house_committee" }),
       makeUtility({ id: "f", type: "other", custom_label: "אינטרנט" }),
     ];
-    const tasks = generateVirtualUtilityTasks(utilities, [], new Date());
+    const tasks = generateVirtualUtilityTasks(utilities, [], new Date(), occupiedP1);
     const byId = Object.fromEntries(tasks.map((t) => [t.related_entity_id, t]));
     expect(byId.a.category).toBe("Water");
     expect(byId.b.category).toBe("Gas");
@@ -196,7 +204,8 @@ describe("generateVirtualUtilityTasks", () => {
     const tasks = generateVirtualUtilityTasks(
       [makeUtility({ type: "other", custom_label: null })],
       [],
-      new Date()
+      new Date(),
+      occupiedP1
     );
     expect(tasks[0].title).toBe("תשלום חשבון - רוטשילד 1");
   });
@@ -205,7 +214,7 @@ describe("generateVirtualUtilityTasks", () => {
     const dbTasks: DbTaskLike[] = [
       { category: "Water", related_entity_type: "property_utility", related_entity_id: "u1", due_date: "2026-07-01", completed_at: "2026-07-02" },
     ];
-    const tasks = generateVirtualUtilityTasks([makeUtility({ id: "u1" })], dbTasks, new Date());
+    const tasks = generateVirtualUtilityTasks([makeUtility({ id: "u1" })], dbTasks, new Date(), occupiedP1);
     expect(tasks).toHaveLength(0);
   });
 
@@ -213,7 +222,7 @@ describe("generateVirtualUtilityTasks", () => {
     const dbTasks: DbTaskLike[] = [
       { category: "Water", related_entity_type: "property_utility", related_entity_id: "u1", due_date: "2026-06-01", completed_at: null },
     ];
-    const tasks = generateVirtualUtilityTasks([makeUtility({ id: "u1" })], dbTasks, new Date());
+    const tasks = generateVirtualUtilityTasks([makeUtility({ id: "u1" })], dbTasks, new Date(), occupiedP1);
     expect(tasks).toHaveLength(1);
   });
 
@@ -221,7 +230,8 @@ describe("generateVirtualUtilityTasks", () => {
     const tasks = generateVirtualUtilityTasks(
       [makeUtility({ id: "u1" }), makeUtility({ id: "u1" })],
       [],
-      new Date()
+      new Date(),
+      occupiedP1
     );
     expect(tasks).toHaveLength(1);
   });
@@ -258,5 +268,155 @@ describe("effectiveResponsibility", () => {
     expect(effectiveResponsibility({ type: "water", responsibility: "tenant_pays" }, true)).toBe("tenant_pays");
     expect(effectiveResponsibility({ type: "water", responsibility: "owner_forwards" }, true)).toBe("owner_forwards");
     expect(effectiveResponsibility({ type: "municipal_tax", responsibility: "owner_pays" }, true)).toBe("owner_pays");
+  });
+});
+
+describe("utilityMonthWindow", () => {
+  it("נכס מאוכלס - החודש הנוכחי בלבד", () => {
+    const window = utilityMonthWindow({ property_id: "p1", occupied: true }, FIXED_TODAY);
+    expect(window).toEqual(["2026-07"]);
+  });
+
+  it("נכס בלי מידע אכלוס מתנהג כמאוכלס - ברירת מחדל שמרנית", () => {
+    expect(utilityMonthWindow(undefined, FIXED_TODAY)).toEqual(["2026-07"]);
+  });
+
+  it("נכס ריק - מהחודש הנוכחי ועד סוף השנה הקלנדרית", () => {
+    const window = utilityMonthWindow(
+      { property_id: "p1", occupied: false, vacant_since: "2026-05-31" },
+      FIXED_TODAY
+    );
+    expect(window).toEqual(["2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"]);
+  });
+
+  it("חוזה הבא חוסם את האופק - עד היום שלפני תחילתו", () => {
+    const window = utilityMonthWindow(
+      { property_id: "p1", occupied: false, vacant_since: "2026-06-30", next_lease_start: "2026-09-01" },
+      FIXED_TODAY
+    );
+    expect(window).toEqual(["2026-07", "2026-08"]);
+  });
+
+  it("חוזה הבא שמתחיל באמצע חודש - אותו חודש עדיין נכלל", () => {
+    const window = utilityMonthWindow(
+      { property_id: "p1", occupied: false, next_lease_start: "2026-09-15" },
+      FIXED_TODAY
+    );
+    expect(window).toEqual(["2026-07", "2026-08", "2026-09"]);
+  });
+
+  it("חוזה הבא שמתחיל החודש - חלון ריק", () => {
+    const window = utilityMonthWindow(
+      { property_id: "p1", occupied: false, next_lease_start: "2026-07-01" },
+      FIXED_TODAY
+    );
+    expect(window).toEqual([]);
+  });
+
+  it("האופק מתגלגל: ריצה ב-1 בינואר מייצרת עד סוף השנה החדשה ולא מעבר", () => {
+    const window = utilityMonthWindow(
+      { property_id: "p1", occupied: false, vacant_since: "2025-11-30" },
+      new Date(2027, 0, 1)
+    );
+    expect(window).toHaveLength(12);
+    expect(window[0]).toBe("2027-01");
+    expect(window[11]).toBe("2027-12");
+  });
+});
+
+describe("generateVirtualUtilityTasks - אכלוס וחלון", () => {
+  const occupied = (id: string): PropertyOccupancy => ({ property_id: id, occupied: true });
+  const vacant = (id: string, extra: Partial<PropertyOccupancy> = {}): PropertyOccupancy => ({
+    property_id: id,
+    occupied: false,
+    ...extra,
+  });
+
+  it("חשבון tenant_pays מייצר תזכורת בנכס ריק", () => {
+    const util = makeUtility({ responsibility: "tenant_pays" });
+    const result = generateVirtualUtilityTasks([util], [], FIXED_TODAY, [vacant("p1")]);
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0].title).toBe("תשלום מים - רוטשילד 1");
+    expect(result[0].vacantProperty).toBe(true);
+  });
+
+  it("חשבון tenant_pays אינו מייצר תזכורת בנכס מאוכלס", () => {
+    const util = makeUtility({ responsibility: "tenant_pays" });
+    expect(generateVirtualUtilityTasks([util], [], FIXED_TODAY, [occupied("p1")])).toEqual([]);
+  });
+
+  it("נכס מאוכלס - חודש נוכחי בלבד, וללא תגית נכס ריק", () => {
+    const util = makeUtility({ responsibility: "owner_pays" });
+    const result = generateVirtualUtilityTasks([util], [], FIXED_TODAY, [occupied("p1")]);
+    expect(result).toHaveLength(1);
+    expect(result[0].due_date).toBe("2026-07-01");
+    expect(result[0].vacantProperty).toBeFalsy();
+  });
+
+  it("נכס ריק - חשבון חודשי מייצר תזכורת לכל חודש עד סוף השנה", () => {
+    const util = makeUtility({ responsibility: "owner_pays", frequency: "monthly" });
+    const result = generateVirtualUtilityTasks([util], [], FIXED_TODAY, [vacant("p1")]);
+    expect(result.map((t) => t.due_date)).toEqual([
+      "2026-07-01", "2026-08-01", "2026-09-01", "2026-10-01", "2026-11-01", "2026-12-01",
+    ]);
+  });
+
+  it("ביטוח שנתי - תזכורת אחת בחודש העוגן ובתאריך החידוש", () => {
+    const insurance = makeUtility({
+      type: "insurance", frequency: "annual", anchor_month: 10, anchor_day: 31,
+      responsibility: "owner_pays",
+    });
+    const result = generateVirtualUtilityTasks([insurance], [], FIXED_TODAY, [vacant("p1")]);
+    expect(result).toHaveLength(1);
+    expect(result[0].due_date).toBe("2026-10-31");
+    expect(result[0].title).toBe("חידוש ביטוח - רוטשילד 1");
+    expect(result[0].category).toBe("Insurance");
+  });
+
+  it("ביטוח מיוצר גם בנכס מאוכלס אם חודש העוגן הוא החודש הנוכחי", () => {
+    const insurance = makeUtility({
+      type: "insurance", frequency: "annual", anchor_month: 7, anchor_day: 15,
+      responsibility: "tenant_pays",
+    });
+    const result = generateVirtualUtilityTasks([insurance], [], FIXED_TODAY, [occupied("p1")]);
+    expect(result).toHaveLength(1);
+    expect(result[0].due_date).toBe("2026-07-15");
+  });
+
+  it("dedup - משימה אמיתית חוסמת את החודש שלה בלבד", () => {
+    const util = makeUtility({ responsibility: "owner_pays", frequency: "monthly" });
+    const dbTasks: DbTaskLike[] = [
+      {
+        category: "Water",
+        related_entity_type: "property_utility",
+        related_entity_id: "u1",
+        due_date: "2026-09-01",
+        completed_at: "2026-09-02",
+      },
+    ];
+    const result = generateVirtualUtilityTasks([util], dbTasks, FIXED_TODAY, [vacant("p1")]);
+    const months = result.map((t) => t.due_date.slice(0, 7));
+    expect(months).not.toContain("2026-09");
+    expect(months).toContain("2026-08");
+    expect(months).toContain("2026-10");
+  });
+
+  it("החוזה הבא חוסם את זנב החלון", () => {
+    const util = makeUtility({ responsibility: "owner_pays", frequency: "monthly" });
+    const result = generateVirtualUtilityTasks([util], [], FIXED_TODAY, [
+      vacant("p1", { next_lease_start: "2026-09-01" }),
+    ]);
+    expect(result.map((t) => t.due_date)).toEqual(["2026-07-01", "2026-08-01"]);
+  });
+
+  it("מזהי התזכורות ייחודיים לכל חודש - אחרת React מתלונן על key כפול", () => {
+    const util = makeUtility({ responsibility: "owner_pays", frequency: "monthly" });
+    const result = generateVirtualUtilityTasks([util], [], FIXED_TODAY, [vacant("p1")]);
+    expect(new Set(result.map((t) => t.id)).size).toBe(result.length);
+  });
+
+  it("חשבון לא פעיל אינו מייצר כלום גם בנכס ריק", () => {
+    const util = makeUtility({ active: false, responsibility: "tenant_pays" });
+    expect(generateVirtualUtilityTasks([util], [], FIXED_TODAY, [vacant("p1")])).toEqual([]);
   });
 });
