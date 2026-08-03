@@ -11,7 +11,7 @@ import { hasOpenBounce, bounceChainForPayment, BOUNCE_REASON_LABELS, type CheckB
 import { isCheckPaymentMethod } from "@/lib/check-reminders";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { formatAmount, formatCurrency } from "@/lib/domain/money";
-import { localDateStr, appNoonIso } from "@/lib/domain/dates";
+import { localDateStr, appNoonIso, dateNoonIso } from "@/lib/domain/dates";
 
 const TYPE_HE: Record<string, string> = {
   Rent: "שכ״ד",
@@ -133,6 +133,11 @@ export default function PaymentsPage() {
   const [partialReason, setPartialReason] = useState("");
   const [savingPartial, setSavingPartial] = useState(false);
 
+  // תאריך תשלום נבחר בעת סימון "שולם" - ברירת מחדל היום, ניתן לעריכה (למשל הפקדה שהתעכבה)
+  const [paidOpenId, setPaidOpenId] = useState<string | null>(null);
+  const [paidDate, setPaidDate] = useState(() => localDateStr());
+  const resetPaidForm = () => setPaidDate(localDateStr());
+
   const [bounceOpenId, setBounceOpenId] = useState<string | null>(null);
   const [bounceDate, setBounceDate] = useState(() => localDateStr());
   const [bounceReason, setBounceReason] = useState<BounceReason>("nsf");
@@ -240,19 +245,40 @@ export default function PaymentsPage() {
   );
   const totalPaidAmt = useMemo(() => paidItems.reduce((s, p) => s + p.amount, 0), [paidItems]);
 
-  const togglePaid = async (payment: Payment) => {
-    const nowPaid = payment.status !== "paid";
-    const body = nowPaid
-      ? { status: "paid", paid_date: appNoonIso() }
-      : { status: "pending", paid_date: null };
+  const unmarkPaid = async (payment: Payment) => {
     const res = await fetch(`/api/payments/${payment.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ status: "pending", paid_date: null }),
     });
     if (res.ok) {
       invalidateAfterPaymentChange();
     }
+  };
+
+  // סימון-מחדש כשולם אחרי שק שחזר - תמיד "עכשיו", בלי בחירת תאריך (זרם נפרד מהטופס בכרטיס)
+  const markPaidNow = async (payment: Payment) => {
+    const res = await fetch(`/api/payments/${payment.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "paid", paid_date: appNoonIso() }),
+    });
+    if (res.ok) {
+      invalidateAfterPaymentChange();
+    }
+  };
+
+  const confirmPaid = async (payment: Payment) => {
+    const res = await fetch(`/api/payments/${payment.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "paid", paid_date: dateNoonIso(paidDate) }),
+    });
+    if (res.ok) {
+      invalidateAfterPaymentChange();
+    }
+    setPaidOpenId(null);
+    resetPaidForm();
   };
 
   const openPartial = (payment: Payment) => {
@@ -310,7 +336,7 @@ export default function PaymentsPage() {
     }
   };
 
-  const markVirtualPaid = async (slot: Payment) => {
+  const confirmVirtualPaid = async (slot: Payment) => {
     setCreatingPayment(slot.id);
     try {
       const res = await fetch("/api/payments", {
@@ -322,7 +348,7 @@ export default function PaymentsPage() {
           payment_type: "Rent",
           amount: slot.amount,
           due_date: slot.due_date,
-          paid_date: appNoonIso(),
+          paid_date: dateNoonIso(paidDate),
           status: "paid",
         }),
       });
@@ -331,6 +357,8 @@ export default function PaymentsPage() {
       }
     } finally {
       setCreatingPayment(null);
+      setPaidOpenId(null);
+      resetPaidForm();
     }
   };
 
@@ -341,6 +369,7 @@ export default function PaymentsPage() {
     const partialReasonText = parsePartialReason(p.notes);
     const remaining = partialPaid != null ? p.amount - partialPaid : null;
     const isPartialOpen = partialOpenId === p.id;
+    const isPaidOpen = paidOpenId === p.id;
     const isPaid = p.status === "paid";
     const isFuture = p.status === "future";
     // "שק חזר" רלוונטי רק לתקבול שכ"ד בחוזה שמשולם בשקים - לא לפיקדון/חשבון,
@@ -397,9 +426,9 @@ export default function PaymentsPage() {
               <div className="flex gap-1.5">
                 {isVirtual ? (
                   <>
-                    <button onClick={() => markVirtualPaid(p)} disabled={creatingPayment === p.id}
-                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50">
-                      {creatingPayment === p.id ? "..." : "שולם"}
+                    <button onClick={() => { setPaidOpenId(isPaidOpen ? null : p.id); setPaidDate(localDateStr()); }}
+                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
+                      שולם
                     </button>
                     <button onClick={() => { setPartialOpenId(isPartialOpen ? null : p.id); setPartialAmount(undefined); setPartialReason(""); }}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${isPartialOpen ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-gray-300 text-gray-600 hover:bg-blue-50"}`}>
@@ -408,7 +437,7 @@ export default function PaymentsPage() {
                   </>
                 ) : (
                   <>
-                    <button onClick={() => togglePaid(p)}
+                    <button onClick={() => { setPaidOpenId(isPaidOpen ? null : p.id); setPaidDate(localDateStr()); }}
                       className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
                       שולם
                     </button>
@@ -422,7 +451,7 @@ export default function PaymentsPage() {
             )}
             {isPaid && !isVirtual && (
               <>
-                <button onClick={() => togglePaid(p)}
+                <button onClick={() => unmarkPaid(p)}
                   className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-semibold hover:bg-red-100 hover:text-red-700">
                   בטל
                 </button>
@@ -468,6 +497,29 @@ export default function PaymentsPage() {
                 {savingPartial ? "שומר..." : "אישור"}
               </button>
               <button onClick={() => setPartialOpenId(null)}
+                className="px-3 py-1 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50">
+                ביטול
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Paid-date form - ברירת מחדל היום, ניתן לעריכה כשההפקדה בפועל הייתה בתאריך אחר */}
+        {isPaidOpen && (
+          <div className="mt-3 p-3 bg-emerald-50 rounded-xl border border-emerald-200 space-y-2">
+            <div>
+              <label className="block text-xs font-semibold text-emerald-700 mb-1">תאריך תשלום</label>
+              <input type="date" value={paidDate} onChange={(e) => setPaidDate(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => (isVirtual ? confirmVirtualPaid(p) : confirmPaid(p))}
+                disabled={isVirtual && creatingPayment === p.id}
+                className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50">
+                {isVirtual && creatingPayment === p.id ? "שומר..." : "אישור"}
+              </button>
+              <button onClick={() => { setPaidOpenId(null); resetPaidForm(); }}
                 className="px-3 py-1 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50">
                 ביטול
               </button>
@@ -594,7 +646,7 @@ export default function PaymentsPage() {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="font-bold text-sm text-rose-700">{formatCurrency(p.amount)}</span>
-                    <button onClick={() => togglePaid(p)}
+                    <button onClick={() => markPaidNow(p)}
                       className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
                       שולם מחדש
                     </button>

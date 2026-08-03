@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { localDateStr, localMonthKey, isoDateParts, isoMonthKey, diffDays, weekGroupLabel, appDateStr, appNoonIso } from "@/lib/domain/dates";
+import { localDateStr, localMonthKey, isoDateParts, isoMonthKey, diffDays, weekGroupLabel, appDateStr, appNoonIso, dateNoonIso, monthNameHe } from "@/lib/domain/dates";
 
 describe("localDateStr / localMonthKey", () => {
   it("בונים מחרוזת מרכיבי תאריך מקומיים (לא UTC)", () => {
@@ -90,5 +90,22 @@ describe("appNoonIso", () => {
 
   it("שומר על היום הנכון גם בגבול חודש", () => {
     expect(appNoonIso(new Date("2026-07-31T22:00:00Z"))).toBe("2026-08-01T12:00:00.000Z");
+  });
+});
+
+describe("dateNoonIso", () => {
+  it("בונה את אותה חותמת-צהריים-UTC כמו appNoonIso, מתאריך נתון ולא מ'עכשיו'", () => {
+    expect(dateNoonIso("2026-05-26")).toBe("2026-05-26T12:00:00.000Z");
+  });
+});
+
+describe("monthNameHe", () => {
+  it("מחזיר שם חודש בעברית מתוך תאריך ISO, בלי תלות בשנה", () => {
+    expect(monthNameHe("2026-05-26")).toBe("מאי");
+    expect(monthNameHe("2026-06-01")).toBe("יוני");
+  });
+
+  it("תומך גם ב-timestamptz מלא מה-DB", () => {
+    expect(monthNameHe("2026-06-08T00:00:00+00:00")).toBe("יוני");
   });
 });

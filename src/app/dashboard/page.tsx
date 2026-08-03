@@ -10,7 +10,7 @@ import { getDebtAmount, getReceivedAmount } from "@/lib/domain/partial-payment";
 import { monthCashflow, cashflowTrendPct } from "@/lib/domain/cashflow";
 import { buildAttentionItems } from "@/lib/domain/attention";
 import { readAndStampVisit, summarizeSince } from "@/lib/domain/last-visit";
-import { weekGroupLabel } from "@/lib/domain/dates";
+import { weekGroupLabel, monthNameHe } from "@/lib/domain/dates";
 import { apiGet, queryKeys } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/domain/money";
 import { greetingFor } from "@/lib/domain/greeting";
@@ -338,7 +338,9 @@ export default function Dashboard() {
               {group.map((p) => (
                 <div key={p.id} className="bg-white rounded-xl flex items-center justify-between px-4 py-3 mb-2">
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{p.payment_type === "Rent" ? "שכ\"ד" : p.payment_type} - {p.property?.title ?? "נכס"}</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {p.payment_type === "Rent" ? `שכ"ד ${monthNameHe(p.due_date)}` : p.payment_type} - {p.property?.title ?? "נכס"}
+                    </p>
                   </div>
                   <p className="text-sm font-bold text-emerald-700 num-ltr">{formatCurrency(getReceivedAmount(p))}</p>
                 </div>

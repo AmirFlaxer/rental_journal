@@ -30,7 +30,12 @@ export function appDateStr(now: Date = new Date()): string {
  * שורה בין חודשי דוח-המס. שעת-האמת של הפעולה נשמרת ממילא ב-created_at.
  */
 export function appNoonIso(now: Date = new Date()): string {
-  return `${appDateStr(now)}T12:00:00.000Z`;
+  return dateNoonIso(appDateStr(now));
+}
+
+/** אותה חותמת-צהריים-UTC כמו appNoonIso, אבל מתאריך נתון - לשימוש כשהמשתמש בוחר תאריך תשלום ולא "עכשיו" */
+export function dateNoonIso(dateStr: string): string {
+  return `${dateStr}T12:00:00.000Z`;
 }
 
 /** מחרוזת YYYY-MM מרכיבי תאריך מקומיים */
@@ -82,4 +87,15 @@ export function weekGroupLabel(dateStr: string, today: string): string {
   if (d >= weekStart) return "השבוע";
   if (d >= prevWeekStart) return "שבוע שעבר";
   return d.toLocaleDateString("he-IL", { month: "long", year: "numeric" });
+}
+
+const HEBREW_MONTHS = [
+  "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
+];
+
+/** שם חודש בעברית (בלי שנה) מתוך due_date - לתייג תשלום בפיד לפי חודש-החיוב שלו, לא לפי מתי שולם */
+export function monthNameHe(iso: string): string {
+  const { month } = isoDateParts(iso);
+  return HEBREW_MONTHS[month - 1];
 }
