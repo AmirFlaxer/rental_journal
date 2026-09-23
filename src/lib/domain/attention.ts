@@ -4,6 +4,7 @@ import { getDebtAmount } from "./partial-payment";
 import { formatCurrency } from "./money";
 import { hasOpenBounce, bounceChainForPayment, BOUNCE_REASON_LABELS, type CheckBounce } from "./check-bounce";
 import { isoDateParts } from "./dates";
+import { hasSuccessorLease } from "../lease-status";
 
 export interface AttentionPayment {
   id: string;
@@ -17,8 +18,10 @@ export interface AttentionPayment {
 
 export interface AttentionLease {
   id: string;
+  status?: string | null;
+  start_date: string;
   end_date: string;
-  properties?: { title?: string };
+  properties?: { id: string; title?: string };
 }
 
 export interface AttentionTask {
@@ -57,11 +60,13 @@ function daysBetween(from: string, to: string): number {
 export function buildAttentionItems(input: {
   payments: AttentionPayment[];
   activeLeases: AttentionLease[];
+  /** כל החוזים, כולל עתידיים - כדי לזהות חוזה-המשך שכבר הוזן */
+  allLeases: AttentionLease[];
   openTasks: AttentionTask[];
   bounces: CheckBounce[];
   today: string;
 }): AttentionItem[] {
-  const { payments, activeLeases, openTasks, bounces, today } = input;
+  const { payments, activeLeases, allLeases, openTasks, bounces, today } = input;
   const items: AttentionItem[] = [];
 
   const bouncedIds = new Set<string>();
@@ -108,6 +113,7 @@ export function buildAttentionItems(input: {
   for (const l of activeLeases) {
     const days = daysBetween(today, l.end_date);
     if (days < 0 || days > LEASE_HORIZON_DAYS) continue;
+    if (hasSuccessorLease(l, allLeases)) continue;
     items.push({
       id: `lease-${l.id}`,
       kind: "lease_ending",

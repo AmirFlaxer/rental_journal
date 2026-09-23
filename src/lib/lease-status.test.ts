@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { effectiveLeaseStatus, isLeaseCurrentlyActive, computeOccupancySummary } from "@/lib/lease-status";
+import { effectiveLeaseStatus, isLeaseCurrentlyActive, computeOccupancySummary, hasSuccessorLease } from "@/lib/lease-status";
 
 // כל הבדיקות מקפיאות את "היום" ל-15/1/2026 (12:00 בצהריים) כדי לקבל תוצאה דטרמיניסטית -
 // effectiveLeaseStatus קורא ל-new Date() פנימית בלי אפשרות להזריק תאריך.
@@ -136,5 +136,36 @@ describe("computeOccupancySummary", () => {
       vacant_since: null,
       next_lease_start: null,
     });
+  });
+});
+
+describe("hasSuccessorLease - חוזה-המשך באותו נכס", () => {
+  const current = { id: "cur", status: "active", start_date: "2024-10-08", end_date: "2026-10-07", properties: { id: "nordau" } };
+  const next = { id: "next", status: "active", start_date: "2026-10-08", end_date: "2028-10-07", properties: { id: "nordau" } };
+
+  it("חוזה עתידי באותו נכס שמתחיל אחרי ומסתיים אחרי - יש המשך", () => {
+    expect(hasSuccessorLease(current, [current, next])).toBe(true);
+  });
+
+  it("חוזה-המשך שמתחיל אחרי רווח - עדיין המשך", () => {
+    expect(hasSuccessorLease(current, [current, { ...next, start_date: "2026-12-01" }])).toBe(true);
+  });
+
+  it("חוזה עתידי בנכס אחר - אין המשך", () => {
+    expect(hasSuccessorLease(current, [current, { ...next, properties: { id: "other" } }])).toBe(false);
+  });
+
+  it("חוזה-המשך שבוטל (terminated) - אין המשך", () => {
+    expect(hasSuccessorLease(current, [current, { ...next, status: "terminated" }])).toBe(false);
+  });
+
+  it("החוזה עצמו וחוזה קודם באותו נכס - אין המשך", () => {
+    const prev = { id: "prev", status: "active", start_date: "2023-10-08", end_date: "2024-10-07", properties: { id: "nordau" } };
+    expect(hasSuccessorLease(current, [prev, current])).toBe(false);
+  });
+
+  it("חוזה בלי נכס מזוהה - אין המשך (לא מתאים לכל חוזה אחר בלי נכס)", () => {
+    const orphan = { ...current, properties: undefined };
+    expect(hasSuccessorLease(orphan, [orphan, { ...next, properties: undefined }])).toBe(false);
   });
 });

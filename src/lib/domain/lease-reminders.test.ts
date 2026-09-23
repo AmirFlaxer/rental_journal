@@ -20,6 +20,7 @@ afterEach(() => {
 function makeLease(overrides: Partial<LeaseLike> = {}): LeaseLike {
   return {
     id: "l1",
+    start_date: "2025-10-07",
     end_date: "2026-10-06", // daysToEnd=90 מ-8/7/2026
     status: "active",
     properties: { id: "p1", title: "רוטשילד 1" },
@@ -169,3 +170,18 @@ describe("generateVirtualLeaseRenewalTasks - סינון סטטוס ו-dedup", ()
     expect(tasks[0].due_date).toBe("2026-09-21");
   });
 });
+
+describe("generateVirtualLeaseRenewalTasks - חוזה-המשך", () => {
+  it("לא מיוצרת תזכורת כשכבר הוזן חוזה עתידי לאותו נכס", () => {
+    const next = makeLease({ id: "l2", start_date: "2026-10-07", end_date: "2027-10-06" });
+    const tasks = generateVirtualLeaseRenewalTasks([makeLease(), next], [], new Date());
+    expect(tasks).toHaveLength(0);
+  });
+
+  it("חוזה-המשך שבוטל לא מבטל את התזכורת", () => {
+    const next = makeLease({ id: "l2", start_date: "2026-10-07", end_date: "2027-10-06", status: "terminated" });
+    const tasks = generateVirtualLeaseRenewalTasks([makeLease(), next], [], new Date());
+    expect(tasks.map((t) => t.related_entity_id)).toEqual(["l1"]);
+  });
+});
+

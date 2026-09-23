@@ -141,7 +141,7 @@ export default function Dashboard() {
   const openTasks = useMemo(() => tasks.filter((t) => t.completed_at === null), [tasks]);
   const attention = useMemo(
     () => buildAttentionItems({
-      payments, activeLeases: leases.filter(isLeaseCurrentlyActive), openTasks, bounces, today,
+      payments, activeLeases: leases.filter(isLeaseCurrentlyActive), allLeases: leases, openTasks, bounces, today,
     }),
     [payments, leases, openTasks, bounces, today]
   );

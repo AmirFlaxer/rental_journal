@@ -7,7 +7,7 @@ describe("buildAttentionItems", () => {
   it("תקבול באיחור ראשון, אחריו משימה קרובה, ואז חוזה שמסתיים", () => {
     const items = buildAttentionItems({
       payments: [{ id: "p1", status: "pending", due_date: "2026-07-01", amount: 5500, property: { title: "נורדאו 58" } }],
-      activeLeases: [{ id: "l1", end_date: "2026-10-07", properties: { title: "שלומציון המלכה 5" } }],
+      allLeases: [], activeLeases: [{ id: "l1", start_date: "2020-01-01", end_date: "2026-10-07", properties: { id: "p", title: "שלומציון המלכה 5" } }],
       openTasks: [{ id: "t1", title: "הפקדת שק שכ\"ד", due_date: "2026-07-12" }],
       bounces: [],
       today: TODAY,
@@ -21,7 +21,7 @@ describe("buildAttentionItems", () => {
   it("מתעלם ממה שלא דורש טיפול: שולם, משימה רחוקה, חוזה שמסתיים בעוד יותר מ-90 יום", () => {
     const items = buildAttentionItems({
       payments: [{ id: "p1", status: "paid", due_date: "2026-07-01", amount: 5500 }],
-      activeLeases: [{ id: "l1", end_date: "2027-01-01", properties: { title: "x" } }],
+      allLeases: [], activeLeases: [{ id: "l1", start_date: "2020-01-01", end_date: "2027-01-01", properties: { id: "p", title: "x" } }],
       openTasks: [{ id: "t1", title: "רחוק", due_date: "2026-07-30" }],
       bounces: [],
       today: TODAY,
@@ -32,7 +32,7 @@ describe("buildAttentionItems", () => {
   it("משימה שמועדה היום מקבלת sub 'היום'; חוזה שמסתיים היום - 'מסתיים היום'", () => {
     const items = buildAttentionItems({
       payments: [],
-      activeLeases: [{ id: "l1", end_date: TODAY, properties: { title: "x" } }],
+      allLeases: [], activeLeases: [{ id: "l1", start_date: "2020-01-01", end_date: TODAY, properties: { id: "p", title: "x" } }],
       openTasks: [{ id: "t1", title: "לתקן דוד", due_date: TODAY }],
       bounces: [],
       today: TODAY,
@@ -43,7 +43,7 @@ describe("buildAttentionItems", () => {
 });
 
 describe("buildAttentionItems - גבולות אופק", () => {
-  const base = { payments: [], activeLeases: [], openTasks: [], bounces: [], today: TODAY };
+  const base = { payments: [], allLeases: [], activeLeases: [], openTasks: [], bounces: [], today: TODAY };
 
   it("משימה בדיוק באופק 7 ימים נכללת; יום 8 לא", () => {
     const at7 = buildAttentionItems({ ...base, openTasks: [{ id: "t1", title: "x", due_date: "2026-07-17" }] });
@@ -54,8 +54,8 @@ describe("buildAttentionItems - גבולות אופק", () => {
   });
 
   it("חוזה בדיוק באופק 90 ימים נכלל; יום 91 לא", () => {
-    const at90 = buildAttentionItems({ ...base, activeLeases: [{ id: "l1", end_date: "2026-10-08", properties: { title: "x" } }] });
-    const at91 = buildAttentionItems({ ...base, activeLeases: [{ id: "l2", end_date: "2026-10-09", properties: { title: "x" } }] });
+    const at90 = buildAttentionItems({ ...base, allLeases: [], activeLeases: [{ id: "l1", start_date: "2020-01-01", end_date: "2026-10-08", properties: { id: "p", title: "x" } }] });
+    const at91 = buildAttentionItems({ ...base, allLeases: [], activeLeases: [{ id: "l2", start_date: "2020-01-01", end_date: "2026-10-09", properties: { id: "p", title: "x" } }] });
     expect(at90).toHaveLength(1);
     expect(at90[0].sub).toBe("בעוד 90 ימים");
     expect(at91).toHaveLength(0);
@@ -66,7 +66,7 @@ describe("buildAttentionItems - גבולות אופק", () => {
       ...base,
       payments: [{ id: "p1", status: "pending", due_date: TODAY, amount: 100 }],
       openTasks: [{ id: "t1", title: "x", due_date: "2026-07-01" }],
-      activeLeases: [{ id: "l1", end_date: "2026-07-01", properties: { title: "x" } }],
+      allLeases: [], activeLeases: [{ id: "l1", start_date: "2020-01-01", end_date: "2026-07-01", properties: { id: "p", title: "x" } }],
     });
     expect(items).toHaveLength(0);
   });
@@ -74,7 +74,7 @@ describe("buildAttentionItems - גבולות אופק", () => {
   it("due_date בפורמט timestamptz מלא מה-DB מטופל נכון", () => {
     const items = buildAttentionItems({
       payments: [],
-      activeLeases: [],
+      allLeases: [], activeLeases: [],
       openTasks: [
         { id: "t1", title: "קרוב", due_date: "2026-07-12T00:00:00+00:00" },
         { id: "t2", title: "רחוק", due_date: "2026-08-20T00:00:00+00:00" },
@@ -99,7 +99,7 @@ describe("שקים שחזרו", () => {
         { id: "p-old", status: "pending", due_date: "2026-01-01", amount: 5000, property: { title: "ותיק" } },
         { id: "p-bounced", status: "pending", due_date: "2026-07-26", amount: 5500, property: { title: "שלומציון" } },
       ],
-      activeLeases: [],
+      allLeases: [], activeLeases: [],
       openTasks: [],
       bounces: [BOUNCE],
       today: "2026-07-27",
@@ -111,7 +111,7 @@ describe("שקים שחזרו", () => {
   it("לא מופיע אחרי שהשוכר שילם שוב", () => {
     const items = buildAttentionItems({
       payments: [{ id: "p-bounced", status: "paid", due_date: "2026-07-26", amount: 5500, property: { title: "שלומציון" } }],
-      activeLeases: [],
+      allLeases: [], activeLeases: [],
       openTasks: [],
       bounces: [BOUNCE],
       today: "2026-07-27",
@@ -119,3 +119,27 @@ describe("שקים שחזרו", () => {
     expect(items.some((i) => i.kind === "bounced")).toBe(false);
   });
 });
+
+describe("חוזה שמסתיים ויש לו חוזה-המשך", () => {
+  const ending = { id: "cur", status: "active", start_date: "2024-10-08", end_date: "2026-10-07", properties: { id: "nordau", title: "נורדאו 58" } };
+  const next = { id: "next", status: "active", start_date: "2026-10-08", end_date: "2028-10-07", properties: { id: "nordau", title: "נורדאו 58" } };
+
+  it("לא מופיע ב'דורש טיפול' כשכבר הוזן חוזה עתידי לאותו נכס", () => {
+    const items = buildAttentionItems({
+      payments: [], openTasks: [], bounces: [], today: "2026-09-23",
+      activeLeases: [ending],
+      allLeases: [ending, next],
+    });
+    expect(items).toEqual([]);
+  });
+
+  it("בלי חוזה-המשך - עדיין מופיע", () => {
+    const items = buildAttentionItems({
+      payments: [], openTasks: [], bounces: [], today: "2026-09-23",
+      activeLeases: [ending],
+      allLeases: [ending],
+    });
+    expect(items.map((i) => i.sub)).toEqual(["בעוד 14 ימים"]);
+  });
+});
+

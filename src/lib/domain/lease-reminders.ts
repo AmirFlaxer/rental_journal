@@ -4,10 +4,12 @@
 // (הארכת חוזה = end_date חדש = מחזור חדש, לא נחסם ע"י הישן).
 
 import { diffDays, localDateStr } from "./dates";
+import { hasSuccessorLease } from "../lease-status";
 import type { Task } from "@/types/database";
 
 export interface LeaseLike {
   id: string;
+  start_date: string;
   /** ISO - עשוי לכלול שעה */
   end_date: string;
   status?: string | null;
@@ -53,6 +55,7 @@ export function generateVirtualLeaseRenewalTasks(
     const endDateStr = lease.end_date.slice(0, 10);
     const daysToEnd = diffDays(endDateStr, todayIso);
     if (daysToEnd < 0 || daysToEnd > 90) continue;
+    if (hasSuccessorLease(lease, leases)) continue;
 
     const covered = dbTasks.some(
       (t) =>

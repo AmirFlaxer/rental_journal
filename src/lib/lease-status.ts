@@ -40,6 +40,28 @@ export function isLeaseCurrentlyActive(lease: LeaseForStatus): boolean {
   return effectiveLeaseStatus(lease) === "active";
 }
 
+interface LeaseForSuccessor {
+  id: string;
+  status?: string | null;
+  start_date: string;
+  end_date: string;
+  properties?: { id: string } | null;
+}
+
+/** יש לנכס חוזה אחר, שלא בוטל, שמתחיל אחרי החוזה הזה ומסתיים אחריו - כלומר סיומו כבר מטופל */
+export function hasSuccessorLease(lease: LeaseForSuccessor, leases: LeaseForSuccessor[]): boolean {
+  const propertyId = lease.properties?.id;
+  if (!propertyId) return false;
+  return leases.some(
+    (o) =>
+      o.id !== lease.id &&
+      o.properties?.id === propertyId &&
+      effectiveLeaseStatus({ status: o.status ?? "active", start_date: o.start_date, end_date: o.end_date }) !== "ended" &&
+      o.start_date.slice(0, 10) > lease.start_date.slice(0, 10) &&
+      o.end_date.slice(0, 10) > lease.end_date.slice(0, 10)
+  );
+}
+
 /** תקציר אכלוס של נכס אחד, מורכב מכל החוזים שלו - לצריכה ע"י utility-schedule.ts (PropertyOccupancy) */
 export interface OccupancySummary {
   occupied: boolean;
