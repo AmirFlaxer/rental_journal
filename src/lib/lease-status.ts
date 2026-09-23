@@ -62,6 +62,23 @@ export function hasSuccessorLease(lease: LeaseForSuccessor, leases: LeaseForSucc
   );
 }
 
+/**
+ * חוזים פעילים שחופפים לתקופת החוזה המיובא, ולכן ייסגרו בייבוא. אותו כלל-חפיפה (כולל
+ * גבולות) כמו החסימה ב-POST /api/leases - חוזה-המשך שמתחיל אחרי סוף הפעיל לא נוגע בו.
+ * תאריך חסר נחשב פתוח, כדי שהאזהרה בטופס תהיה שמרנית.
+ */
+export function activeLeasesToArchiveOnImport<T extends LeaseForStatus>(
+  leases: T[],
+  newStart: string,
+  newEnd: string
+): T[] {
+  const start = newStart ? newStart.slice(0, 10) : "0000-01-01";
+  const end = newEnd ? newEnd.slice(0, 10) : "9999-12-31";
+  return leases.filter(
+    (l) => isLeaseCurrentlyActive(l) && l.start_date.slice(0, 10) <= end && l.end_date.slice(0, 10) >= start
+  );
+}
+
 /** תקציר אכלוס של נכס אחד, מורכב מכל החוזים שלו - לצריכה ע"י utility-schedule.ts (PropertyOccupancy) */
 export interface OccupancySummary {
   occupied: boolean;

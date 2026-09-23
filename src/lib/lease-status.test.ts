@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { effectiveLeaseStatus, isLeaseCurrentlyActive, computeOccupancySummary, hasSuccessorLease } from "@/lib/lease-status";
+import { effectiveLeaseStatus, isLeaseCurrentlyActive, computeOccupancySummary, hasSuccessorLease, activeLeasesToArchiveOnImport } from "@/lib/lease-status";
 
 // כל הבדיקות מקפיאות את "היום" ל-15/1/2026 (12:00 בצהריים) כדי לקבל תוצאה דטרמיניסטית -
 // effectiveLeaseStatus קורא ל-new Date() פנימית בלי אפשרות להזריק תאריך.
@@ -169,3 +169,35 @@ describe("hasSuccessorLease - חוזה-המשך באותו נכס", () => {
     expect(hasSuccessorLease(orphan, [orphan, { ...next, properties: undefined }])).toBe(false);
   });
 });
+
+describe("activeLeasesToArchiveOnImport - אילו חוזים ייבוא יסגור", () => {
+  // "היום" = 23/9/2026. החוזה הנוכחי בתוקף עד 7.10.2026
+  const current = { id: "cur", status: "active", start_date: "2024-10-08", end_date: "2026-10-07" };
+
+  it("חוזה-המשך שמתחיל אחרי סוף החוזה הפעיל - לא סוגר אותו", () => {
+    vi.setSystemTime(new Date(2026, 8, 23, 12));
+    expect(activeLeasesToArchiveOnImport([current], "2026-10-08", "2028-10-07")).toEqual([]);
+  });
+
+  it("חוזה חדש שחופף לחוזה הפעיל - סוגר אותו (כמו קודם)", () => {
+    vi.setSystemTime(new Date(2026, 8, 23, 12));
+    expect(activeLeasesToArchiveOnImport([current], "2026-09-01", "2027-08-31").map((l) => l.id)).toEqual(["cur"]);
+  });
+
+  it("חוזה חדש שמתחיל ביום שבו הפעיל מסתיים - חופף, ולכן סוגר (השרת היה דוחה אותו אחרת)", () => {
+    vi.setSystemTime(new Date(2026, 8, 23, 12));
+    expect(activeLeasesToArchiveOnImport([current], "2026-10-07", "2027-10-06").map((l) => l.id)).toEqual(["cur"]);
+  });
+
+  it("חוזה שכבר לא פעיל אינו נסגר גם אם חופף", () => {
+    vi.setSystemTime(new Date(2026, 8, 23, 12));
+    const future = { id: "fut", status: "active", start_date: "2027-01-01", end_date: "2027-12-31" };
+    expect(activeLeasesToArchiveOnImport([future], "2027-06-01", "2028-05-31")).toEqual([]);
+  });
+
+  it("בלי תאריכים בטופס - מניח חפיפה ומחזיר את הפעיל (אזהרה שמרנית)", () => {
+    vi.setSystemTime(new Date(2026, 8, 23, 12));
+    expect(activeLeasesToArchiveOnImport([current], "", "").map((l) => l.id)).toEqual(["cur"]);
+  });
+});
+

@@ -7,7 +7,7 @@ import { NumberInput } from "@/components/number-input";
 import { PhoneInput } from "@/components/phone-input";
 import { formatPhone } from "@/lib/phone";
 import type { Property, Lease } from "@/types/database";
-import { isLeaseCurrentlyActive } from "@/lib/lease-status";
+import { activeLeasesToArchiveOnImport } from "@/lib/lease-status";
 import { Icon } from "@/components/Icon";
 import type { IconName } from "@/lib/icons";
 
@@ -349,10 +349,10 @@ export default function ImportLeasePage() {
         propertyId = prop.id;
       }
 
-      // 1b. Archive any active lease on this property (fresh fetch - not cached data)
+      // 1b. Archive active leases that overlap the imported one (fresh fetch - not cached data)
       const freshProp = await fetch(`/api/properties/${propertyId}`).then((r) => r.ok ? r.json() : null);
       const existingLeases = (freshProp?.leases || []) as Lease[];
-      const activeLeases = existingLeases.filter(isLeaseCurrentlyActive);
+      const activeLeases = activeLeasesToArchiveOnImport(existingLeases, data.startDate, data.endDate);
       await Promise.all(activeLeases.map((l) =>
         fetch(`/api/leases/${l.id}`, {
           method: "PUT",
@@ -693,7 +693,7 @@ export default function ImportLeasePage() {
                       צור נכס חדש
                     </button>
                   </div>
-                  {propertyAction === "use-existing" && (matchedProperty.leases || []).some((l) => isLeaseCurrentlyActive(l)) && (
+                  {propertyAction === "use-existing" && activeLeasesToArchiveOnImport(matchedProperty.leases || [], data.startDate, data.endDate).length > 0 && (
                     <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
                       <Icon name="unpaid" size={16} className="inline text-amber-700" /> לנכס זה יש חוזה פעיל - הוא יועבר לארכיון ולא יימחק
                     </p>
