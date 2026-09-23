@@ -85,7 +85,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 # Ollama - אופציונלי, מקומי ללא עלות (https://ollama.com)
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.2
+OLLAMA_MODEL=qwen3.8:27b
 
 # Geoapify - השלמה אוטומטית לכתובות (אופציונלי, 3,000 בקשות/יום בחינם)
 NEXT_PUBLIC_GEOAPIFY_KEY=...

@@ -78,7 +78,7 @@ async function callAnthropic(prompt: string): Promise<string> {
 
 async function callOllama(prompt: string): Promise<string> {
   const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
-  const model = process.env.OLLAMA_MODEL || "qwen2.5:7b";
+  const model = process.env.OLLAMA_MODEL || "qwen3.8:27b";
   const res = await fetch(`${baseUrl}/v1/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -89,6 +89,8 @@ async function callOllama(prompt: string): Promise<string> {
         { role: "user", content: prompt },
       ],
       temperature: 0,
+      // בנקודת-קצה התואמת-OpenAI של Ollama הפרמטר think:false נבלע בשקט; רק זה מכבה חשיבה
+      reasoning_effort: "none",
       stream: false,
     }),
   });
