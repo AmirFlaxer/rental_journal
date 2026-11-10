@@ -2,6 +2,31 @@
 
 > מצב נוכחי, החלטות, והצעד הבא. מתעדכן בכל session.
 
+## 🚚 בתכנון: מעבר מ-Vercel ל-Cloudflare Workers (מסלול 5$) (הכרעת-אמיר 10/11/2026)
+**למה:** זמינות rental_journal היא עדיפות-עליונה, אבל הוא חולק חשבון Vercel Hobby עם public_info, וכשמכסה
+אחת נגמרת **כל** החשבון מושבת (ISR Writes עמד על 179K/200K ב-9/11). חשבון Vercel נפרד נחסם בהרשמה
+(ערעור פתוח). פירוט ב-public_info `docs/DECISIONS.md` D200.
+**בדיקת-היתכנות (10/11, עותק מקומי, בלי פריסה):** `@opennextjs/cloudflare@1.20.16` + `wrangler@4.159.0`.
+- דורש Next **16.4.5 ומעלה** (16.2.1 לא נתמך ב-peer), ו-`esbuild` כ-devDependency.
+- בנייה עברה. גודל gzip **3,687 KiB**: חורג מתקרת החינמי (3 MiB), אבל נכנס במסלול בתשלום (10 MiB). הגורם הוא
+  `pdf-parse`, שאורז ארבע גרסאות של pdf.js.
+- preview מקומי: `/` 200, `/auth/signin` 200, `/dashboard` 307 ל-signin (ה-proxy עובד).
+- אזהרה: `src/proxy.ts` רץ כ-Node-middleware, שהוא **ניסיוני** ב-Cloudflare.
+- Cron Triggers קוראים ל-handler `scheduled` ולא לנתיב HTTP, ולכן נדרש Worker עוטף שקורא ל-`/api/cron/notify` ול-`/api/index-rates/refresh`.
+- לא נבדקו בריצה: `pdf-parse`, `mammoth`, `web-push`.
+- למה לא החינמי: מעבר לגודל, יש תקרה של 10ms מעבד לבקשה.
+**מה ישתנה למשתמש:** הכתובת משתנה. אפליקציה מותקנת (PWA) והרשמות push יצטרכו התקנה והרשמה מחדש, וב-Supabase
+Auth צריך לעדכן Site URL ו-Redirect URLs.
+**סדר-עבודה מתוכנן:**
+1. ענף.
+2. שדרוג Next, תצורת wrangler, Worker עוטף לקרונים.
+3. אמיר: מנוי Workers Paid + `wrangler login`.
+4. secrets.
+5. פריסה במקביל ל-Vercel.
+6. אימות מלא.
+7. מעבר כתובת.
+8. רק אז כיבוי ב-Vercel.
+
 ## תיקון: חוזה שיש לו חוזה-המשך לא מופיע כ"מסתיים" (2026-09-23)
 
 - **הבאג:** אמיר הזין חוזה עתידי לנורדאו 58 (מתחיל 8.10.2026), ו"דורש טיפול" המשיך להציג
